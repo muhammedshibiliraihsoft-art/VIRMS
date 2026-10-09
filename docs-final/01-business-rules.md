@@ -7,7 +7,7 @@ Status: LOCKED — BUSINESS SOURCE OF TRUTH
 
 ## Authority
 
-This document defines business behavior. Document 02 governs permissions, 04 governs persistent data truth, and 05 governs financial state transitions. The latest explicitly locked user decisions incorporated here supersede older wording in /docs. A change to these rules requires an explicit business decision.
+This document defines business behavior. Document 02 governs permissions, 04 governs persistent data truth, and 05 governs financial state transitions. The latest explicitly locked user decisions incorporated here supersede older wording in /docs-legacy. A change to these rules requires an explicit business decision.
 
 ## Business and identity
 

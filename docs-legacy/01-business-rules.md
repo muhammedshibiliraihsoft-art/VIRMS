@@ -1,3 +1,10 @@
+> ⚠️ LEGACY — NON-AUTHORITATIVE — DO NOT IMPLEMENT
+
+> This document is retained only for historical reference.
+> `/docs-final/` is the sole VIRMS implementation source of truth.
+> Any older `LOCKED`, `FINAL`, or `AUTHORITATIVE` wording below is historical
+> and is superseded by the current `/docs-final/` documentation.
+
 01 — BUSINESS RULES
 Vehicle Investment, Modification & Resale Management System
 Version: Final v0.4

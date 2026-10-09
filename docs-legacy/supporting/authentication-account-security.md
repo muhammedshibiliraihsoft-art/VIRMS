@@ -1,3 +1,10 @@
+> ⚠️ LEGACY — NON-AUTHORITATIVE — DO NOT IMPLEMENT
+
+> This document is retained only for historical reference.
+> `/docs-final/` is the sole VIRMS implementation source of truth.
+> Any older `LOCKED`, `FINAL`, or `AUTHORITATIVE` wording below is historical
+> and is superseded by the current `/docs-final/` documentation.
+
 AUTHENTICATION, PASSWORD & ACCOUNT RECOVERY STANDARDS
 AUTH-001 — System-Managed Authentication
 Status: LOCKED DEFAULT

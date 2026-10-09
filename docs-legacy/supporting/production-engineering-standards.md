@@ -1,3 +1,10 @@
+> ⚠️ LEGACY — NON-AUTHORITATIVE — DO NOT IMPLEMENT
+
+> This document is retained only for historical reference.
+> `/docs-final/` is the sole VIRMS implementation source of truth.
+> Any older `LOCKED`, `FINAL`, or `AUTHORITATIVE` wording below is historical
+> and is superseded by the current `/docs-final/` documentation.
+
 PRODUCTION ENGINEERING, PERFORMANCE, RELIABILITY & SAFETY STANDARDS
 Reusable Standard for Production Software
 Version: 1.0 FINAL
