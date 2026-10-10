@@ -24,7 +24,11 @@ Do not trust filename extension, browser MIME, supplied storage path, or client-
 - Preserve the original for archival and variant regeneration; do not load it in ordinary cards, lists, grids or previews. Full-screen viewing uses the best device-appropriate optimized variant, not automatically the raw original.
 - Respect camera orientation; remove unnecessary/private metadata such as public GPS location. Keep visual clarity while automatically resizing/compressing practical delivery variants. Modern optimized formats may be used with suitable fallback.
 - Store binaries in file/object storage; relational records retain UUIDs, Vehicle/Tenant context, variant references, dimensions/aspect ratio, format, size, order, primary flag, processing status, uploader and time.
-- Storage provider may change without changing Vehicle/Image identity. Never expose storage credentials, private paths or protected original URLs through public APIs.
+- Cloudflare R2 is the current canonical object/file storage provider for Vehicle images, publication/media assets and applicable generated variants or other in-scope files. Use it through a provider-neutral S3-compatible object-storage adapter; the adapter contract remains portable and R2 is not a domain dependency. Do not use the application server filesystem as permanent authoritative storage for production uploads.
+- Supply the R2 endpoint, bucket, access key, secret key, applicable public/custom media URL and any required region/signature-compatible settings through secure environment configuration. Never hard-code R2 account IDs, bucket names, endpoints, public URLs or credentials in application/domain code, repository files or Docker images.
+- Apply least-privilege storage access. Backend/storage-layer controls authorize uploads and access; do not expose permanent or administrative R2 credentials to frontend/browser clients. Public assets may be publicly delivered only when VIRMS publication rules permit it; R2 does not make private/internal files public.
+- R2 is independent of the application hosting provider: Render free tier is staging application hosting, while production application hosting remains unselected. Replacing R2 with another compatible object-storage provider must not change Vehicle/Image identity or require rewriting VIRMS business/domain code. Provider-specific operations stay behind the adapter.
+- Never expose storage credentials, private paths or protected original URLs through public APIs.
 
 ## Display and delivery
 
