@@ -22,14 +22,14 @@ Every persistent business/system record uses an immutable backend-generated UUID
 | Buyer and Stock Vehicle Sale | Buyer identity within Company; Sale linked to one Stock Vehicle and current agreed price; Buyer phone is required but not unique identity |
 | Buyer Payment / refund | Individual actual receipt and separately confirmed actual refund, each linked to Sale and correction history |
 | Company Ledger / receipt / payment | Company financial source and linked classifications, with Branch attribution where relevant; source business events are not counted as another independent amount |
-| Running Capital contribution/recovery | Actual Company-funded amount linked to one Stock Vehicle, source, Branch context, time and subsequent confirmed recovery; never Investor principal or Profit |
-| Investor positive-share agreement / snapshot | Investor-specific effective percentage and completed positive-result snapshot, with Company Share derived as applicable remainder |
+| Running Capital contribution/recovery | Exact actual Company-funded amount linked to one Stock Vehicle, source, Branch context, time and subsequent separately confirmed capital recovery; never Investor principal, Profit or Company Income |
+| Investor positive-share agreement / snapshot | Investor-specific protected effective percentage configured by Platform Back Office and completed positive-result snapshot, with Company Share derived as applicable remainder; current business standard may be configured as 33% without forcing every Company |
 | Monthly Business Cycle / Interim Payout | Investor-specific cycle day, effective rate and eligible-principal basis; suggestion and confirmed actual payment are distinct |
 | Investor reconciliation / recoverable | Configured six-month/annual period; earned Profit, confirmed earlier payments and one current payable/recoverable position with partial settlement history |
 | Company result / Owner Distribution | Company period result, confirmed distributable amount, effective recipient split, proposed allocations and separately confirmed actual payments |
 | Investor Exit / Settlement | Company-level lifecycle and financial closure spanning the Investor's Stock Vehicles in that Company |
 | Media Asset / publication | Vehicle-linked with Company and current/relevant Branch context; publication separate from core lifecycle |
-| Configuration / module state / audit / correction | Effective Company or Platform scope, version, actor, time, reason and linked original/current position |
+| Configuration / module state / audit / correction | Effective Company or Platform scope, version, actor, time, reason and linked original/current position; protected Investor/Owner percentages and business rates are changed only through authorized Platform Back Office actions |
 
 An Investor, Fund, Stock Vehicle, Buyer, Job or Ledger record of one Company must never become another Company's record merely because a Platform user can see both. Whether one human Investor or Owner may have separate Company relationships does not authorize a cross-Company financial balance.
 
@@ -39,10 +39,10 @@ An Investor, Fund, Stock Vehicle, Buyer, Job or Ledger record of one Company mus
 |---|---|
 | Investor supplied principal | Confirmed initial/additional funding and linked corrections in the Company-scoped Investor Fund history |
 | Investor Available/committed principal | Valid Fund use/recovery/settlement events and current reservations or unresolved positions; derived, never manually overwritten |
-| Company Running Capital | Actual Company contribution and actual recovery events linked per Stock Vehicle, separate from Investor Fund |
+| Company Running Capital | Actual Company contribution and separately confirmed capital recovery events linked per Stock Vehicle, separate from Investor Fund, Profit, Company Income and Company Share |
 | Stock Vehicle cost | Purchase cost plus valid approved Vehicle and Garage Job Expenses, counted once regardless of module view or source of funding |
 | Sale price and Buyer receivable | Authoritative agreed Sale and individually confirmed Buyer payments/refunds, including linked Sale corrections and open refund payable |
-| Positive Investor and Company Share | Agreed positive-result calculation under the applicable effective Investor percentage and completed snapshot; confirmed adjustments remain separate |
+| Positive Investor and Company Share | After full Buyer collection, reconciled Investor principal and exact Company Running Capital contribution/recovery are capital positions; the remaining actual positive economic result is allocated under the effective Investor percentage and completed snapshot, with confirmed adjustments separate and no capital recovery counted again as Profit |
 | Interim Paid | Only actual confirmed Monthly Interim Payout transactions, not reminders or suggestions |
 | Investor recoverable | Confirmed interim overpayment relative to reconciled earned entitlement, less actual direct repayment and separately confirmed future-Profit adjustments; no duplicate or negative open position |
 | Garage revenue | Actual external-customer Job charge/receipt and relevant receivable records, reconciled with Accounting without double entry of economic revenue |
@@ -57,7 +57,7 @@ The Vehicle remains one Company identity through all Branch moves. Its current B
 
 ## Investor, Company and Owner relationships
 
-One funded Stock Vehicle has one Investor. External customer Garage Vehicles have no required Investor relationship. Investor-specific positive percentages and monthly rates have effective history; a completed positive Vehicle allocation retains its applicable configuration snapshot. Company Share is a Company financial source, not an Owner receivable. Owner allocations use a separate Company-level distribution configuration and period snapshot. Historical percentage and actual payment events survive later configuration changes.
+One funded Stock Vehicle has one Investor. External customer Garage Vehicles have no required Investor relationship. Investor-specific positive percentages and protected monthly rates have effective history administered by Platform Back Office; Accountant uses their approved effective values without independently changing protected configuration. A completed positive Vehicle allocation retains its applicable configuration snapshot. Company Share is a Company financial source, not an Owner receivable. Owner allocations use a separate Platform Back Office-managed Company-level distribution configuration and period snapshot. Historical percentage and actual payment events survive later configuration changes. Configuration confirmation and actual Company financial posting are distinct actions with distinct permissions.
 
 ## Corrections, retention and integrity
 
@@ -66,5 +66,4 @@ Do not hard-delete a Sold Vehicle, finalized Sale, confirmed payment, financial 
 ## Unresolved financial definitions
 
 - **BUSINESS DECISION REQUIRED:** Specify the exact eligible-principal basis for a Monthly Interim Payout and how an authorized partial principal withdrawal can occur without using locked/unrecovered capital.
-- **BUSINESS DECISION REQUIRED:** Specify Buyer collection allocation and final settlement priority among Investor-funded principal, actual Company Running Capital and positive Profit when both funding sources exist; a provisional suggestion must not become an unauthorized posted allocation.
 - **BUSINESS DECISION REQUIRED:** Specify manual Loss impact on Investor principal claim and Company money, and the precise Company distributable-Profit basis. Until then, no automatic formula may invent these positions.

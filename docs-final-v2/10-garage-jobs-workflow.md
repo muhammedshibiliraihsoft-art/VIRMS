@@ -26,6 +26,8 @@ Every Job, work entry and Expense retains its Company, creating Branch, Vehicle 
 
 Amounts, customer balance and Job status may be calculated or suggested; actual Company receipt/payment and sensitive correction require human confirmation. A confirmed financial Job event is never silently deleted or rewritten. Corrections preserve original record, old/new values, reason, actor and timezone-aware time and reconcile with Accounting rather than posting a second revenue or Expense.
 
+Under 01's automation levels, backend-calculated approved Job totals and customer outstanding balances are Level 1. Editable expected work/charge suggestions where allowed are Level 2. Pending/ready Job status and unpaid customer charge are Level 3 reminders/statuses, never receipts. Actual customer receipt, Expense payment and consequential correction are Level 4 authorized human-confirmed events. Unusual Job/funding corrections are Level 5 manual exceptional handling with reason and audit; any resulting financial event still requires its own authorized confirmation. Garage automation does not grant Investment access, post Investor Fund money or settle a Stock Vehicle automatically.
+
 ## Materials, media and current exclusions
 
 Initial parts/materials may be recorded as approved Vehicle or Job costs. Full stock-level Parts Inventory, barcodes, tyre-retail schemes, manufacturing and generic ERP processes are not required. The design may later integrate an approved Inventory module without changing the ownership of existing Job and financial history. Current approved Vehicle media/publication rules in 08 are not automatically expanded into a public gallery of external customer work; private customer records remain protected.

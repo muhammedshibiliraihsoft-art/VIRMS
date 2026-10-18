@@ -4,6 +4,8 @@ Status: DRAFT V2 — supporting authentication source after approval
 
 Permissions, Company/Branch membership, enabled-module state and object scope belong to 02. Current security uses normal authentication, backend authorization, role restrictions and audit. No separate secondary/protected business password exists.
 
+Protected financial configuration uses Platform Back Office identity plus specific backend protected-action permission, effective/versioned changes and audit, including Investor positive-share agreements, Owner distribution percentages, sensitive Company defaults and protected business rates. Accountant operational transaction permission does not grant configuration mutation; Owner access is read-only. Platform configuration permission does not grant ordinary Tenant financial posting. A confirmed configuration change and a confirmed money event are separately authorized consequential actions.
+
 ## Login and credentials
 
 - Default login is a system-managed Username/Login ID and Password. Social login, mandatory email verification, public email/OTP recovery, MFA, passkeys and SSO are not current requirements; future adoption must not break identity/history.
