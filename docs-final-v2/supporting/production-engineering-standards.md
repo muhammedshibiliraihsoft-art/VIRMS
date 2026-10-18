@@ -1,0 +1,40 @@
+# Production Engineering, Performance, Reliability & Safety Standards
+
+Status: DRAFT V2 — supporting implementation quality source after approval
+
+These standards do not independently create business permissions or money rules. Follow 01–10 for business, access, module and media authority.
+
+## Canonical stack and delivery
+
+Follow 06: React 19/Vite/TypeScript/Tailwind CSS v4/React Router/TanStack Query; Python/Django/DRF; PostgreSQL; Cloudflare R2 through the S3-compatible adapter; provider-neutral modular monolith. Use supported stable/LTS versions and exact reproducible backend/frontend/runtime pins. Render free tier is staging application hosting; production host remains unselected. Docker is optional packaging and GitHub Actions the preferred CI/CD platform under branch governance. Do not add microservices, Redis/Celery, Kubernetes or multiple databases without an actual justified workload.
+
+## Quality and verification cadence
+
+- Correctness includes Company isolation, Branch/resource scope, module OFF/ON, authorization, financial integrity, history, failure safety, mobile usability, performance, observability and regression safety.
+- Task-level: run focused checks and relevant tests for changed behavior. Batch-level: integrate and regress related work. Phase/release-level: broad relevant audit of business rules, finance, Company/Branch isolation, security, concurrency, failures, audit, performance, observability and recovery. Do not substitute a passing but undiscovered test or weaken a test to pass.
+- Critical cases include exactly one Investor per funded Stock Vehicle, external customer Vehicle without Investor, Vehicle movement without duplication, valid Branch history, Investor/Running-Capital separation, actual Buyer payment/refund, positive Investor/Company Share, manual Loss confirmation without auto-allocation, monthly date fallback and next-cycle changes, only actual interim Paid, six-month/annual reconciliation, partial recoverable adjustment, Company-level Owner allocation, module OFF with open obligations, permission denials, public/media privacy and simultaneous financial requests.
+- Verify independent audit findings against actual repository/runtime evidence before treating them as defects. Completion reports state changed files, verified behavior and material limits.
+
+## Mobile, UI and media performance
+
+Design for lower-end phones, narrow viewports, slow CPU and weak/interrupted networks. Important UI releases should be checked near 360px width, slow/3G-like networking, cold cache, keyboard open and an interrupted request, including actual Android/iPhone browser checks where relevant. Keep shell stable; avoid blank screens, excessive JavaScript, unbounded tables and lost form input. Use appropriate code loading, accessible focus, semantic controls, safe areas, correct input modes, touch-safe controls and restrained motion. A performance change cannot remove required behavior, reduce financial precision, blur media unacceptably or weaken Company isolation.
+
+Preserve secure originals and deliver right-sized optimized variants. Do not load raw originals in ordinary cards or make whole pages wait for images. Reserve aspect ratio, lazy-load below-fold media, prefetch conservatively and paginate large lists. Image failure is local with placeholder/retry. Follow 08 for current four-active-image limit, upload validation and public delivery.
+
+## Network, APIs and financial writes
+
+Use bounded timeouts with actionable feedback. Retry only safe operations or commands protected by idempotency; use bounded backoff/jitter rather than uncontrolled storms. Critical writes resist double-clicks, network uncertainty, proxy retries, lost updates and concurrent overposting. Existing new Buyer Payments cannot exceed current Remaining Receivable; actual Buyer refunds cannot exceed open correction-created payable; ordinary eligible Profit Payments cannot exceed outstanding eligible entitlement; actual recoveries, Running Capital returns, interim payments, Owner distribution and settlements must validate their own current approved positions. All actual posted amounts are positive and linked to their source. Reject corrupt/excess writes without silently clamping, cross-category reclassification or balancing entries.
+
+Use fixed-precision decimal authority, INR two-decimal `ROUND_HALF_UP`, high-precision intermediates and deterministic balanced-paise reconciliation for approved Company-level positive Owner Distribution. Binary floating point is not financial authority. Do not run the former automatic Loss allocation for new V2 activity. Keep Investor Fund, Company Running Capital, Interim Payout, earned Profit, Company Share, Company result and Owner Distribution distinct and reconcilable. Source transactions cannot become duplicate revenue/Expense when another module views them. A due reminder or editable suggestion is not an actual payment.
+
+APIs have safe consistent errors, Company/Branch/module/object authorization, pagination/filter/sort, version evolution and public rate limiting where appropriate. Public and internal schemas are separate. Avoid N+1, redundant requests, unbounded scans and broad payloads. Measure latency, query count, render cost and image transfer; choose indexes/caches from evidence and keep financial projections reconciled. Set measurable project-specific performance budgets when implementation context exists rather than inventing arbitrary thresholds now. Background jobs, if needed, are Company/Branch-aware, bounded, observable, retry-safe and resumable for long work.
+
+## Security, availability and operations
+
+Apply server-side validation, authentication, Company/Branch/object checks, injection/XSS/CSRF/SSRF defenses where applicable, secure secrets, upload content/signature/size/dimension checks and appropriate rate limiting. Health/liveness and readiness signals distinguish process existence from ability to serve required work. Readiness detects unavailable critical dependencies or startup/migration problems and does not falsely report ready; responses disclose no secrets or business data.
+
+Identify target environment before migration, destructive correction or infrastructure change. Staging uses isolated data and validates realistic auth, Company isolation, Branch movement, module OFF/ON, migrations, storage, jobs, public API and responsive UI. Database changes protect existing data and use staged/batched/resumable backfills when warranted. Production has backups, a tested restore path and practical rollback/forward-fix. Structured logs use request/correlation ID, safe User reference, Company/Branch context and failure type; never include password, token or secret. Monitor slow APIs/queries, jobs, image failures and repeated errors. Infrastructure-as-code and circuit breakers are conditional tools, not mandatory for every feature.
+
+## Automatic red flags
+
+Silent catch, endless retry/spinner, false success, lost form input, full dataset fetch for simple filtering, full-resolution thumbnails, financial write without duplicate protection, cross-Company leakage, Branch-scope bypass, module OFF bypass, suggestion/reminder marked Paid, duplicate Company revenue or Investor recovery, automatic new-V2 Loss settlement, destructive migration without recovery, and deferring all relevant tests are release-blocking until resolved.
