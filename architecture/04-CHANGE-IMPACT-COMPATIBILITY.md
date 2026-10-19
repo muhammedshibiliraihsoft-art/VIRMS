@@ -5,7 +5,7 @@
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`; inspected backend and architecture files are untracked.
 - **CURRENT APPROVED/TARGET:** V2 business architecture in `/docs-final-v2/`, selected by explicit current user direction and V2/01's historical-baseline statement. V2's marked open decisions are not supplied by this map.
 - **CURRENT IMPLEMENTED:** source-inspected account/Tenant foundation only. **HISTORICAL / SUPERSEDED:** V1 `/docs-final/`, `/docs-legacy/` and V1-derived design assumptions. **PROPOSED:** no extra business behavior or compatibility mechanism is chosen here.
-- **UNVERIFIED:** tests, live database/migrations, API, frontend, staging/production and prior released data. **BUSINESS DECISION REQUIRED:** specific V2 financial/access meanings below. Repo governance files still point to V1; [03](03-ARCHITECTURE-CONFLICT-MAP.md) records that documentation conflict.
+- **UNVERIFIED:** tests, live database/migrations, API, frontend, staging/production and prior released data. **BUSINESS DECISION REQUIRED:** specific V2 financial/access meanings below. Governance files now use the V2 authority model; System Design bodies remain historicalized and unreconciled. See [03](03-ARCHITECTURE-CONFLICT-MAP.md).
 
 ## 1. Purpose and state classification
 
@@ -62,7 +62,7 @@ No Investor, Stock Vehicle, Garage Job, Company Accounting, finance, React, publ
 
 **HISTORICAL / SUPERSEDED V1:** Garage=Tenant; global cross-Garage Fund; Accountant Investor-specific rate changes; Owner Profit allocated directly per Vehicle deal; Loss allocated through Profit percentages and Owner contribution. **CURRENT APPROVED/TARGET V2:** Company=Tenant with Branches, Company-scoped Fund, Platform Back Office protected rates, exact Company Running Capital, Company Accounting, Company-level periodic Owner Distribution and manual Loss. External customer Garage work can exist without Investment. These are different ownership, permission and economic contracts, not a safe terminology swap.
 
-`AGENTS.md`, README, `/system-design/` and old `/architecture/` still nominate V1. The latest explicit user direction plus V2/01 determines the target for these maps; stale governance/design text remains `CONFLICT-001/003` and was not modified. V2 document headers still say draft/approval required, so these maps **do not claim formal final lock** or fill its BDRs. Actual V1 deployment/data/cutover need is **UNVERIFIED**. The draft statement that no production V1 transaction cutover is needed must be checked against real history before migration decisions. No dual engine, backfill, adapter or rollback method is specified here.
+`AGENTS.md`, README and older governance/roadmap documents now distinguish V2 target from current implementation and historical V1. The System Design set is explicitly historicalized, but its body has not been V2-reconciled; do not rely on it without section-level review. `CONFLICT-001` is resolved as a documentation-authority conflict; `CONFLICT-003` continues to track historical business/design differences and compatibility risk. V2 document headers still say draft/approval required, so these maps **do not claim formal final lock** or fill its BDRs. Actual V1 deployment/data/cutover need is **UNVERIFIED**. The draft statement that no production V1 transaction cutover is needed must be checked against real history before migration decisions. No dual engine, backfill, adapter or rollback method is specified here.
 
 ## 6. Frontend↔backend, schema and history compatibility
 
@@ -87,7 +87,7 @@ Future high-risk work follows current target and current implementation → prev
 
 ## 8. Remaining conflicts, decisions and verification
 
-- `CHANGE-RISK-001` **A:** stale V1 governance and V1-derived System Design can reintroduce wrong V2 ownership/finance rules (`CONFLICT-001/003`). Reconcile those documents under separate authorization before relying on them for an implementation phase.
+- `CHANGE-RISK-001` **A:** unreconciled V1-derived System Design body content can reintroduce wrong V2 ownership/finance rules (`CONFLICT-003`). It is historicalized; require section-level V2 and implementation review before relying on it for a phase.
 - `CHANGE-RISK-002` **A:** Branch/module scope is absent from current Tenant/account code (`CONFLICT-002`); building financial routes on Tenant-only checks would be unsafe.
 - `CHANGE-RISK-003` **A for affected actions:** monthly eligible-principal and withdrawal, period/deal reconciliation, manual Loss impact/actor, Company distributable amount/period close, cross-Branch correction, Platform support private read and module-OFF minimum settlement actions are **BUSINESS DECISION REQUIRED** (`CONFLICT-004`).
 - `CHANGE-RISK-004` **B:** source untracked and runtime/data history **UNVERIFIED** (`CONFLICT-005`); do not assume empty production or an existing V1 cutover.

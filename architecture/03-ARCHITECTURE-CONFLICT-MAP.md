@@ -5,7 +5,7 @@
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`. Backend and architecture files inspected locally are untracked.
 - **CURRENT APPROVED/TARGET:** the intended V2 architecture in `/docs-final-v2/`, per explicit current user direction and `docs-final-v2/01`'s statement that `/docs-final/` is a previous baseline. This does **not** fill V2's open business decisions or claim formal final-lock status.
 - **CURRENT IMPLEMENTED:** source-inspected account/Tenant Django foundation only. **HISTORICAL / SUPERSEDED:** V1 `/docs-final/`, `/docs-legacy/` and V1-derived technical assumptions. **PROPOSED:** no alternative business architecture is added here.
-- **UNVERIFIED:** tests, database/migration ledger, deployed API, production history. **BUSINESS DECISION REQUIRED:** V2's explicitly open money/access meanings. Repo governance text still naming V1 is an active documentation conflict, not a reason to silently reinstall V1 as target.
+- **UNVERIFIED:** tests, database/migration ledger, deployed API, production history. **BUSINESS DECISION REQUIRED:** V2's explicitly open money/access meanings. Governance documents now state the V2 authority model; unreconciled V1-derived System Design remains historical, not a V2 contract.
 
 ## 1. Three-truth comparison
 
@@ -14,7 +14,7 @@ flowchart LR
   V2[V2: current intended target] --> G{Compare}
   CODE[Django: current partial implementation] --> G
   V1[V1 + legacy: historical / superseded] --> G
-  GOV[README / AGENTS / design: stale V1 references] --> G
+  GOV[Reconciled governance; historicalized V1 design] --> G
   G --> M[Conflicts, gaps and decisions]
 ```
 
@@ -24,7 +24,7 @@ Folder names, DRAFT/FINAL labels and commit recency alone do not determine the c
 
 | Topic | CURRENT APPROVED/TARGET V2 | CURRENT IMPLEMENTED / tests | HISTORICAL / SUPERSEDED or stale text | Classification/action |
 |---|---|---|---|---|
-| Authority | V2 intended target; 01 says previous `/docs-final/` is historical baseline; 02/04/05/09/10 own V2 meanings | Code cannot choose product authority | `AGENTS.md`, README, `system-design/00`, `architecture/00` still declare V1 sole authority | `DOC_STALE`, `CONFLICT-001`; update governance only with separate authorization |
+| Authority | V2 intended target; 01 says previous `/docs-final/` is historical baseline; 02/04/05/09/10 own V2 meanings | Code cannot choose product authority | `AGENTS.md`, README and older governance docs now distinguish V2 target, implementation and historical V1; System Design body remains historical/unreconciled | `CONFLICT-001` resolved by documentation; V2 BDRs remain open |
 | Isolation | Platform→Company/Tenant→Branch; Company hard boundary, Branch within Company; module/action/object/field scope | Generic Tenant, global role and Tenant membership; no Branch/module state | V1 Garage=Tenant, Tenant-scoped Garage operations | `PARTIAL_IMPLEMENTATION`, `CONFLICT-002`; do not treat code as V1 approval |
 | Investor/Vehicle | Fund relationship at Company level across Branches; one Investor per funded Stock Vehicle; external customer Vehicle requires none | No Investor, Fund, Vehicle or Garage model/API | V1 global cross-Garage Investor/Fund, one Investor for every Vehicle | `RULE_SUPERSEDED` for target; `CONFLICT-003` compatibility review |
 | Money and Owner | Actual Company Running Capital separate; positive Investor/Company Share; Company-level period Owner Distribution; manual Loss | No finance tables/routes/tests | V1 per-deal Owner Pool, formula Loss/Owner contribution, no Company Accounting/Running Capital | `RULE_SUPERSEDED`; V2 `BUSINESS DECISION REQUIRED` in affected areas |
@@ -34,15 +34,15 @@ Folder names, DRAFT/FINAL labels and commit recency alone do not determine the c
 
 No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidence proving one. The present business-target mismatch is primarily **missing implementation**, not proof the V2 target is wrong.
 
-## 3. Active conflict register
+## 3. Conflict register — resolved and open
 
-### CONFLICT-001 — Governance references still nominate superseded V1
+### CONFLICT-001 — Governance authority reconciliation
 
-- **Classification/area:** `DOC_STALE`; authority and documentation. `AGENTS.md`, modified README, `system-design/00-authority-and-design-contract.md`, `architecture/00-architecture-authority-and-delivery-model.md` and roadmaps still nominate `/docs-final/` as current. V2/01 calls that set historical, and the current user expressly classifies V2 as target.
-- **Current implemented behavior:** no code can settle documentation authority; local backend is partial.
-- **Why it matters:** future work may apply V1 money, Tenant or permission rules by following an old pointer.
-- **Resolution for this task:** V2 is **CURRENT APPROVED/TARGET** in these four maps; V1 is **HISTORICAL / SUPERSEDED**. Do not edit governance/business documents without authorization. Formal governance text and any V1-derived System Design need a separately approved reconciliation before implementation relies on them.
-- **Implementation authorized:** NO. **Status:** OPEN stale-document conflict. Target selection itself is not ambiguous after explicit user direction; this is not a request for the user to reconfirm it.
+- **Classification/area:** authority and documentation. Previously stale V1 authority wording in `AGENTS.md`, README, System Design 00 and older Architecture 00/roadmap material has been reconciled to the V2 target and implementation/historical distinctions.
+- **Current implemented behavior:** code remains a partial implementation and does not select product authority.
+- **Why it mattered:** stale pointers could have led future work to apply V1 money, Tenant or permission rules.
+- **Resolution:** V2 is **CURRENT APPROVED/TARGET**; V1 is **HISTORICAL / SUPERSEDED**. All 20 System Design files are explicitly historicalized, but their bodies are not V2-reconciled and still require section-level review before reuse.
+- **Status:** RESOLVED as a documentation-authority conflict. V2 business decisions and implementation gaps remain tracked separately under `CONFLICT-002` through `CONFLICT-005`.
 
 ### CONFLICT-002 — Company/Branch/module target versus Tenant-only foundation
 
@@ -95,7 +95,7 @@ No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidenc
 | Investment, Garage and Accounting views of the same money | V2 defines separate module ownership with source links | One actual economic event; Company ledger references source without double posting. |
 | Monthly interim, ordinary deal Profit and period reconciliation | V2 distinct streams; precise reconciliation still BDR | Do not relabel an interim advance as earned deal Profit or count a payment twice. |
 
-No test execution or runtime defect was performed/proven here. No conflict was marked resolved by a code commit. A stale design reference should be corrected under separate authorization rather than silently treated as approved V2 technical detail.
+No test execution or runtime defect was performed/proven here. `CONFLICT-001` was resolved by documentation changes only, not by a code commit. Historicalized System Design references remain unreconciled and must not be treated as approved V2 technical detail.
 
 ## 6. Security and ownership conflict guard
 
@@ -111,4 +111,4 @@ V2 hard boundary is Company. Branch is within-Company scope/attribution and modu
 6. Platform Back Office support: conditions for private Company finance read beyond explicit Company assignment (`/02`).
 7. Module OFF: minimum permitted settlement actions for already-open obligations (`/02`, `/06`).
 
-These are **BUSINESS DECISION REQUIRED** for the affected behavior, not evidence V2 ceases to be current target. The authority mismatch in repository instructions is a separate `DOC_STALE` governance issue. **UNVERIFIED:** actual tests, database, deployment, production V1 data/cutover. **CURRENT IMPLEMENTED:** only local source-inspected foundation. **PROPOSED** additional architecture: none. Evidence includes all V2 documents, old V1/legacy documents, governance/design files, current code/tests and the Git commits above.
+These are **BUSINESS DECISION REQUIRED** for the affected behavior, not evidence V2 ceases to be current target. Governance authority wording is reconciled; V1-derived System Design body content remains historical and unreconciled. **UNVERIFIED:** actual tests, database, deployment, production V1 data/cutover. **CURRENT IMPLEMENTED:** only local source-inspected foundation. **PROPOSED** additional architecture: none. Evidence includes all V2 documents, old V1/legacy documents, governance/design files, current code/tests and the Git commits above.

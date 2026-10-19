@@ -1,0 +1,23 @@
+%% HISTORICAL / SUPERSEDED: this is a V1-derived delivery-flow proposal, not the current V2 architecture or approved roadmap.
+%% Current target: docs-final-v2/. Current implemented state: repository source. See architecture/01-DATA-FLOW.md through 04-CHANGE-IMPACT-COMPATIBILITY.md.
+%% Source Basis (historical)
+%% Historical source only: docs-final/ and the V1-derived System Design set.
+%% Historical proposal: backend foundation -> frontend integration -> module slices. No V2 phase order is asserted.
+flowchart TD
+  DOCS[docs-final V1: historical requirements] --> DESIGN[System Design V1: historical proposal]
+  DESIGN --> ARCH[Architecture Foundation]
+  ARCH --> BACKEND[Phase 1: Backend Foundation<br/>Django / DRF + PostgreSQL]
+  BACKEND --> BACKEND_GATE{Backend exit gate passes?}
+  BACKEND_GATE -->|Yes| FRONTEND[Phase 2: Frontend Foundation<br/>React + real backend integration]
+  BACKEND_GATE -->|No| BACKEND
+  FRONTEND --> FRONTEND_GATE{Real auth, API, scope and UI states verified?}
+  FRONTEND_GATE -->|Yes| SLICE1[Module Vertical Slice #1]
+  FRONTEND_GATE -->|No| FRONTEND
+  SLICE1 --> SLICE2[Module Vertical Slice #2 ...]
+  SLICE2 --> AUDIT[Final architecture / release audit]
+  AUDIT --> RELEASE[Release readiness]
+
+  SLICE1 -. includes .-> STACK[Backend + API + Frontend + Real Integration<br/>Authorization + Tenant scope + Audit/History + Tests + Regression]
+  SLICE2 -. includes .-> STACK
+
+  AUTHORITY[Historical V1 authority chain] -. described by .-> ARCH
