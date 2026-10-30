@@ -1,0 +1,3300 @@
+# VIRMS Architecture Phase 1 — Platform Core + Authentication Foundation
+
+> Version1.1 — PLAN REVISION ONLY. No application implementation or publication authorized.
+
+## Version
+
+1.1
+
+## Observed At
+
+2026-10-30 Asia/Calcutta
+
+## Mode
+
+PLAN_ONLY
+
+## Risk
+
+HIGH-RISK
+
+## Status
+
+PLAN READY FOR IMPLEMENTATION REVIEW — no implementation authorized; reproducible baseline, data preflight and explicit approval required before execution.
+
+## Objective
+
+Extend the existing Django modular monolith into a secure PostgreSQL-backed Company/Branch account and authorization foundation. Reuse existing identity and Tenant models; implement no business modules in Phase 1.
+
+## Authorization
+
+- This revision changes only the two local plan artifacts. No implementation, credential/user creation, migration execution, baseline commit/PR, push, merge, deployment, frontend or Phase2 work.
+
+- Prior publication authorization does not carry into this explicitly revision-only run.
+
+- Preserve all other dirty work; implementation requires separate approval and reproducible foundation gate.
+
+## Verified Repository
+
+**Root:** D:/VIRMS
+
+**Repository:** muhammedshibiliraihsoft-art/VIRMS
+
+**Branch:** staging
+
+**Head:** ed114b2667a707034b01bc58211d58aa70013314
+
+**Worktrees:** D:/VIRMS [staging] only
+
+**Cached Refs:** origin/staging ed114b2; origin/main d89974f. Both trees inspected locally; no fetch and no claim of live GitHub equality.
+
+**Dirty State:** README modified; 50 tracked historical documentation/diagram deletions; no staged diff. Extensive pre-existing untracked backend/configuration/demo/planning/handoff work. Ownership unknown; preserve all.
+
+**Preservation:** Initial inventory hashed 962 Git-visible files in a temporary sandbox snapshot; that temporary snapshot is unavailable across tool calls. Final status comparison and a same-process hash comparison around final artifact edits are used instead; no claim of full initial-to-final hash verification.
+
+### Backend
+
+- core is the existing Django project. Installed local apps: accounts, tenants, common; Django admin/auth/sessions and DRF configured. Do not create another project.
+
+- accounts.User extends AbstractBaseUser/PermissionsMixin, UUID PK, unique login_id/email, active/staff/first-password flags and creator/updater references. AUTH_USER_MODEL=accounts.User, USERNAME_FIELD=login_id, REQUIRED_FIELDS=[email]. UserManager accepts manually supplied login_id.
+
+- Tenant has UUID, name, unique slug, is_active. TenantMembership has User/Tenant/assigned_by, effective interval, PROTECT FKs, valid-interval check and one-open-row partial uniqueness. Reuse Tenant as Company; labels/slug are attributes, not identity.
+
+- RoleAssignment is global User/role/effective interval with no Company FK. can_manage combines global role with membership. This is incomplete V2 Company-specific authority.
+
+- Current active_roles/active_tenant_ids/can_manage accept only effective_until=NULL. Finite future expiry currently denies access, not ordinary half-open interval semantics. This difference must not be silently migrated.
+
+- Session/CSRF login, logout, me, current-password change, temporary provisioning/reset and account status exist. Selected commands use atomic transactions and locks; password change validates a stale User before acquiring any User lock.
+
+- AccountSecurityEvent covers successful account actions, required actor/subject, action, tenant_ids, outcome. It is not yet a general append-only administrative audit. LoginAttempt stores HMAC Login-ID failure state and progressive cooldown.
+
+- Admin registers User, RoleAssignment, Tenant and TenantMembership. Admin deletes denied, but raw save/password/privilege and queryset/widget paths require audit and scope review. First-password middleware currently applies only to /api/.
+
+- No Branch, BranchAssignment, Company-scoped grant, module-state model, revoke-all command or health/readiness endpoints in inspected backend. No business-module backend implemented.
+
+- accounts and tenants each have local 0001_initial migration. README warns starter migrations were replaced. Applied database ledger/schema/rows unknown; never rewrite or assume these migrations are unapplied.
+
+- Requirements pin Django 5.1.4, DRF 3.15.2, psycopg 3.2.3. Installed .venv: Python 3.12.10 with those versions; pytest 8.3.4, pytest-django 4.9.0. Direct pins exist; full reproducible transitive/runtime lock not established.
+
+- Docker/devcontainer already present: Python 3.12, postgres:15, private environment values, persistent volume, no automatic migration. Tags float. Docker build collectstatic uses local settings; non-local manifest compatibility needs a packaging smoke test.
+
+- 17 test methods found statically in accounts/tenants tests. No test execution/discovery pass count claimed. Demo frontends exist under demo/; production React-to-Django integration not established.
+
+### Evidence
+
+- README.md
+
+- core/settings.py
+
+- core/urls.py
+
+- core/authentication.py
+
+- core/permissions.py
+
+- apps/accounts/models/users.py
+
+- apps/accounts/models/user_manager.py
+
+- apps/accounts/access.py
+
+- apps/accounts/auth_views.py
+
+- apps/accounts/middleware.py
+
+- apps/accounts/views/__init__.py
+
+- apps/accounts/serializers/__init__.py
+
+- apps/accounts/admin.py
+
+- apps/accounts/urls.py
+
+- apps/tenants/models/tenant.py
+
+- apps/tenants/views/__init__.py
+
+- apps/tenants/admin.py
+
+- apps/tenants/urls.py
+
+- apps/accounts/migrations/0001_initial.py
+
+- apps/tenants/migrations/0001_initial.py
+
+- apps/accounts/tests/test_users.py
+
+- apps/tenants/tests/test_tenants.py
+
+- requirements.txt
+
+- requirements-dev.txt
+
+- pyproject.toml
+
+- setup.cfg
+
+- Dockerfile
+
+- Dockerfile.dev
+
+- .devcontainer/docker-compose.yml
+
+- .devcontainer/devcontainer.json
+
+- .env.example
+
+- Makefile
+
+**Runtime Database:** UNVERIFIED: live PostgreSQL connection/schema/ledger/rows, application tests, browser/API runtime, Docker execution, staging/production and released consumer history. No real .env/credential contents read.
+
+## Source Authority
+
+### Order
+
+- User task and applicable AGENTS.md govern authorization.
+
+- docs-final-v2 is current target, including explicitly unresolved items. Code/migrations prove implemented definitions; DB/runtime evidence proves applied behavior.
+
+- architecture/01–04 maps provide contextual claims, not current runtime proof. Headers refer to 2026-10-19 and older HEAD b4a4077; revalidated against current source.
+
+- docs-final, docs-legacy, system-design and older architecture plans are historical; many are currently deleted. Do not restore or import their V1 business rules.
+
+### Read
+
+- AGENTS.md
+
+- README.md
+
+- docs-final-v2/01-business-rules.md
+
+- docs-final-v2/02-user-roles-permissions.md
+
+- docs-final-v2/03-system-modules.md
+
+- docs-final-v2/04-data-model-relationships.md
+
+- docs-final-v2/06-technical-architecture-engineering-operations.md
+
+- docs-final-v2/supporting/authentication-account-security.md
+
+- docs-final-v2/supporting/production-engineering-standards.md
+
+- docs-final-v2/supporting/tenant-merge-consolidation.md
+
+- architecture/01-DATA-FLOW.md
+
+- architecture/02-API-FLOW.md
+
+- architecture/03-ARCHITECTURE-CONFLICT-MAP.md
+
+- architecture/04-CHANGE-IMPACT-COMPATIBILITY.md
+
+- planning/V2-DEVELOPMENT-ROADMAP.md
+
+### Verified Canonical Target
+
+- Platform → Company/Tenant → Branch. Company hard isolation, Branch operational scope, immutable backend UUIDs.
+
+- Login ID/password, temporary first-login replacement, private current-password change, assisted recovery, session revocation, history-preserving lifecycle. No public signup/OTP/email recovery or secondary business password.
+
+- Backend validates identity, membership, module, role/action, Branch, object and fields. Owner read-only; Accountant ordinary business writer; Investor self-only; Media limited; Platform administration distinct from finance.
+
+- Platform Back Office manages Company/Branch/accounts/membership/modules. Accountant may provision Investor/Media in authorized scope; global shared-account reset authority is not fully specified.
+
+- Module OFF preserves records and authorized history/open-obligation actions; exact financial settlement exceptions remain unresolved.
+
+- Django/DRF/PostgreSQL provider-neutral modular monolith, supported reproducible versions, bounded APIs, safe logs/errors and focused/batch/final-phase verification.
+
+### Documentation Claims
+
+- V2 headers still say DRAFT/source after approval; project instructions establish target authority without resolving BDRs.
+
+- V2 says no production V1 financial cutover. Operational migration/data history remains unverified; this cannot justify replacing initial migrations.
+
+- Roadmap marks Platform Core NOT STARTED while partial local source exists. Treat this as incomplete foundation, not completed Phase 1.
+
+## Official Sources
+
+### S1
+
+**Id:** S1
+
+**Url:** https://www.djangoproject.com/download/
+
+**Finding:** 5.1 absent from supported series; propose supported Django 5.2 LTS secure patch, reverified and exactly pinned at implementation.
+
+### S2
+
+**Id:** S2
+
+**Url:** https://docs.djangoproject.com/en/5.2/topics/auth/customizing/
+
+**Finding:** Keep existing custom User/AUTH_USER_MODEL; adapt custom admin forms and authorization boundary.
+
+### S3
+
+**Id:** S3
+
+**Url:** https://docs.djangoproject.com/en/5.2/topics/auth/default/#session-invalidation-on-password-change
+
+**Finding:** Password hash changes invalidate other sessions; update_session_auth_hash preserves current self-change session. Epoch is a proposed project extension, not a built-in feature.
+
+### S4
+
+**Id:** S4
+
+**Url:** https://www.django-rest-framework.org/api-guide/authentication/#sessionauthentication
+
+**Finding:** Unsafe cookie requests require CSRF. Anonymous login needs separate unconditional CSRF protection.
+
+### S5
+
+**Id:** S5
+
+**Url:** https://www.django-rest-framework.org/api-guide/throttling/#a-note-on-concurrency
+
+**Finding:** Built-in cache throttles permit concurrent races; strict shared admission needs its own atomic implementation.
+
+### S6
+
+**Id:** S6
+
+**Url:** https://docs.djangoproject.com/en/5.2/topics/db/transactions/
+
+**Finding:** Use explicit command atomic boundaries; account for rollback and failure audit outside aborted transaction.
+
+### S7
+
+**Id:** S7
+
+**Url:** https://www.postgresql.org/docs/15/ddl-constraints.html
+
+**Finding:** FK/check/unique constraints enforce row integrity; cross-table Company equality cannot be implemented as ordinary CHECK. Use narrowly scoped consistency triggers where needed.
+
+### S8
+
+**Id:** S8
+
+**Url:** https://www.django-rest-framework.org/community/release-notes/
+
+**Finding:** Official release notes list3.18.3; reverify latest stable5.2 compatibility and breaking changes at execution.
+
+## Scope
+
+- P1_01 safe Admin/bootstrap
+
+- P1_02 full identity/auth lifecycle
+
+- P1_03 Company boundary
+
+- P1_04 Branch foundation
+
+- P1_05 membership/roles/permission skeleton
+
+- P1_06 audit
+
+- P1_07 DRF API foundation
+
+- P1_08 PostgreSQL/migrations
+
+- P1_09 future local-cache compatibility
+
+- P1_10 security/environments
+
+- P1_11 tests and one final audit
+
+- P1_12 verified documentation
+
+## Non Scope
+
+- Vehicle, Job, Investor Fund, Sales, collections, accounting/calculation engines, Reports/Dashboard backend or protected financial configuration implementation
+
+- Investor Portal, custom Back Office frontend, React accounting integration or demo changes
+
+- Phase 2 planning
+
+- SQLite/Electron/Tauri, offline writes/queue/sync/conflict engine or second financial authority
+
+- Production deployment, cloud provisioning, microservices, Redis, Celery, Kafka, Kubernetes or speculative scaling
+
+- Company consolidation implementation, private-finance support exceptions and module-OFF financial settlement policies
+
+## Inferences Proposals
+
+- Reuse apps.accounts/apps.tenants/apps.common/core. Retain internal Tenant naming and /tenants URLs; Company is its business meaning, not another table.
+
+- CompanyRoleGrant belongs to membership, with optional Branch. NULL Branch represents an explicit Company-wide grant, never inferred from no assignments. Existing global back_office remains platform role source; legacy global business roles cease to authorize after reviewed cutover.
+
+- Extend AccountSecurityEvent as the single administrative/security audit source, not a competing audit ledger.
+
+- No persisted business module configuration in Phase 1: typed module hook, unsupported/unknown module default deny, core operations separately registered. No financial permissions or OFF exceptions invented.
+
+- Password minimum12, lowercase trimmed login_id, 12h absolute/60min idle and shared-user authority are locked user decisions, not remaining proposals. Retention/rate capacity tuning remains operational configuration before release.
+
+## Impact Report
+
+**Frontend:** No change. Inventory actual demo/external consumers before incompatible API changes; later session/CSRF cache integration only.
+
+**Backend:** Extend accounts/tenants, thin existing handlers around command services/selectors, core middleware/settings and small common HTTP primitives. No new project or generic framework.
+
+**Api:** Preserve current routes and success fields; additive scoped me context, Branch reads, revoke command and probes. Protected Admin commands suffice for Company/Branch/grant writes; no generic CRUD.
+
+**Schema:** Add epoch, Branch/assignments/scoped grants; extend audit/limiter. Preserve UUIDs, original events and membership/role history; exact migration graph requires ledger inventory.
+
+**Compatibility:** Intentional security narrowing of global-role authority requires approved mapping and caller inventory. Unsafe access is not a valid compatibility guarantee. No automatic role × membership backfill.
+
+**Security:** All protected requests/Admin/commands affected. No staff/superuser/group/model-permission/client-ID bypass to Company business data.
+
+### Regressions
+
+- Session/CSRF status and cookie behavior
+
+- First-password gate across Admin/API
+
+- Provision/reset/status and lost temporary delivery
+
+- Grant changes during active sessions
+
+- Company/Tenant list/detail privacy/pagination
+
+- Shared User with different Company/Branch roles
+
+- Future/finite/ended intervals
+
+- Raw Admin, bulk actions, search, autocomplete and FK widgets
+
+**Gate:** Review this plan and resolve relevant decisions before structural/auth implementation. No implementation occurs in this run.
+
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+  C[Browser or operational Admin] --> H[Session + CSRF + request ID + account/epoch]
+  H --> V[Validated API or Admin command input]
+  V --> P[Live Company membership + scoped role + Branch + module + object/field policy]
+  P --> Q[Scoped read selectors]
+  P --> W[Command: lock + reauthorize + mutate + audit atomically]
+  Q --> DB[(Single PostgreSQL authority)]
+  W --> DB
+  W --> E[AccountSecurityEvent]
+  E --> DB
+  DB --> R[Allowlisted response; bounded scoped cache later]
+  R --> C
+```
+
+## App Boundaries
+
+### core/
+
+**Area:** core/
+
+**Owns:** Environment/settings, root routing, session/epoch enforcement, default-deny DRF wiring, request/probe wiring. Client-selected Company is only an untrusted selector.
+
+### apps/accounts/
+
+**Area:** apps/accounts/
+
+**Owns:** Existing User, global platform-role source, scoped CompanyRoleGrant, credential/session lifecycle, limiter, authorization policy, AccountSecurityEvent and account commands. Add services/selectors/policy modules only when needed.
+
+### apps/tenants/
+
+**Area:** apps/tenants/
+
+**Owns:** Existing Company/Tenant, membership, Branch/BranchAssignment, scoped selectors and administrative commands. Retain package exports and model layout.
+
+### apps/common/
+
+**Area:** apps/common/
+
+**Owns:** Existing UUID base plus small safe request-ID/error/metadata helpers. No business modules, generic repositories, event bus or permission DSL.
+
+### core/storage.py
+
+**Area:** core/storage.py
+
+**Owns:** Existing private S3-compatible adapter retained; no upload/media endpoint or provider change.
+
+## Identity Authentication
+
+**Identity:** Keep UUID User and required unique email. login_id is the only login key, operator chosen, strip leading/trailing whitespace then lowercase identically at provisioning, bootstrap, login and Admin. Email is not a login alias. Collision preflight before data normalization; never merge accounts.
+
+**Bootstrap:** After approved isolated migrations/rehearsal: python manage.py createsuperuser --email mullas313@gmail.com; operator supplies login_id and password interactively. No execution now, no password fixture/migration/source/shell argument. Existing create_superuser sets must_change_password=False for private interactive bootstrap. Validate password through supported command/admin validators. Superuser is break-glass system identity, not an automatic Company business grant.
+
+### Flows
+
+- CSRF GET → login POST → rotated backend session → minimal me. First-login session only csrf/me/logout/password change; same gate for Admin deep links and password paths.
+
+- Own change: lock fresh User, validate current password/status/epoch, new confirmation/validators/new!=current; commit hash/flag/epoch/audit atomically, preserve only current session with refreshed hash/epoch.
+
+- Provision: authorize approved Company/Branch/role, atomically create User/grants/audit, generate temporary credential in memory, persist hash only and deliver once to authorized initiator in no-store response over secure transport. No credential retrieval API or response-body logging.
+
+- Reset: verify business identity by controlled operator procedure, require safe reason, lock target and reauthorize global lifecycle permission; rotate credential/epoch, require private replacement, invalidate old sessions.
+
+- Deactivate: locked Platform Back Office global lifecycle authority covering all affected active memberships, inactive/unusable credential/epoch bump, preserve grants/history. Reactivation alone cannot restore old sessions/credential; fresh reset required.
+
+- Compromise revoke: explicit authorized reasoned command increments epoch without mandatory password mutation; next protected request rejects prior sessions.
+
+**Hashing:** Use supported Django PBKDF2 and current cost defaults after framework upgrade, retain old-hash upgrade compatibility. Common/similarity/minimum validators; no predictable composition rules. set_password alone does not validate: services/Admin/API must validate. Never reveal permanent plaintext/hash.
+
+**Session Login Race:** Login and self-change must not stamp a fresh epoch onto a stale authenticated User. Verify credentials/activity/epoch against locked fresh User; concurrent reset/revoke/deactivate serialized before session issuance. A session from old credentials cannot inherit new epoch.
+
+**Security Policy Gate:** Locked minimum12, common/similarity/same-as-current rejection, long passphrase/password-manager acceptance, no composition regex or periodic expiry. Temporary generated secrets use secrets.token_urlsafe(24) already present (32 URL-safe characters, exceeding recommended20); keep at least this unpredictability. User chooses permanent private password. Retention policy separately recorded before release.
+
+**Admin Flow:** All normal Admin provision/reset forms call system-generated temporary-credential commands; remove operator-entered temporary password1/password2 workflows. One-time no-store result, hash-only storage, no later retrieval; lost delivery requires fresh reset. Interactive createsuperuser private bootstrap password is the explicit technical bootstrap exception, not ordinary account provisioning.
+
+**Bootstrap Command:** After interactive createsuperuser, bootstrap_platform_admin is a narrowly scoped management-command design using explicit existing User UUID and Company UUID, or explicit first-Company creation mode/name. No implicit first User/Company selection, no password/token argument. Lock stable parents and atomically ensure one active back_office role and explicitly requested membership with sanitized event. Matching retry is no-op, conflicting intent fails; no duplicate grants/event. Company creation alone never grants membership; membership comes only from separate explicit bootstrap intent. Console operator execution under controlled DB/OS access is break-glass boundary; normal web/API cannot invoke it. Standard policy/commands after bootstrap; Company-less technical recovery remains separately documented and audited. First-create mode requires caller-supplied stable non-secret bootstrap operation UUID, distinct from User identity. Persist it uniquely on successful bootstrap audit with actor, safe intent digest and resulting Company UUID in the same transaction. Same authorized operation UUID/same intent returns original result without duplicate Company/grant/event; different intent conflicts. Unique conflict rolls back tentative Company/grants and reconciles existing success outside failed transaction. Lost response never falls back to matching Company name. No credential in intent digest/metadata.
+
+## Company Branch Authorization
+
+**Company:** Reuse Tenant UUID/name/slug/is_active; inactive means operational suspension, no delete/merge. Normal activity denies; specifically authorized Platform recovery/activation uses separate audited control-plane policy, never private-finance wildcard access.
+
+**Membership:** Effective interval proposed [from, until), null means open. Active User/Company additionally required. Close/append rows, immutable user/company/start. Existing finite-future rows require explicit reviewed data mapping under resolved BDR-01 policy because current code denies them. Phase1 writes do not create scheduled/future-ending rows; existing finite history retained without granting it implicitly.
+
+**Roles:** CompanyRoleGrant membership + role(owner/accountant/investor/media) + nullable Branch + interval + assigned_by. Company-wide grant explicit. Branch-local action needs both effective grant and effective BranchAssignment in same membership/Company. Global back_office only platform capability; Company access separately scoped. Legacy global non-platform rows preserved for trace, never fallback authorization after cutover.
+
+**Branches:** Phase1: UUID, immutable Tenant PROTECT FK, name/timestamps, assignments/scope only. Branch inactive feature explicitly excluded/deferred, not an implementation blocker. No default Branch, name identity, reparent or coded count limit.
+
+**Assignments:** BranchAssignment membership/Branch PROTECT FKs, actor and interval. Same-Company enforced for assignment AND scoped role grant in services and PostgreSQL triggers. Cannot reparent Branch/membership or grant foreign Company access.
+
+**Temporal Integrity:** Effective access is intersection of current User/Company, membership interval, role-grant interval and (for Branch-local action) BranchAssignment interval. Persisted child intervals may outlive a closed parent; they are ineffective and cannot attach to a replacement membership UUID. Ending parent does not rewrite or auto-reopen child history. New grants/assignments must start no earlier than membership and are created now/open; future starts/ends and unsupported overlaps rejected in Phase1 administrative writes under stable parent locks. Legacy finite/overlap rows require approved mapping before any reinterpretation. Do not claim full stored interval containment or an exclusion constraint that has not been implemented.
+
+**Policy:** authorize(actor, action, company, branch=None, resource=None, fields=None): live account/epoch/password gate → current Company membership → explicit action/role grant → Branch assignment/scope → module hook → object ownership/Company/Branch → field allowlist. Scope queryset before object lookup. Client Company/Branch IDs are not authority. No first-membership selection.
+
+### Phase1 Matrix
+
+- Self me/logout/password: authenticated self, restricted first-login allowlist.
+
+- Platform Back Office: Company/Branch/account/membership/approved scoped role administration and security/audit, explicit Company control-plane scope; no finance authority. No ordinary web grant of global back_office/staff/superuser; initial/recovery platform capability uses reviewed bootstrap procedure.
+
+- Owner: authorized Company read/monitor/audit, no write/delegation.
+
+- Accountant: Investor/Media provision only within own explicit Company/Branch scope; no platform admin or global lifecycle.
+
+- Investor: own permitted Company relationship, no other-user admin. Media: explicit Company/Branch only, no financial admin.
+
+- Business permissions for unimplemented modules deny; later phases must grant explicitly. All unlisted action/delegation combinations deny.
+
+**Platform Admin:** Django groups/user_permissions/is_superuser/is_staff do not confer business action authority. Bootstrap break-glass can establish approved initial platform grants by reviewed operator procedure; normal APIs still require scoped policy. No self-service privilege elevation.
+
+**Module Hook:** Typed core operation registry plus optional module identifier/operation class. No persistent business-module-state implementation. Unsupported module denies; future provider distinguishes ordinary writes, authorized history and separately approved open-obligation actions, never wildcard OFF bypass.
+
+**History:** No consolidation, reparent or historical financial rewrite. Same-Company previous-Branch business-history rules remain a future resource-selector obligation, not permission to read every Branch today.
+
+**Platform Scope Representation:** No new platform grant entity: active global RoleAssignment(role=back_office) represents platform identity; explicit current TenantMembership represents authorized Company control-plane scope, combined with the approved core action matrix. CompanyRoleGrant covers only business roles and cannot confer platform powers. This global platform-role plus explicit membership rule is intentional for control-plane administration, not the forbidden legacy global BUSINESS-role Cartesian mapping. Company-specific provisioning/Branch/membership actions require both. company.create and bootstrap establishment are explicitly Company-less platform actions under approved platform action policy; creation never silently grants membership. Initial membership/platform role comes from explicit approved operator bootstrap manifest. Suspension recovery requires current effective explicit Company membership and current platform role plus approved recovery action, ignoring only Company.is_active; historical/ended membership alone never authorizes recovery. No private-data wildcard access. The locked v1.1 matrix governs; unlisted delegation denies. Global lifecycle permission is a separate registered platform operation, never a Company business role.
+
+**Shared User Lifecycle:** Global reset/deactivate/reactivate/revoke requires active back_office plus explicit global lifecycle action authority and Company control-plane authority over ALL affected active memberships, or separately documented audited break-glass bootstrap/recovery procedure. Accountant has no global lifecycle authority even for single-Company targets. Single-Company targets require scoped authorized Back Office; multi-Company targets cannot be taken over from one Company. Unknown, orphan or privileged target cases fail closed to controlled break-glass. Lock target and stable membership parents so concurrent membership insertion cannot escape coverage. Representation: explicit global lifecycle action authority means the named role-to-action registry predicate: active global back_office AND current effective Company control-plane membership covering all affected active memberships. It is not an unstored extra per-operator permission or generic Django model permission. Any future differentiated platform permission requires separately approved representation. Unknown/orphan/privileged target remains break-glass only.
+
+## Concurrency Transaction Idempotency
+
+**Linearization:** Sensitive write acquires current actor/target User and scope parent locks, then rechecks credentials/session epoch/current membership/grant/Company state inside transaction. Revocation/suspension/grant end uses the same locks. If revoke wins first, write denies; if an authorized write commits first, revoke applies afterward. Middleware checks alone do not cancel in-flight writes.
+
+**Lock Order:** Proposed global order: User UUIDs sorted, Company UUIDs sorted, TenantMembership UUIDs sorted, Branch UUIDs sorted, grant/assignment UUIDs sorted. All account/Admin/Company/grant mutations must follow this order, including new insert paths. Lock stable parents, not only existing child rows; short transactions, no external delivery under lock.
+
+**Atomicity:** Command state and success audit commit together; integrity failure handled after rollback. Denial/failure event written separately, sanitized, without accidentally committing partial mutation.
+
+**Retry:** Status desired-state and end operations are idempotent no-ops after reauthorization, no duplicate state-change success event. Provision/reset/password change are unsafe to automatically retry. On unknown response inspect authorized state, then deliberately issue a new audited reset if temporary delivery was lost. No plaintext replay storage or generic idempotency platform in Phase1.
+
+## Schema Proposal
+
+### User existing
+
+**Entity:** User existing
+
+**Change:** Add auth_epoch PositiveBigInteger default1 and nonnegative constraint. Keep UUID User/email behavior. login_id strip().lower() data normalization only after collision/empty/Unicode preflight. SQL lower(trim()) is a candidate, NOT an accepted equivalent invariant: it misses empty/tab/Unicode cases. Require DB nonempty and canonical invariant exactly equivalent to chosen strip/lower semantics before cutover; no silent alphabet restriction. Verify all create/update/raw SQL paths.
+
+**Indexes:** Keep PK/login/email, no speculative indexes.
+
+### Tenant existing
+
+**Entity:** Tenant existing
+
+**Change:** Preserve table/UUID/slug/is_active; audited lifecycle service only, no duplicate Company.
+
+**Indexes:** Existing PK/slug.
+
+### TenantMembership existing
+
+**Entity:** TenantMembership existing
+
+**Change:** Keep history/IDs; immutable User/Tenant/start; close and append; existing valid-interval and open uniqueness retained.
+
+**Indexes:** Existing FKs/partial uniqueness; measure before extra interval indexes.
+
+### Branch new tenants model
+
+**Entity:** Branch new tenants model
+
+**Change:** UUID, Tenant PROTECT, name, timestamps; lifecycle field only after decision. Immutable parent; no name uniqueness or default Branch.
+
+**Indexes:** Tenant FK; evaluate tenant/name/id ordered read plan.
+
+### BranchAssignment new tenants model
+
+**Entity:** BranchAssignment new tenants model
+
+**Change:** UUID, membership/Branch/assigned_by PROTECT, interval, end>start CHECK, unique open membership+Branch. Same-Company/immutable ownership triggers.
+
+**Indexes:** FKs and open partial unique.
+
+### CompanyRoleGrant new accounts model
+
+**Entity:** CompanyRoleGrant new accounts model
+
+**Change:** UUID, membership PROTECT, role enum excluding platform, optional Branch PROTECT, actor, interval CHECK. Separate partial uniques for open membership+role NULL Branch and open membership+role+Branch non-NULL. Same-Company trigger; service locks/interval rules plus access-time parent intersection protect effective authority and supported transitions.
+
+**Indexes:** FKs and two justified partial uniques.
+
+### RoleAssignment existing
+
+**Entity:** RoleAssignment existing
+
+**Change:** Preserve legacy UUID/history. back_office platform source only after cutover; no automatic business role×membership mapping.
+
+**Indexes:** Existing partial uniqueness.
+
+### AccountSecurityEvent existing
+
+**Entity:** AccountSecurityEvent existing
+
+**Change:** Nullable actor/subject for anonymous/system/non-account target; explicit actor kind, immutable resource type/UUID and scope snapshot, optional Company/Branch refs, occurred_at, request_id, reason, allowlisted before/after. Preserve existing IDs/values; historical tenant_ids legacy only, never authorization. Nullable bootstrap_operation_id UUID with unique success-operation constraint for bootstrap idempotence; safe intent digest/result Company UUID, no secret. Existing historical rows null.
+
+**Indexes:** Company+occurred_at+id and subject+occurred_at+id for bounded operational review; verify query plans.
+
+### LoginAttempt existing
+
+**Entity:** LoginAttempt existing
+
+**Change:** Bucket kind/key/window/admission count/expiry for shared atomic limiter; HMAC identifiers and trusted source buckets, no raw credential/IP retention.
+
+**Indexes:** Unique bucket key and bounded cleanup expiry index.
+
+## Audit Architecture
+
+### Coverage
+
+- Consequential protected account, Company/Branch, membership/grant and Admin transitions with safe outcome/reason.
+
+- Sensitive administrative denials only when meaningful security evidence; ordinary failed login/anonymous401/probes/malformed traffic use limiter state and safe structured logging, no per-request append-only event.
+
+**Write:** Success state/audit atomic; failure/denial audit after rollback in bounded separate transaction. Audit failure makes sensitive mutation fail closed. Denial audit failure never authorizes the action. No dummy User for Company events. Durable denial applies only to meaningful sensitive administrative actions; rate-limit/deduplicate denial evidence with bounded cardinality/aggregation. Do not persist an append-only event for every generic rejected request.
+
+**Append Only:** Application/Admin no update/delete; runtime DB role SELECT/INSERT only on event table, no UPDATE/DELETE/TRUNCATE. Separate migration-owner role, guard triggers for accidental ORM/bulk changes. DB owner can still tamper; do not claim WORM/tamper-proof.
+
+**Visibility:** Control-plane global account events are operator-only by default. Company reviewers see only explicitly Company-scoped event projections; mixed-Company tenant_ids/before-after data never serialized wholesale. No authorization from JSON tenant_ids. Branch audit reads also scope filtered.
+
+**Privacy:** Allowlist actor/resource UUID, UTC time, action/outcome/reason, request ID and minimum safe old/new. Never password/hash/temp credential/session/CSRF token/secret or raw body/object dump. Review Admin LogEntry repr/change message and APM capture. Retention and support access require accepted operator policy, not invented business visibility.
+
+**Flood Resistance:** Login failure updates bounded/expiring limiter buckets and sampled/aggregated safe security logs. Cap source/global/new-identifier bucket admission and cleanup backlog so rotating identifiers cannot create unlimited rows. Bound security-log volume; deny processing safely if storage/admission budget exhausted. Meaningful protected-command denials have bounded deduplication/aggregation windows; all successful consequential changes retain individual atomic audit evidence.
+
+## Api Foundation
+
+### Existing Calls
+
+#### 1
+
+**Route:** GET /api/v1/auth/csrf/
+
+**Class:** CONDITIONAL
+
+**Contract:** Before first unsafe browser request or after rotation, not before every GET; preserve cookie/detail.
+
+#### 2
+
+**Route:** POST /api/v1/auth/login/
+
+**Class:** REQUIRED
+
+**Contract:** On login intent; login_id/password → must_change_password and session, no bearer token.
+
+#### 3
+
+**Route:** POST /api/v1/auth/logout/
+
+**Class:** REQUIRED
+
+**Contract:** On signout intent; CSRF, current-session flush, detail.
+
+#### 4
+
+**Route:** GET /api/v1/auth/me/
+
+**Class:** REQUIRED
+
+**Contract:** Session bootstrap/revalidation; keep id/login_id/must_change_password/roles/tenant_ids, add scoped membership/grants/context revision. roles informational only.
+
+#### 5
+
+**Route:** POST /api/v1/auth/password/change/
+
+**Class:** CONDITIONAL
+
+**Contract:** First/private own change; retain current_password/new_password/confirm_password and detail.
+
+#### 6
+
+**Route:** POST /api/v1/auth/accounts/provision/
+
+**Class:** CONDITIONAL
+
+**Contract:** Explicit authorized create; retain login_id/email/role/tenant_id/profile, add approved explicit Branch scope. id/temporary_password delivered once, no-store.
+
+#### 7
+
+**Route:** POST /api/v1/auth/accounts/<uuid:user_id>/reset/
+
+**Class:** CONDITIONAL
+
+**Contract:** Explicit recovery; required safe reason, locked global authority; one-time temporary_password/no-store.
+
+#### 8
+
+**Route:** POST /api/v1/auth/accounts/<uuid:user_id>/status/
+
+**Class:** CONDITIONAL
+
+**Contract:** Explicit lifecycle; is_active boolean/reason, locked global authority; retain is_active response.
+
+#### 9
+
+**Route:** GET /api/v1/tenants/
+
+**Class:** CONDITIONAL
+
+**Contract:** Authorized Company picker; keep count/next/previous/results and stable name,id ordering.
+
+#### 10
+
+**Route:** GET /api/v1/tenants/<uuid:pk>/
+
+**Class:** CONDITIONAL
+
+**Contract:** Company metadata if required; scoped hidden 404.
+
+#### 11
+
+**Route:** /admin/
+
+**Class:** CONDITIONAL
+
+**Contract:** Operational commands only, separate entry controls; not a financial business API.
+
+**Request Analysis:** No observed request trace proves REDUNDANT/DUPLICATE; no removal/merge justified. Inventory actual demos/other callers before compatibility change.
+
+### New Calls
+
+#### 1
+
+**Route:** GET /api/v1/tenants/<uuid:tenant_id>/branches/
+
+**Class:** CONDITIONAL
+
+**Contract:** Scoped paginated id/tenant_id/name summaries; allowlisted name search/order, stable UUID tie-breaker.
+
+#### 2
+
+**Route:** GET /api/v1/tenants/<uuid:tenant_id>/branches/<uuid:pk>/
+
+**Class:** CONDITIONAL
+
+**Contract:** Authorized same-Company Branch summary or hidden 404.
+
+#### 3
+
+**Route:** POST /api/v1/auth/accounts/<uuid:user_id>/sessions/revoke/
+
+**Class:** CONDITIONAL
+
+**Contract:** Explicit authorized reasoned compromise revoke; detail response, locked global authority.
+
+#### 4
+
+**Route:** GET /health/live/
+
+**Class:** CONDITIONAL
+
+**Contract:** Process existence only; no DB/secret disclosure.
+
+#### 5
+
+**Route:** GET /health/ready/
+
+**Class:** CONDITIONAL
+
+**Contract:** 200 only when bounded DB check and required migration graph applied; otherwise generic 503. Never migrate in probe.
+
+**Errors:** Add error.code/message/fields/request_id retaining existing detail/errors fields for compatibility. Normalize Django JSON, DRF, middleware, CSRF, API 404/405 and unexpected failures. 400 invalid input, 401 invalid session, 403 CSRF/first-password/known forbidden, 404 hidden object, 409 duplicate/version conflict, 429 bounded Retry-After, 503 unavailable dependency, 500 generic failure. No traceback/DB/credential/identifier existence leak.
+
+**Reads:** Default 20 retained; proposed maximum 100 on new lists, no unbounded list-all. Scope first, allowlist search/filter/sort, stable id tie-break. Explicit serializers, no all-fields/public internal schema.
+
+**Commands:** Thin input adapters → current policy → atomic service → state/audit → committed response. No GET/startup mutation; no generic Company/account CRUD. API/Admin use same command authority. Unknown outcome is not safe automatic retry.
+
+**Context:** Company/Branch path/body is selector; conflicting parent/object IDs deny. Selected Company in session is UX hint only. context revision derived from live grants, not client permission token.
+
+## Security Environment
+
+### Threats
+
+- Session/login spoofing and CSRF
+
+- Company/Branch IDOR and global-role bleed
+
+- Raw Admin/staff/group/superuser escalation
+
+- Stale permissions and in-flight revocation
+
+- Concurrent password/reset/lifecycle
+
+- Login hash-work exhaustion and temporary-response leakage
+
+- Unaudited mutations/log/error/probe leakage
+
+### Controls
+
+- CSRF required for anonymous login and all unsafe cookie requests/Admin. HttpOnly session; Secure outside loopback local HTTP; SameSite Lax with same-origin/same-site topology. No localStorage token authority.
+
+- No wildcard credentialed CORS or CSRF disabling. Prefer same-origin future API routing; cross-site hosting topology requires separate review.
+
+- Shared PostgreSQL limiter reserves admission before password hashing; identifier plus trusted source/global budgets, bounded body, progressive cooldown, no worker sleeping or permanent lockout. Apply to Admin login too.
+
+- Keep current 3-failure backoff up to 300 seconds as initial compatibility baseline; source/global limits selected from measured hashing cost and expected usage before release. HMAC source identifiers, bounded expiry cleanup command, no Redis/Celery needed.
+
+- Request IDs generated/validated with bounded characters/length, returned as X-Request-ID. Structured logs safe actor/scope/error code only; disable body/token/credential capture in logs/APM/Admin messages.
+
+- Transactions reauthorize under stable parent locks; handle integrity errors after rollback and return safe conflicts, never false success.
+
+**Configuration:** Retain DJANGO_ENV local/staging/production, explicit allowed hosts, DEBUG local only, loopback development HTTP, private local .env and controlled injected secrets elsewhere. DATABASE_URL precedence documented; PostgreSQL only. Tests explicitly isolated DB/role, never shared data.
+
+**Tls Proxy:** Non-local secure cookies/redirect/HSTS require verified trusted HTTPS proxy that sanitizes forwarding headers; source IP cannot be trusted from arbitrary X-Forwarded-For. Explicit CSRF origins; hosting provider/domain remain configurable.
+
+**Versions:** Upgrade proposed to supported Django 5.2 LTS secure patch and compatible supported DRF; resolve exact pins at implementation with official release notes/compatibility checks. Exact runtime/container patch/digest and transitive lock. No unrelated bulk upgrade.
+
+**Packaging:** Reuse current PostgreSQL devcontainer/volume, no second DB technology or down -v. Verify collectstatic hashed manifest for actual non-local storage and non-root startup, without real secrets or DB connection at build. No automatic migration.
+
+**Future Ops:** Production separately requires accepted RPO/RTO, backups/tested restore, limited runtime versus migration DB roles, TLS/secret injection, Admin exposure and incident revoke procedures. No deployment here. Session defaults locked12h/60min; retention and measured rate capacity require operator configuration before release.
+
+**Trusted Source:** Default REMOTE_ADDR; forwarded IP ignored unless immediate peer is explicitly trusted proxy. Parse only configured header/chain format and trusted hops, reject malformed/ambiguous chains; untrusted injected prefixes cannot select limiter identity. Environment-specific proxy allowlist, test IPv4/IPv6 and Admin paths.
+
+## Local First Compatibility
+
+**Authority:** Django + PostgreSQL alone commit authoritative truth. Same Django APIs for later web/local clients. No client financial posting authority.
+
+**Reads:** Bounded authorized recent cache can filter/search/sort locally; growing datasets use server pagination/filter/search/sort. Manual/controlled refresh and future TanStack Query, no full growing database fetch or polling added now.
+
+**Cache Scope:** Future keys include User UUID, Company UUID, Branch scope, operation/filter/page and context revision. Clear on logout/account/Company switch/session 401/scope change; revalidate before protected activity. Server rejects stale authority independently.
+
+**Versions:** Opaque live context revision supports invalidation; entity updated_at/revision supports later conditional reads. This is not a sync protocol and cannot remotely delete offline copies.
+
+**Privacy Gate:** Persistent private-data caching/offline retention/encryption needs later approval. No SQLite, packaging, queue, drafts/sync/conflict engine implemented in Phase1.
+
+## Migration Sequence
+
+- Mandatory pre-implementation gate: explicit approved reproducible backend/config/migration/test baseline with branch/HEAD/status, file inventory/hashes/ownership; separate approval before baseline commit/PR. Immutable backup/manifest fallback only if user refuses version control, with reduced review/rollback confidence disclosed.
+
+- M0: identify approved local/test DB/roles/version and inspect ledger/schema/row counts/starter history read-only. Stop on ambiguity. No fake-initial/reset/drop/flush/replacement initial migrations.
+
+- Login canonicalization: collision/empty/Unicode equivalence preflight, reviewed UUID mapping, successor migration and canonical uniqueness/check enforcement; no email-login or account merges.
+
+- M1: additive successor User epoch/audit/limiter fields, nullable historical scope. Preserve old event values/IDs; unknown stays unknown, never guessed.
+
+- M2: tenants Branch then BranchAssignment; accounts CompanyRoleGrant depends on TenantMembership/Branch. Successor cross-app dependencies avoid circular initial migrations. Exact filenames assigned from actual graph, not fabricated here.
+
+- M3: checks/partial uniques and named PostgreSQL same-Company/ownership/audit guard triggers plus separate runtime privileges. Validate existing intervals/data before stricter enforcement. No unreviewed extensions.
+
+- M4: approved mapping manifest for actual User/membership/role/Branch rows; no Cartesian role×membership or default Branch. Legacy finite-future and overlap rows require explicit treatment. Empty verified database needs no historical backfill. Bounded repeat-safe historical-model backfill only for explicit mappings.
+
+- M5: reader cutover after reviewed mapping; scoped API/Admin policy replaces global business-role helpers, legacy records retained. Revoke pre-cutover sessions. Expansion → mapping → readers → enforcement; no partially mixed authorization rollout.
+
+- M6: disposable PostgreSQL fresh replay and representative old-foundation upgrade, UUID/history/count/constraint/trigger/privilege checks, measured timings and restore/forward-fix evidence. Reverse additive schema only before dependent new data exists.
+
+## Business Decisions Required
+
+### BDR-01
+
+**Id:** BDR-01
+
+**Status:** RESOLVED POLICY; DATA MANIFEST REQUIRED
+
+**Decision:** Explicit CompanyRoleGrant per membership/Branch, old global business roles history only, no Cartesian mapping. Actual rows need reviewed manifest; ambiguous finite/overlap rows remain denied.
+
+**Blocks:** Data cutover until actual mapping verified; not an unresolved architecture policy.
+
+### BDR-02
+
+**Id:** BDR-02
+
+**Status:** RESOLVED
+
+**Decision:** Use locked v1.1 role/action/scope matrix; explicit Company-wide grants, BranchAssignment where Branch-bound, no Owner delegation, unknown denies.
+
+### BDR-03
+
+**Id:** BDR-03
+
+**Status:** RESOLVED
+
+**Decision:** Global reset/deactivate/reactivate/revoke requires active back_office plus explicit global lifecycle action authority and Company control-plane authority over ALL affected active memberships, or separately documented audited break-glass bootstrap/recovery procedure. Accountant has no global lifecycle authority even for single-Company targets. Single-Company targets require scoped authorized Back Office; multi-Company targets cannot be taken over from one Company. Unknown, orphan or privileged target cases fail closed to controlled break-glass. Lock target and stable membership parents so concurrent membership insertion cannot escape coverage.
+
+### BDR-04
+
+**Id:** BDR-04
+
+**Status:** DEFERRED OUTSIDE PHASE1
+
+**Decision:** No inactive Branch feature; identity/ownership/assignment/scope only.
+
+**Blocks:** None for Phase1.
+
+### BDR-05
+
+**Id:** BDR-05
+
+**Status:** OPEN OUTSIDE PHASE1
+
+**Decision:** Canonical financial bases/reconciliation/Loss/cross-Branch correction, private-finance support exceptions and module-OFF settlement remain unresolved.
+
+**Blocks:** Affected future business behavior only.
+
+## Rollback Recovery
+
+- Plan-only artifacts require no application rollback. Preserve all other dirty files.
+
+- Implementation slices additive and reviewed; do not restore global-role authorization as a rollback after scoped narrowing. Fail closed and forward fix.
+
+- Verified isolated backup/restore rehearsal before mutation. Never restore over newly committed activity without an accepted reconciliation/data-loss plan.
+
+- Reverse unused additive schema only after data/dependency checks and permission; once audit/grants exist retain evidence and forward fix. No reverse migration silently deleting history.
+
+- Lost temporary response: inspect authorized state and deliberately reset again; no stored plaintext replay. Audit/credential failures roll back mutation, never false success.
+
+- Company/Branch re-enable is authorized transition, not deletion/recreation or consolidation.
+
+## Tasks
+
+### P1-00
+
+**Task Id:** P1-00
+
+**Title:** Decision/target baseline
+
+**Goal:** Resolve approval, grant matrix and isolated DB identity
+
+**Why:** Avoid unsafe guesses and mid-phase redesign
+
+#### Current State Evidence
+
+- AGENTS.md
+
+- README
+
+- BDR-01/02/03/04
+
+#### Dependencies
+
+#### Files Or Areas Expected
+
+- Plan register
+
+- operator inventory
+
+- existing tests
+
+**Data Or Schema Impact:** Read-only target/schema/ledger/row inventory
+
+**Api Impact:** Inventory actual demo/other callers
+
+**Security Tenant Impact:** Approved Company/Branch/global lifecycle matrix; technical policy accepted
+
+**Migration Requirement:** No mutation until history verified
+
+#### Implementation Steps
+
+- Record locked v1.1 policies; inactive Branch deferred.
+
+- Inventory exact backend/config/migrations/tests, hashes/ownership, branch/HEAD/status; require approved reproducible baseline before implementation. No baseline commit in plan run.
+
+- Prepare collision/legacy grant/ledger preflight and explicit mapping manifest; fail on ambiguity; verify isolated DB before baseline tests.
+
+#### Focused Tests
+
+- Existing accounts/tenants suite: actual discovery/results recorded
+
+**Rollback Or Recovery Notes:** Stop on history/target contradiction
+
+#### Done When
+
+- Explicit implementation approval and approved baseline/accepted immutable fallback, target evidence and mapping preconditions established.
+
+### P1-01
+
+**Task Id:** P1-01
+
+**Title:** Supported reproducible runtime
+
+**Goal:** Replace unsupported dependency baseline safely
+
+**Why:** Security needs supported framework
+
+#### Current State Evidence
+
+- requirements.txt
+
+- installed .venv
+
+- S1
+
+#### Dependencies
+
+- P1-00
+
+#### Files Or Areas Expected
+
+- requirements*.txt
+
+- constraints/lock
+
+- runtime/container pins
+
+**Data Or Schema Impact:** No intended business schema change; check drift
+
+**Api Impact:** Preserve session/route semantics
+
+**Security Tenant Impact:** Supported secure Django5.2 patch/compatible DRF; no unrelated bulk upgrade
+
+**Migration Requirement:** Review drift; never rewrite initial migrations
+
+#### Implementation Steps
+
+- Review release notes/compatibility
+
+- exact supported pins
+
+- related upgrades one at time
+
+- lock transitives/runtime/images
+
+- verify custom forms/hash compatibility
+
+- Latest supported Django5.2 patch and latest stable DRF officially supporting5.2 reverified at execution; Python3.12 retained. 5.2.18/3.18.3 are reference values only, not installed claims.
+
+#### Focused Tests
+
+- Baseline versus upgraded suite; check; dry-run drift; dependency security review
+
+**Rollback Or Recovery Notes:** Unsupported old pins only isolated diagnosis, not shipping rollback
+
+#### Done When
+
+- Supported reproducible versions and foundation regressions pass
+
+### P1-02
+
+**Task Id:** P1-02
+
+**Title:** Append-oriented audit foundation
+
+**Goal:** Extend one administrative/security event source
+
+**Why:** Every transition needs safe atomic evidence
+
+#### Current State Evidence
+
+- AccountSecurityEvent
+
+- accounts/admin.py
+
+#### Dependencies
+
+- P1-01
+
+#### Files Or Areas Expected
+
+- accounts model/audit service/tests
+
+- migrations
+
+**Data Or Schema Impact:** Nullable actor/subject, resource/scope snapshots, reason/request metadata
+
+**Api Impact:** No audit API; later scoped Admin reads
+
+**Security Tenant Impact:** Runtime append-only; mixed-Company projection privacy
+
+**Migration Requirement:** M1 fields; M3 runtime privileges/guard triggers
+
+#### Implementation Steps
+
+- Define actor-kind/action/outcome/legacy unknown contract
+
+- atomic success and separate post-rollback denial writer
+
+- sanitize metadata
+
+- review LogEntry
+
+- Login failure updates bounded/expiring limiter buckets and sampled/aggregated safe security logs. Cap source/global/new-identifier bucket admission and cleanup backlog so rotating identifiers cannot create unlimited rows. Bound security-log volume; deny processing safely if storage/admission budget exhausted. Meaningful protected-command denials have bounded deduplication/aggregation windows; all successful consequential changes retain individual atomic audit evidence.
+
+#### Focused Tests
+
+- Secret sentinel; rollback/denial; direct SQL append-only; mixed-Company event visibility
+
+- Attack login/probe floods do not grow append-only audit per request; limiter/log/bucket growth bounded; consequential successes individually durable.
+
+**Rollback Or Recovery Notes:** Forward fix, never delete evidence
+
+#### Done When
+
+- State/success event atomic; denied actions remain denied if audit fails
+
+### P1-03
+
+**Task Id:** P1-03
+
+**Title:** Epoch and whole-surface session gate
+
+**Goal:** Support revoke-all and private-password restriction
+
+**Why:** Current first-password middleware API-only
+
+#### Current State Evidence
+
+- User
+
+- ActiveAccountMiddleware
+
+- S3
+
+#### Dependencies
+
+- P1-02
+
+#### Files Or Areas Expected
+
+- accounts model/middleware/authentication/tests
+
+- core settings
+
+**Data Or Schema Impact:** auth_epoch and issued/idle session metadata
+
+**Api Impact:** Existing routes retained; stale API401, Admin safe redirect
+
+**Security Tenant Impact:** Admin deep paths and login issuance race protected
+
+**Migration Requirement:** M1 epoch; old sessions expire at cutover
+
+#### Implementation Steps
+
+- Add epoch/expiry
+
+- apply first-password allowlist across Admin/API
+
+- login rechecks locked fresh credentials/activity/epoch before issuing session
+
+- Locked absolute12h/idle60min with bounded60s touch strategy; no per-request session write. Test independent expiry and concurrent monotonic touches.
+
+#### Focused Tests
+
+- Two sessions; expiry/revoke; Admin first-password bypass; login versus reset/deactivate/revoke
+
+- Bound session writes across repeated requests, immutable issued_at and idle timeout at60min, no periodic password expiry.
+
+**Rollback Or Recovery Notes:** Fail closed; re-login after cutover
+
+#### Done When
+
+- Stale credentials cannot inherit current epoch; all protected surfaces covered
+
+### P1-04
+
+**Task Id:** P1-04
+
+**Title:** Company lifecycle commands
+
+**Goal:** Build Company lifecycle persistence primitives without exposing new authority.
+
+**Why:** Avoid duplicate identity and unsafe suspension
+
+#### Current State Evidence
+
+- Tenant
+
+- TenantAdmin
+
+- V2/01,04
+
+#### Dependencies
+
+- P1-02
+
+- P1-03
+
+#### Files Or Areas Expected
+
+- tenants services/model/Admin tests
+
+**Data Or Schema Impact:** Retain UUID/table/slug/state; audit transitions
+
+**Api Impact:** Keep existing Tenant reads/metadata
+
+**Security Tenant Impact:** Control-plane recovery distinct from ordinary Company activity
+
+**Migration Requirement:** Ownership guards only, no duplicate Company table
+
+#### Implementation Steps
+
+- Keep existing Tenant identity/state; private create/rename/suspend/reactivate persistence primitives and audit transaction tests.
+
+- No new route/Admin activation or replacement reader before P1-09 policy and P1-17 coordinated cutover.
+
+- Compose authorized commands in P1-09/P1-15; no merge/reparent or automatic membership on Company creation.
+
+#### Focused Tests
+
+- Private state/UUID/history/audit/no-op and stable lock tests; policy/recovery-scope tests execute in P1-09/P1-15.
+
+**Rollback Or Recovery Notes:** Audited re-enable, never deletion/recreation
+
+#### Done When
+
+- Persistence primitives preserve Company identity/history, remain unexposed, and declare required later policy integration.
+
+### P1-05
+
+**Task Id:** P1-05
+
+**Title:** Membership history and live validity
+
+**Goal:** Centralize effective Company membership
+
+**Why:** Null-ended helpers mishandle finite-future rows
+
+#### Current State Evidence
+
+- TenantMembership
+
+- active_tenant_ids
+
+- can_manage
+
+#### Dependencies
+
+- P1-04
+
+#### Files Or Areas Expected
+
+- tenants services/selectors
+
+- accounts access/policy
+
+- tests
+
+**Data Or Schema Impact:** Immutable User/Company/start; close/append history
+
+**Api Impact:** me derives current scoped context
+
+**Security Tenant Impact:** No stale membership grants; finite legacy treatment decision gated
+
+**Migration Requirement:** Preflight legacy intervals; retain constraints; ownership guards
+
+#### Implementation Steps
+
+- Implement approved interval selector/private add/end primitives using stable parent locks.
+
+- Explicit legacy finite-row mapping required; no existing reader semantics switched here.
+
+- Children become ineffective by access-time intersection with closed membership; no child history rewrite or scheduling/overlap writes.
+
+#### Focused Tests
+
+- Future/ended/finite validity; end versus mutation; concurrent inserts; duplicate open membership
+
+**Rollback Or Recovery Notes:** New row to regrant; no reopening history
+
+#### Done When
+
+- Private membership primitives/history semantics tested; reader activation deferred to P1-17.
+
+### P1-06
+
+**Task Id:** P1-06
+
+**Title:** Company-scoped role foundation
+
+**Goal:** Remove global business role authority
+
+**Why:** Role in Company A cannot authorize B
+
+#### Current State Evidence
+
+- RoleAssignment
+
+- can_manage
+
+- BDR-01/02
+
+#### Dependencies
+
+- P1-05
+
+#### Files Or Areas Expected
+
+- accounts scoped grant model/policy/tests
+
+- migrations
+
+**Data Or Schema Impact:** CompanyRoleGrant membership/role/interval; Branch FK completed P1-08
+
+**Api Impact:** Additive me context, old roles informational
+
+**Security Tenant Impact:** Explicit Company-wide grant; unknown deny; no Django privilege bypass
+
+**Migration Requirement:** M2 Company-only grant; Branch addition after P1-07
+
+#### Implementation Steps
+
+- Approved Phase1 action matrix
+
+- scoped role model
+
+- retain old global history
+
+- separate platform role from business authority
+
+- Build business-grant schema only here; global back_office plus explicit Company membership/control-plane matrix is separate platform scope, not another CompanyRoleGrant role.
+
+#### Focused Tests
+
+- Multi-Company roles; roleless/nonmember; Owner write deny; group/superuser no implicit authority
+
+**Rollback Or Recovery Notes:** Never fallback to Cartesian global role union
+
+#### Done When
+
+- Scoped grant model/policy inputs tested with fixtures, no live reader replacement before P1-17.
+
+### P1-07
+
+**Task Id:** P1-07
+
+**Title:** Branch identity inside Company
+
+**Goal:** Create minimal operational scope
+
+**Why:** Branch is not another Tenant
+
+#### Current State Evidence
+
+- No existing Branch
+
+- V2/01,04
+
+- BDR-04
+
+#### Dependencies
+
+- P1-04
+
+#### Files Or Areas Expected
+
+- tenants/models/branch.py
+
+- exports/services/tests
+
+- migrations
+
+**Data Or Schema Impact:** UUID/Tenant/name/timestamps; lifecycle only if approved
+
+**Api Impact:** No business endpoints
+
+**Security Tenant Impact:** Immutable Company; no name identity/default Branch
+
+**Migration Requirement:** M2 Branch before Branch-scoped FK
+
+#### Implementation Steps
+
+- Create minimal model
+
+- protected ownership and audit
+
+- omit inactive field/actions: explicitly deferred outside Phase1
+
+#### Focused Tests
+
+- Reparent/delete denied; names attributes; no Branch cap
+
+**Rollback Or Recovery Notes:** Keep used UUIDs; reverse unused additive schema only with checks
+
+#### Done When
+
+- Branch remains in original Company; no lifecycle rule invented
+
+### P1-08
+
+**Task Id:** P1-08
+
+**Title:** Branch assignment and grant integrity
+
+**Goal:** Intersect operational and role scope
+
+**Why:** Branch UUID alone grants nothing
+
+#### Current State Evidence
+
+- TenantMembership
+
+- new Branch
+
+- BDR-02
+
+#### Dependencies
+
+- P1-05
+
+- P1-06
+
+- P1-07
+
+#### Files Or Areas Expected
+
+- tenants BranchAssignment/services
+
+- accounts scoped policy
+
+- migrations/tests
+
+**Data Or Schema Impact:** Assignment; grant Branch FK; partial uniques and Company triggers
+
+**Api Impact:** No generic assignment CRUD
+
+**Security Tenant Impact:** Same Company for assignment AND grant; effective membership/assignment required
+
+**Migration Requirement:** M2/M3 successors and explicit dependencies
+
+#### Implementation Steps
+
+- Create/end with history
+
+- service and DB same-Company/immutable-parent guards
+
+- access-time parent intersection and explicit Company-wide/Branch roles
+
+- Keep schema/primitives unexposed; ended parent suppresses open child grants without rewriting their stored intervals.
+
+#### Focused Tests
+
+- Cross-Company grant/assignment SQL denied; overlaps/ended rows; no all-Branch access from empty assignment
+
+**Rollback Or Recovery Notes:** Close/regrant, no delete/reparent
+
+#### Done When
+
+- Company equality and membership/role/assignment intersection verified
+
+### P1-09
+
+**Task Id:** P1-09
+
+**Title:** Default-deny action and module hooks
+
+**Goal:** Prepare extensible authorization boundary
+
+**Why:** Future modules cannot inherit access
+
+#### Current State Evidence
+
+- DenyByDefault
+
+- V2/02,03,06
+
+#### Dependencies
+
+- P1-08
+
+#### Files Or Areas Expected
+
+- accounts policy
+
+- core permissions
+
+- contract tests
+
+**Data Or Schema Impact:** No persistent business module state
+
+**Api Impact:** Phase1 registry only
+
+**Security Tenant Impact:** Unknown module/action/object/field denied
+
+**Migration Requirement:** None
+
+#### Implementation Steps
+
+- Implement authorize contract
+
+- typed core registry
+
+- unsupported module provider denies
+
+- no wildcard OFF exception
+
+- Compose Company/Branch/membership/grant primitives into protected commands; implement explicit platform role+Company membership control-plane rule and Company-less create/bootstrap matrix. Keep unused/unapproved entries denied.
+
+#### Focused Tests
+
+- Unknown module/action; scope/field mismatch; core auth remains independent of unsupported modules
+
+- Company create does not auto-grant membership; suspended Company activation uses explicit control-plane authority; global platform role alone cannot read Company-private data.
+
+**Rollback Or Recovery Notes:** Small registry, fail closed on policy error
+
+#### Done When
+
+- Every handler declares action/scope, no business permission fabricated
+
+### P1-10
+
+**Task Id:** P1-10
+
+**Title:** Private password lifecycle
+
+**Goal:** Make first-login/self-change race safe
+
+**Why:** Current view validates stale User before locking
+
+#### Current State Evidence
+
+- change_password_view
+
+- validators
+
+- S3
+
+#### Dependencies
+
+- P1-03
+
+- P1-09
+
+#### Files Or Areas Expected
+
+- accounts auth service/views
+
+- Admin password adapter
+
+- tests
+
+**Data Or Schema Impact:** Atomic password/flag/epoch/audit
+
+**Api Impact:** Keep current/new/confirmation payload
+
+**Security Tenant Impact:** Fresh locked current-password/status/session proof; reject same password
+
+**Migration Requirement:** Use prior epoch/audit schema
+
+#### Implementation Steps
+
+- Serialize against reset/deactivate
+
+- validators consistently
+
+- commit hash/epoch/audit
+
+- refresh only current session
+
+- handle CSRF rotation
+
+- All normal provision/reset/Admin account flows system-generate one-time temporary credentials, hash only/no-store/no retrieval; user sets permanent password through restricted session. Interactive superuser bootstrap is separate.
+
+#### Focused Tests
+
+- Wrong/mismatch/weak/same/long password; reset race; other-session revoke; Admin/API parity
+
+- Generated temporary secret never stored plaintext/retrievable; first-login allowlist only; same/weak permanent password rejected; lost delivery fresh reset.
+
+**Rollback Or Recovery Notes:** Rollback on failure; no false success
+
+#### Done When
+
+- Private replacement mandatory; stale change cannot overwrite concurrent reset
+
+### P1-11
+
+**Task Id:** P1-11
+
+**Title:** Scoped temporary provisioning
+
+**Goal:** Create only approved account/grants
+
+**Why:** Current global role creation and precheck race unsafe
+
+#### Current State Evidence
+
+- provision_account
+
+- ProvisionSerializer
+
+#### Dependencies
+
+- P1-09
+
+- P1-10
+
+#### Files Or Areas Expected
+
+- accounts provisioning service/serializer/views
+
+- tests
+
+**Data Or Schema Impact:** Atomic User/membership/grant/Branch/audit
+
+**Api Impact:** Keep provision/id/temporary_password; approved scope additions
+
+**Security Tenant Impact:** No staff/superuser mass assignment; target roles bounded
+
+**Migration Requirement:** No identity seed; explicit approved mappings
+
+#### Implementation Steps
+
+- Whitelist input
+
+- lock/reauthorize
+
+- generate secret in memory
+
+- catch uniqueness race after rollback
+
+- no-store one-time delivery
+
+- disable body capture
+
+- All normal provision/reset/Admin account flows system-generate one-time temporary credentials, hash only/no-store/no retrieval; user sets permanent password through restricted session. Interactive superuser bootstrap is separate.
+
+- Canonical strip/lower login_id across manager/API/Admin/login/bootstrap; collision-free successor data migration and DB canonical uniqueness. Email remains required/unique, never login alias.
+
+#### Focused Tests
+
+- Allowed baseline roles; cross-Company/Branch deny; concurrent duplicate; escalation input; audit failure; no-store
+
+- Generated temporary secret never stored plaintext/retrievable; first-login allowlist only; same/weak permanent password rejected; lost delivery fresh reset.
+
+- Case/whitespace login equivalence; collision/empty/Unicode preflight stops; UUID preserved; no email login.
+
+- Empty/tab/Unicode normalization versus DB invariant; lower(trim()) alone insufficient; raw noncanonical insert/update rejected.
+
+**Rollback Or Recovery Notes:** No auto retry; deliberate reset for lost delivery
+
+#### Done When
+
+- One identity per unique Login ID; no secret persistence/unapproved grant
+
+### P1-12
+
+**Task Id:** P1-12
+
+**Title:** Reset/lifecycle/compromise commands
+
+**Goal:** Unify approved global account management
+
+**Why:** Global User affects all memberships
+
+#### Current State Evidence
+
+- reset_account_password
+
+- set_account_active
+
+- BDR-03
+
+#### Dependencies
+
+- P1-11
+
+#### Files Or Areas Expected
+
+- accounts lifecycle services/views
+
+- revoke URL
+
+- tests
+
+**Data Or Schema Impact:** Atomic password/active/epoch/audit; retain grants
+
+**Api Impact:** Existing reset/status plus explicit revoke
+
+**Security Tenant Impact:** Shared-account BDR matrix; safe required reason; scoped target hidden
+
+**Migration Requirement:** Uses prior schema
+
+#### Implementation Steps
+
+- Lock/recheck actor/target grants
+
+- reset/deactivate/reactivate/revoke
+
+- reactivation needs fresh reset
+
+- Admin/API same service
+
+- unknown authority denies
+
+- All normal provision/reset/Admin account flows system-generate one-time temporary credentials, hash only/no-store/no retrieval; user sets permanent password through restricted session. Interactive superuser bootstrap is separate.
+
+- Global reset/deactivate/reactivate/revoke requires active back_office plus explicit global lifecycle action authority and Company control-plane authority over ALL affected active memberships, or separately documented audited break-glass bootstrap/recovery procedure. Accountant has no global lifecycle authority even for single-Company targets. Single-Company targets require scoped authorized Back Office; multi-Company targets cannot be taken over from one Company. Unknown, orphan or privileged target cases fail closed to controlled break-glass. Lock target and stable membership parents so concurrent membership insertion cannot escape coverage.
+
+- Lifecycle action authority is explicit role-to-action predicate plus all-membership coverage, no unstored per-operator flag.
+
+#### Focused Tests
+
+- Two-Company shared User; each transition session denial; concurrent writes; status no-op; audit failure
+
+- Generated temporary secret never stored plaintext/retrievable; first-login allowlist only; same/weak permanent password rejected; lost delivery fresh reset.
+
+- Accountant single/multi-Company global lifecycle denied; Back Office must cover all active target memberships; membership-insert race, unknown target fails closed.
+
+**Rollback Or Recovery Notes:** No old session resurrection; fresh audited reset recovers
+
+#### Done When
+
+- Same authority/effect across Admin/API; no single-Company takeover
+
+### P1-13
+
+**Task Id:** P1-13
+
+**Title:** Shared bounded login admission
+
+**Goal:** Resist concurrent abuse without speculative infrastructure
+
+**Why:** Check-then-note limiter admits concurrent work
+
+#### Current State Evidence
+
+- LoginAttempt
+
+- login_view
+
+- S5
+
+#### Dependencies
+
+- P1-10
+
+- P1-12
+
+#### Files Or Areas Expected
+
+- accounts limiter/login/Admin adapter
+
+- migrations/tests
+
+**Data Or Schema Impact:** Bucket/window/admission/expiry fields
+
+**Api Impact:** Generic401; 429 Retry-After
+
+**Security Tenant Impact:** Trusted source/global budgets, no permanent lockout/sleep
+
+**Migration Requirement:** M1/M3 fields/expiry index
+
+#### Implementation Steps
+
+- Atomic admission before hashing
+
+- identifier/source/global budgets
+
+- existing backoff baseline
+
+- body bound
+
+- bounded cleanup
+
+- success does not clear unrelated source budget
+
+- Default REMOTE_ADDR; forwarded IP ignored unless immediate peer is explicitly trusted proxy. Parse only configured header/chain format and trusted hops, reject malformed/ambiguous chains; untrusted injected prefixes cannot select limiter identity. Environment-specific proxy allowlist, test IPv4/IPv6 and Admin paths.
+
+#### Focused Tests
+
+- Concurrent admission; known/missing/inactive generic; spoofed proxy; window reset; cleanup; multiprocess shared state
+
+- Spoofed forwarded header ignored from untrusted peer; configured trusted chain extracts source; malformed chains safe; Admin shares limiter; rotating identifiers bounded.
+
+**Rollback Or Recovery Notes:** No in-memory-only fallback; fail safely
+
+#### Done When
+
+- PostgreSQL admission/cooldown deterministic; Admin not bypass
+
+### P1-14
+
+**Task Id:** P1-14
+
+**Title:** Scoped Company/Branch reads
+
+**Goal:** Expose bounded authorization context
+
+**Why:** Current Tenant views use global roles
+
+#### Current State Evidence
+
+- TenantScopeMixin
+
+- serializers/urls
+
+#### Dependencies
+
+- P1-08
+
+- P1-09
+
+- P1-12
+
+#### Files Or Areas Expected
+
+- tenants selectors/serializers/views/urls
+
+- accounts me
+
+- tests
+
+**Data Or Schema Impact:** Read-only live context/revision
+
+**Api Impact:** Keep /tenants; nested Branch GETs; additive me
+
+**Security Tenant Impact:** Scope before lookup; explicit fields; no extra Investor directory authority
+
+**Migration Requirement:** Prior grants/Branch schema only
+
+#### Implementation Steps
+
+- Replace global helper
+
+- stable bounded paging/search/order
+
+- Branch summaries
+
+- live context revision
+
+- Prepare selectors/adapters with explicit grant fixtures; coordinate actual legacy-reader replacement at P1-17, no partial fallback.
+
+#### Focused Tests
+
+- Two Companies/mixed roles/Branches; hidden404; finite grants; suspended Company; query counts/private fields
+
+**Rollback Or Recovery Notes:** Fix scope fail-closed, not global-role rollback
+
+#### Done When
+
+- No unauthorized Company/Branch in list/detail/me; bounded payloads
+
+### P1-15
+
+**Task Id:** P1-15
+
+**Title:** Safe Django Admin command adapters
+
+**Goal:** Make Admin operational, not raw bypass
+
+**Why:** Existing registrations broad raw mutation paths
+
+#### Current State Evidence
+
+- accounts/admin.py
+
+- tenants/admin.py
+
+- AdminFoundationTests
+
+#### Dependencies
+
+- P1-12
+
+- P1-13
+
+- P1-14
+
+#### Files Or Areas Expected
+
+- accounts/tenants admin/forms/tests
+
+**Data Or Schema Impact:** No raw audit/identity/grant/privilege mutation
+
+**Api Impact:** No custom frontend or financial registrations
+
+**Security Tenant Impact:** Scope lists/search/autocomplete/FK/actions as well as save; no staff bypass
+
+**Migration Requirement:** Audit DB privileges already installed
+
+#### Implementation Steps
+
+- Protected save/password/bulk paths use commands
+
+- histories read-only
+
+- restrict staff/superuser/groups/user_permissions to reviewed bootstrap
+
+- direct POST policy
+
+- Integrate and test approved Company/Branch lifecycle, membership/grant/assignment administration commands after P1-09; expose no speculative financial/raw mutation paths.
+
+- All normal provision/reset/Admin account flows system-generate one-time temporary credentials, hash only/no-store/no retrieval; user sets permanent password through restricted session. Interactive superuser bootstrap is separate.
+
+- After interactive createsuperuser, bootstrap_platform_admin is a narrowly scoped management-command design using explicit existing User UUID and Company UUID, or explicit first-Company creation mode/name. No implicit first User/Company selection, no password/token argument. Lock stable parents and atomically ensure one active back_office role and explicitly requested membership with sanitized event. Matching retry is no-op, conflicting intent fails; no duplicate grants/event. Company creation alone never grants membership; membership comes only from separate explicit bootstrap intent. Console operator execution under controlled DB/OS access is break-glass boundary; normal web/API cannot invoke it. Standard policy/commands after bootstrap; Company-less technical recovery remains separately documented and audited.
+
+#### Focused Tests
+
+- Staff/nonstaff/BackOffice/superuser matrix; deep URL/bulk/FK/search attacks; reset parity; no delete; audit scope
+
+- Generated temporary secret never stored plaintext/retrievable; first-login allowlist only; same/weak permanent password rejected; lost delivery fresh reset.
+
+- Explicit bootstrap IDs/no implicit Company, atomic rollback, repeat no-op/no duplicate privileges, creation alone no membership, safe audit and normal policy after bootstrap.
+
+- Concurrent/lost-response first-Company bootstrap with stable operation UUID creates one Company; same key/different intent409; rollback loses no evidence; Company name not identity.
+
+**Rollback Or Recovery Notes:** Disable unsafe action fail-closed; documented recovery
+
+#### Done When
+
+- Raw Admin cannot bypass policy/audit or elevate privileges
+
+### P1-16
+
+**Task Id:** P1-16
+
+**Title:** Errors, request IDs and probes
+
+**Goal:** Create observable stable HTTP boundary
+
+**Why:** Current Django/DRF/CSRF errors differ; probes absent
+
+#### Current State Evidence
+
+- core URLs/settings
+
+- auth_views
+
+#### Dependencies
+
+- P1-13
+
+- P1-14
+
+- P1-15
+
+#### Files Or Areas Expected
+
+- common HTTP helpers
+
+- core middleware/settings/urls
+
+- health tests
+
+**Data Or Schema Impact:** No business data; bounded dependency/migration readiness
+
+**Api Impact:** Compatible additive errors; request ID; live/ready
+
+**Security Tenant Impact:** No body/secret/reflected-ID/traceback/DB leak
+
+**Migration Requirement:** None
+
+#### Implementation Steps
+
+- Normalize API errors retaining compatibility
+
+- safe structured logs
+
+- validate/generate ID
+
+- live separate from bounded DB/migration ready
+
+- no probe mutation
+
+#### Focused Tests
+
+- 400/401/403/404/405/409/429/500/503; malformed input; credential sentinel; DBdown/missing migration; live independent
+
+**Rollback Or Recovery Notes:** 503 not false ready; formatter failure safe
+
+#### Done When
+
+- All failure paths consistent; critical dependency cannot claim ready
+
+### P1-17
+
+**Task Id:** P1-17
+
+**Title:** Rehearse schema and grant cutover
+
+**Goal:** Prove PostgreSQL migration/history integrity
+
+**Why:** Applied ledger and replaced starter history unknown
+
+#### Current State Evidence
+
+- Current 0001 migrations
+
+- README
+
+- M0-M6
+
+#### Dependencies
+
+- P1-16
+
+#### Files Or Areas Expected
+
+- successor migrations
+
+- MigrationExecutor fixtures/tests
+
+- operator evidence
+
+**Data Or Schema Impact:** Approved mappings/constraints/triggers/privileges/session cutover
+
+**Api Impact:** No route removal; consumer mapping checked
+
+**Security Tenant Impact:** No global-role union or finite-row autoactivation
+
+**Migration Requirement:** M0-M6 only authorized isolated targets
+
+#### Implementation Steps
+
+- Inspect migrate plan
+
+- fresh/old-foundation upgrade
+
+- check UUID/count/history
+
+- invalid SQL app-role
+
+- mapping rerun safety
+
+- restore/forward-fix rehearsal
+
+- Activate all prepared scoped readers/Admin adapters together after approved manifest mapping; revoke old sessions and verify no remaining legacy business-role reader.
+
+- Compute canonical strip().lower() for every existing row; reject empty canonical identifiers and report case/whitespace collisions as BUSINESS DECISION REQUIRED without passwords/PII dumps. No merge/auto suffix. Verify database trim/lower behavior versus Python including Unicode; if not equivalent use DB enforcement with documented matching canonicalization or reject unsupported identifier forms only after explicit identity-policy approval. Rehearse non-ASCII edge cases; do not silently restrict alphabet. Collision-free reviewed UUID→canonical-login mapping, successor data migration and canonical uniqueness enforcement, no initial rewrite.
+
+#### Focused Tests
+
+- Fresh/upgrade executor; ambiguous manifest stops; intervals/Company guards; session cutover; restore results
+
+- Fresh/upgrade canonical-login mapping, collision stops, immutable baseline evidence, no mixed-role fallback, old sessions revoked.
+
+**Rollback Or Recovery Notes:** Keep manifest/backup; forward fix after new events
+
+#### Done When
+
+- Fresh/supported upgrade proven without ignored ledger/history loss
+
+### P1-18
+
+**Task Id:** P1-18
+
+**Title:** Verified setup/bootstrap documentation
+
+**Goal:** Make implementation reproducible
+
+**Why:** Plan is not runtime proof
+
+#### Current State Evidence
+
+- README
+
+- Makefile
+
+- V2 standards
+
+#### Dependencies
+
+- P1-17
+
+#### Files Or Areas Expected
+
+- README/setup
+
+- affected architecture01-04 only
+
+- packaging if needed
+
+**Data Or Schema Impact:** Document actual schema/flow only
+
+**Api Impact:** Document implemented fields/errors/call classes
+
+**Security Tenant Impact:** No secret examples; explicit identity/target
+
+**Migration Requirement:** Document verified migration/test commands
+
+#### Implementation Steps
+
+- Follow fresh isolated setup
+
+- interactive bootstrap fields
+
+- incident reset/revoke
+
+- exact checks
+
+- static manifest/nonroot smoke
+
+- update verified living maps only
+
+#### Focused Tests
+
+- Operator walkthrough; packaging smoke when used; docs credential scan
+
+**Rollback Or Recovery Notes:** Correct task docs only; preserve prior work
+
+#### Done When
+
+- Another operator reproduces safe foundation; claims distinguish tested/unverified
+
+### P1-19
+
+**Task Id:** P1-19
+
+**Title:** One final Phase1 audit
+
+**Goal:** Assess integrated exit gate
+
+**Why:** Focused tests alone insufficient cross-system evidence
+
+#### Current State Evidence
+
+- single_final_phase_audit
+
+- prior tasks
+
+#### Dependencies
+
+- P1-18
+
+#### Files Or Areas Expected
+
+- Audit evidence and focused fixes within approved scope
+
+**Data Or Schema Impact:** Isolated test effects only; no shared DB mutation
+
+**Api Impact:** Inventory all routes and rejected actions
+
+**Security Tenant Impact:** Auth/Company/Branch/Admin/privacy/concurrency matrix
+
+**Migration Requirement:** Validate migration/restore evidence
+
+#### Implementation Steps
+
+- Execute audit
+
+- independently verify findings
+
+- fix A/materialB with focused and batch checks
+
+- record final state/decisions
+
+- stop
+
+- Verify v1.1 audit flood resistance, trusted proxy spoofing, canonical login collisions, repeat-safe bootstrap and reproducible baseline evidence.
+
+#### Focused Tests
+
+- Full PostgreSQL foundation/concurrency/integrity/migration; config/lint/health/Admin smoke
+
+**Rollback Or Recovery Notes:** Do not mark complete on missing evidence or budget pressure
+
+#### Done When
+
+- No open A; required tests discovered/passed; no Phase2 started
+
+## Test Matrix
+
+### Auth/CSRF
+
+**Area:** Auth/CSRF
+
+**Fixtures:** Strict-CSRF anonymous/active/inactive/first-login clients
+
+**Assert:** Login and unsafe endpoints reject missing CSRF; generic failures; cookie flags; no signup/JWT
+
+#### Tasks
+
+- P1-03
+
+- P1-10
+
+- P1-13
+
+### Passwords/sessions
+
+**Area:** Passwords/sessions
+
+**Fixtures:** Two sessions, long/weak/same/wrong passwords, separate-connection races
+
+**Assert:** Private gate, locked current-password proof, old sessions denied, stale password/login cannot inherit epoch
+
+#### Tasks
+
+- P1-03
+
+- P1-10
+
+- P1-12
+
+### Global lifecycle
+
+**Area:** Global lifecycle
+
+**Fixtures:** Shared User Company A/B different managers
+
+**Assert:** locked global authority only; reactivation never revives credentials/session
+
+#### Tasks
+
+- P1-00
+
+- P1-12
+
+### Company isolation
+
+**Area:** Company isolation
+
+**Fixtures:** Two Companies, different roles, unrelated User/operator
+
+**Assert:** List/detail/command/Admin/audit foreign Company denied; platform/superuser not business wildcard
+
+#### Tasks
+
+- P1-04
+
+- P1-06
+
+- P1-14
+
+- P1-15
+
+### Branch and intervals
+
+**Area:** Branch and intervals
+
+**Fixtures:** Explicit Company-wide, Branch grant, no assignment, ended/future/finite/overlap rows
+
+**Assert:** Grant/assignment/membership intersection; approved finite-row migration; no empty-assignment wildcard; direct SQL Company mismatch denied
+
+#### Tasks
+
+- P1-05
+
+- P1-08
+
+- P1-09
+
+### Audit/secret safety
+
+**Area:** Audit/secret safety
+
+**Fixtures:** Rollback/denial, sentinel credentials, legacy/global events, runtime DB role
+
+**Assert:** Atomic success; denied outcome safe; immutable app-role event; mixed scope redacted; no passwords/hashes/tokens/body
+
+#### Tasks
+
+- P1-02
+
+- P1-11
+
+- P1-12
+
+- P1-15
+
+### API/probes
+
+**Area:** API/probes
+
+**Fixtures:** Malformed/stale/foreign UUID/unexpected errors, DBdown/missing migration
+
+**Assert:** Safe consistent error/status/requestID, compatibility fields, hidden404, readiness503/live independent
+
+#### Tasks
+
+- P1-14
+
+- P1-16
+
+### PostgreSQL races
+
+**Area:** PostgreSQL races
+
+**Fixtures:** TransactionTestCase/separate connections and deterministic barriers
+
+**Assert:** Reset/change/login/revoke and end/mutation linearize; insertion locks; uniqueness/limiter bounds; final rows/audit verified
+
+#### Tasks
+
+- P1-05
+
+- P1-10
+
+- P1-11
+
+- P1-12
+
+- P1-13
+
+- P1-17
+
+### Migrations/recovery
+
+**Area:** Migrations/recovery
+
+**Fixtures:** Fresh and representative old-foundation disposable DBs
+
+**Assert:** UUID/history/count preserved, explicit manifest mapping, invalid SQL denied, restore/forward-fix rehearsed
+
+#### Tasks
+
+- P1-17
+
+### Performance/cache
+
+**Area:** Performance/cache
+
+**Fixtures:** Bounded realistic Company/Branch pages with several memberships
+
+**Assert:** No N+1 growth; scoped stable pagination/search/order; measured budget; revision changes with authority; no client truth
+
+#### Tasks
+
+- P1-13
+
+- P1-14
+
+- P1-16
+
+### Admin/config/bootstrap
+
+**Area:** Admin/config/bootstrap
+
+**Fixtures:** User/staff/scoped BackOffice/breakglass; local/nonlocal test settings
+
+**Assert:** Deep POST/bulk/search/FK escalation deny; interactive identity fields correct; secure proxy/cookies/secrets/static manifest
+
+#### Tasks
+
+- P1-01
+
+- P1-03
+
+- P1-15
+
+- P1-18
+
+### v1.1 identity/bootstrap
+
+**Area:** v1.1 identity/bootstrap
+
+**Fixtures:** Case/space/Unicode Login IDs, colliding legacy fixture, explicit bootstrap IDs
+
+**Assert:** Canonical login only/no email alias, collision stop/no merge, repeat-safe audited bootstrap/no automatic membership
+
+#### Tasks
+
+- P1-00
+
+- P1-11
+
+- P1-15
+
+- P1-17
+
+### v1.1 abuse/session
+
+**Area:** v1.1 abuse/session
+
+**Fixtures:** Rotating failed-login IDs, spoofed trusted/untrusted chain, concurrent touches
+
+**Assert:** No per-request durable audit flood, bounded bucket/log growth, trusted source only,12h absolute/60min idle without per-request write
+
+#### Tasks
+
+- P1-02
+
+- P1-03
+
+- P1-13
+
+## Single Final Phase Audit
+
+**Timing:** One broad final audit after implementation tasks, with focused task tests and related batch regressions. Plan review now is not execution of this audit.
+
+### Procedure
+
+- Record exact worktree/revision/environment/DB/version and actual test discovery/results.
+
+- Use two Companies, multiple Branches, shared User/different roles, platform versus business identity, inactive/future/finite/ended grants; trace every API/Admin path through session/CSRF/policy/validation/transaction/audit/response.
+
+- Attempt raw Admin POST/bulk/search/autocomplete/FK/privilege bypass; object/field scope and mixed-Company audit leakage.
+
+- Exercise PostgreSQL separate-connection reset/change/login/revoke and membership-end/mutation races, duplicate provision, limiter admission and uncertain retry; assert final rows/audit counts.
+
+- Inspect actual FKs/checks/partial uniques/Company triggers/immutable ownership and runtime audit privileges; direct invalid SQL must fail as app role.
+
+- Capture credential sentinels through logs/errors/audit/Admin/APM/probes; verify no secret/hash/token/body and one-time no-store response.
+
+- Measure scoped page query counts/payloads, EXPLAIN meaningful queries, limiter/cleanup bounds and hashing cost; establish evidence-based performance budgets.
+
+- Run full foundation tests, migration fresh/upgrade/restore rehearsals, check/check --deploy, dry-run migration drift, configured lint and non-root/static manifest startup smoke when applicable. No frontend build applies.
+
+- Verify setup/bootstrap/recovery docs against observed behavior; reconcile independent findings with actual source/runtime, record open decisions and severity disposition.
+
+### Severity
+
+**A:** Must Fix Before Phase1 Completion: isolation/auth/Admin bypass, secret exposure, evidence/data loss, unsafe migration
+
+**B:** Should Fix Before Phase1 Completion; resolve or explicitly accept with owner/reason/target without weakening safety exit gate
+
+**C:** Defer with explicit owner/reason/target and no current exit-gate violation
+
+**D:** Informational
+
+**Exit:** No open A; material B resolved or explicitly accepted; required tests actually discovered/passed on PostgreSQL, final DB state and denial behavior verified. Never substitute static test count or command success for behavior evidence.
+
+### Must Verify V1 1
+
+- temporary-password first-login flow
+
+- permanent password replacement
+
+- session revocation
+
+- login/reset/deactivate races
+
+- Company isolation
+
+- Branch isolation
+
+- shared multi-Company users
+
+- default deny
+
+- Platform Back Office versus business authority
+
+- Django Admin bypass attempts
+
+- is_staff/superuser privilege boundaries
+
+- audit safety
+
+- audit flood resistance
+
+- rate-limit concurrency
+
+- trusted proxy spoof resistance
+
+- migration fresh replay
+
+- existing-foundation upgrade
+
+- legacy role cutover
+
+- old-session revocation
+
+- secret leakage
+
+- PostgreSQL constraints/triggers/privileges
+
+- API error compatibility
+
+- health/readiness
+
+- query count and bounded pagination
+
+- documentation reproducibility
+
+## Documentation Status
+
+Only these plan files change now. After verified implementation update affected README/setup and architecture/01–04 current-state sections only. Do not rewrite frozen V2 business docs, create a handoff or claim roadmap completion without evidence.
+
+## Plan Exit Gate
+
+- All twelve scope items mapped to architecture/tasks/tests; no Phase2 or code implementation.
+
+- Admin bootstrap fields and current User/Tenant reuse known; schema, security, migration/history and API compatibility explicit.
+
+- No financial/support/OFF meaning guessed; local cache never authoritative.
+
+- JSON valid, dependencies acyclic, required task fields complete, Markdown/JSON equivalent and only two requested files added.
+
+- v1.1 locked policies integrated; no unresolved Phase1 architecture A blocker. PLAN READY FOR IMPLEMENTATION REVIEW. Execution still requires explicit approval, reproducible baseline and collision/schema/mapping preflight.
+
+## Implementation Exit Gate
+
+- Safe operational Admin/bootstrap and full account/session/password lifecycle verified.
+
+- Company/Branch scope, membership/scoped grants/module default deny, audit and API contracts proven on isolated PostgreSQL.
+
+- Fresh/upgrade schema, explicit mapping, constraints/runtime privileges and recovery preserve IDs/history.
+
+- Focused/batch tests pass, one final audit meets severity gate, approved decisions in contracts/tests.
+
+- Reproducible setup/bootstrap/test/migration/recovery and cache compatibility documented from observed behavior.
+
+- No frontend/business/offline implementation or deployment claimed. Phase1 completion is not whole-system production release.
+
+## Risks Limitations
+
+- A EXECUTION GATE: ambiguous untracked foundation cannot be modified until approved version-controlled baseline or explicitly accepted immutable backup/manifest fallback. No baseline commit authorized now.
+
+- A: Existing password-change race and API-only first-password/Admin gaps must be closed before phase completion; no runtime exploit reproduced in planning.
+
+- A: Django 5.1.4 is outside supported table; supported-version migration planned, not performed.
+
+- B: DB ledger/data/history unknown and earlier initial-migration replacement warning requires preflight.
+
+- B: Backend/config is local untracked and will not exist in another checkout without separately authorized transfer/version-control work.
+
+- B: No live remote refresh, application tests, DB/browser/Docker/deployment verification.
+
+- D: Existing architecture headers are stale observation metadata, not current runtime evidence.
+
+- Conditional A: actual login canonicalization collision/empty/Unicode mismatch or ambiguous legacy grant/ledger discovered during preflight stops affected migration, not guessed away.
+
+## Skills Used
+
+- using-agent-skills
+
+- context-engineering
+
+- source-driven-development
+
+- planning-and-task-breakdown
+
+- doubt-driven-development
+
+- security-and-hardening
+
+- api-and-interface-design
+
+- documentation-and-adrs
+
+- test-driven-development (future test strategy only)
+
+- code-review-and-quality (plan review)
+
+- incremental-implementation (future slices only)
+
+## Review
+
+v1.1 independent adversarial review completed; three actionable findings applied: DB nonempty/exact canonicalization, stable bootstrap operation UUID, and explicit registry representation of global lifecycle authority. Prior v1.0 reconciliation below is historical. User opted for manual external review after delivery; no external CLI used.
+
+## Checks Actually Run
+
+### 1
+
+**Scope:** PRIOR v1.0 historical evidence; not rerun for v1.1
+
+#### Records
+
+- Read-only Git identity/status/diffs/cached branch trees and source/config/doc inspection.
+
+- Installed Python/package version query: Python3.12.10/Django5.1.4/DRF3.15.2/psycopg3.2.3/pytest8.3.4/pytest-django4.9.0.
+
+- Configuration-only .venv/Scripts/python.exe -B manage.py check, isolated in-memory local settings and nonexistent loopback DB port9: exit0, no issues/0 silenced. No real .env or DB access.
+
+- Application tests/migrations/makemigrations/browser/Docker/deployment NOT RUN. 17 source test methods is not a pass count.
+
+## Validation Commands For Implementation
+
+**Precondition:** Separate implementation approval and verified isolated PostgreSQL test DB/role; not executed during planning except recorded configuration-only check.
+
+**Focused:** python manage.py test apps.accounts.tests.<actual_class> or apps.tenants.tests.<actual_class>; actual discovered labels recorded as tests added.
+
+**Full:** python manage.py test apps.accounts apps.tenants --verbosity 2
+
+### Schema
+
+- python manage.py check
+
+- python manage.py makemigrations --check --dry-run
+
+- python manage.py migrate --plan
+
+- python manage.py migrate (approved local/disposable target only)
+
+### Quality
+
+- black --check apps core
+
+- isort --check-only apps core
+
+- flake8 apps core
+
+- python manage.py check --deploy under non-local private test configuration
+
+**Limits:** No frontend build/typecheck applies; do not invent a configured Python typecheck gate. PostgreSQL separate connections/TransactionTestCase required for meaningful locking tests.
+
+## Batch Regressions
+
+### 1
+
+**After:** P1-03
+
+**Checks:** Existing auth/account/Tenant plus audit/epoch/first-password tests
+
+### 2
+
+**After:** P1-09
+
+**Checks:** Membership/scoped grant/Branch integrity and two-Company denial matrix
+
+### 3
+
+**After:** P1-13
+
+**Checks:** Credential lifecycle/Admin gates/concurrent limiter/password/reset/login
+
+### 4
+
+**After:** P1-17
+
+**Checks:** Full foundation, migrations/direct SQL privileges, API/probes/query sanity
+
+## Scope Task Mapping
+
+### P1 01
+
+- P1-03
+
+- P1-15
+
+- P1-18
+
+### P1 02
+
+- P1-03
+
+- P1-10
+
+- P1-11
+
+- P1-12
+
+- P1-13
+
+### P1 03
+
+- P1-04
+
+- P1-05
+
+- P1-14
+
+### P1 04
+
+- P1-07
+
+- P1-08
+
+- P1-14
+
+### P1 05
+
+- P1-05
+
+- P1-06
+
+- P1-08
+
+- P1-09
+
+### P1 06
+
+- P1-02
+
+- P1-15
+
+### P1 07
+
+- P1-09
+
+- P1-14
+
+- P1-16
+
+### P1 08
+
+- P1-00
+
+- P1-01
+
+- P1-17
+
+### P1 09
+
+- P1-14
+
+- P1-18
+
+### P1 10
+
+- P1-01
+
+- P1-03
+
+- P1-13
+
+- P1-16
+
+### P1 11
+
+- P1-00
+
+- P1-17
+
+- P1-19
+
+### P1 12
+
+- P1-18
+
+## Activation Order
+
+- P1-04 through P1-08 build schema, private persistence/selector primitives and isolated fixture tests only. They expose no new route/Admin mutation, change no live permission reader and supply no temporary permissive authorization implementation.
+
+- P1-09 defines the authoritative policy and authorizes composition of internal primitives into commands; P1-10 through P1-16 integrate/test API/Admin adapters against explicit fixture grants.
+
+- Prepare actual mapping manifest at P1-00. P1-17 rehearses and performs the separately authorized LOCAL cutover M4/M5 only after all policy/adapters are ready: map explicit grants, replace legacy readers consistently and revoke prior sessions. No mixed legacy/new authorization fallback.
+
+- No incomplete slice is deployed. New selectors/commands remain private or fail closed until policy and approved mappings are present; existing protected readers are replaced only at coordinated cutover, not opportunistically in schema tasks.
+
+## Review Reconciliation
+
+### 1
+
+**Cycle:** Initial architecture review
+
+**Classification:** VALID + ACTIONABLE
+
+**Result:** Added fresh locked login/password proof, in-flight authorization linearization/stable parents, same-Company DB checks for both grant and assignment, explicit legacy finite-interval mapping, nullable audit actor/target and mixed-Company visibility, scoped Admin selectors/privilege controls.
+
+### 2
+
+**Cycle:** Final artifact review
+
+**Classification:** VALID + ACTIONABLE
+
+**Finding:** Scoped Back Office representation missing
+
+**Resolution:** Explicit existing global platform RoleAssignment plus current Company membership and core operation matrix; distinct business grants, no new entity or automatic create membership.
+
+### 3
+
+**Cycle:** Final artifact review
+
+**Classification:** VALID + ACTIONABLE
+
+**Finding:** Semantic dependency inversion and early reader activation
+
+**Resolution:** P1-04–08 private schema/primitives only; policy composition P1-09, adapters P1-10–16, coordinated approved local mapping/reader cutover P1-17.
+
+### 4
+
+**Cycle:** Final artifact review
+
+**Classification:** VALID + ACTIONABLE
+
+**Finding:** Persisted interval containment conflicts with parent closure
+
+**Resolution:** Access-time interval intersection explicit; open child rows may outlive ended parent but remain ineffective and cannot move to replacement membership.
+
+### 5
+
+**Cycle:** Targeted final check
+
+**Classification:** VALID + ACTIONABLE
+
+**Finding:** Suspension recovery wording could imply historical membership authority
+
+**Resolution:** Requires current effective explicit membership/platform role/action; ignores only Company.is_active. Historical/ended membership never authorizes recovery.
+
+## Plan Validation
+
+- PASS v1.1 JSON parse;20 unique tasks;15 required fields each; ordered acyclic dependencies;12 scope mappings; test/revision task references valid.
+
+- PASS all JSON scalar values present in generated Markdown. Credential-pattern scan passes; no real passwords created/read.
+
+- PASS same-process hashes of962 other Git-visible files unchanged; original tracked diff remains51 files/20 insertions/12950 deletions; staged diff empty.
+
+- No application test, DB/migration/runtime, baseline commit or publication performed in revision run.
+
+## Revision Authority
+
+User VIRMS-PHASE-01-PLAN-HARDENING-1.1, 2026-10-30; supersedes v1.0 proposals only where explicitly locked. No canonical documents changed.
+
+## Locked Decisions V1 1
+
+### Password Flow
+
+**Account Creation:** Authorized administrator/operator creates the user account.
+
+**Temporary Password:** System generates a cryptographically secure temporary password.
+
+**Temporary Password Storage:** Persist only the Django password hash. Never persist the plaintext temporary password.
+
+**Temporary Password Delivery:** Return/display the temporary password exactly once to the authorized provisioning operator using a no-store response or equivalent controlled one-time delivery.
+
+**Credential Retrieval:** There must be no API, Admin screen, log, audit field or database field that can retrieve the temporary plaintext password later.
+
+**Lost Temporary Password:** If lost, generate a new temporary password through an authorized reset. Never recover the old one.
+
+**First Login:** Temporary credential may authenticate the user, but the resulting session is restricted.
+
+**Mandatory First Login Change:** True
+
+#### Allowed Before Password Change
+
+- CSRF/bootstrap endpoint
+
+- current-user/minimal session endpoint
+
+- password change endpoint
+
+- logout
+
+**Blocked Before Password Change:** All ordinary protected VIRMS business and administration operations.
+
+#### Successful Change
+
+- validate the new permanent password
+
+- hash and persist it
+
+- set must_change_password=false
+
+- increment/reconcile session epoch as designed
+
+- invalidate other old sessions
+
+- retain only the safe current session where appropriate
+
+- write sanitized audit evidence
+
+**Permanent Password Generation:** System does not normally generate a permanent private password. User chooses their own permanent password.
+
+**Periodic Password Expiry:** False
+
+### Password Policy
+
+**Minimum Length:** 12
+
+**Allow Long Passphrases:** True
+
+**Allow Password Manager Values:** True
+
+**Composition Regex Required:** False
+
+**Reject Common Passwords:** True
+
+**Reject Password Too Similar To Identity:** True
+
+**Reject Same As Current Password:** True
+
+**Plaintext Storage:** False
+
+**Hashing:** Use supported Django password hashing and validators.
+
+**Note:** This is a technical security policy, not a business rule. Keep it configurable without weakening canonical security requirements.
+
+### Temporary Password Security
+
+**Generator:** Use a cryptographically secure generator such as Python secrets or Django secure random utilities.
+
+**Minimum Entropy Goal:** Use a sufficiently long unpredictable generated value; do not generate memorable or pattern-based default passwords.
+
+**Recommended Length:** 20
+
+**Transport:** Never place the temporary password in URL/query strings, Git, migration, fixture, CLI argument, log, audit metadata or source code.
+
+### Login Identity
+
+**Primary Login Identity:** login_id
+
+**Email Login:** False
+
+**Login Id Creation:** Human/operator may choose the Login ID. The system must not require random generated Login IDs.
+
+**Normalization:** Trim leading/trailing whitespace and store the canonical login_id in lowercase.
+
+**Comparison:** Case-insensitive by canonical storage.
+
+**Identity Rule:** login_id remains the single account login identity; do not create a second identity system.
+
+**Migration Gate:** Before applying normalization to existing rows, scan for case/whitespace collisions. If collisions exist, STOP and report BUSINESS DECISION REQUIRED instead of merging accounts automatically.
+
+**Email:** Retain current required/unique email behavior unless repository evidence requires a separate migration decision.
+
+### Role Mapping
+
+**Legacy Global Business Roles:** Preserve for history only. After coordinated cutover they must not authorize business access.
+
+**Platform Global Role:** back_office may remain a global platform capability source.
+
+#### Company Business Roles
+
+- Owner
+
+- Accountant / Operations Admin
+
+- Investor
+
+- Media User
+
+**Business Role Storage:** Explicit CompanyRoleGrant attached to the relevant Company membership.
+
+**Company Wide Access:** Must be an explicit Company-wide grant. Never infer Company-wide access from an empty Branch assignment.
+
+**Branch Access:** Requires explicit Branch scope and valid BranchAssignment where the action is Branch-bound.
+
+**Automatic Cartesian Mapping:** False
+
+### Authorization Matrix
+
+#### Platform Back Office
+
+- Company/Tenant administration
+
+- Branch administration
+
+- account and membership administration
+
+- approved scoped role administration
+
+- platform security/audit operations
+
+**Platform Back Office Financial Authority:** False
+
+#### Owner
+
+**Scope:** Explicit authorized Company scope
+
+**Normal Mode:** read/monitor/audit only
+
+**Business Write:** False
+
+**User Role Delegation:** False
+
+#### Accountant Operations
+
+**Scope:** Explicit Company and optional Branch scope
+
+**Future Business Write:** Only operations explicitly granted by later module phases
+
+**Phase1 Account Provisioning:** May provision Investor and Media accounts only inside the Accountant's own explicit authorized scope where canonical V2 permits it.
+
+**Platform Admin:** False
+
+#### Investor
+
+**Scope:** Own explicitly authorized Company relationship
+
+**Other User Admin:** False
+
+#### Media
+
+**Scope:** Explicit Company/Branch grant only
+
+**Financial Admin:** False
+
+**Default:** DENY
+
+### Shared User Lifecycle
+
+**Problem:** One User identity may participate in multiple Companies.
+
+**Single Company User:** Authorized Platform Back Office operator with explicit scope may perform approved reset/revoke/lifecycle actions.
+
+**Multi Company User:** A Company-local Accountant or ordinary Company operator must not globally deactivate/reset/revoke the shared account merely because they control one Company.
+
+**Global Reset Deactivate Reactivate Revoke:** Require Platform Back Office global lifecycle authority plus authority covering all affected active memberships, or an explicitly documented break-glass platform procedure.
+
+**Accountant Global Lifecycle:** False
+
+**Unknown Case:** Fail closed.
+
+### Branch Lifecycle
+
+**Phase1 Inactive Branch Feature:** False
+
+**Decision:** Defer Branch inactive semantics to a later approved phase/decision.
+
+**Phase1 Branch:** Create stable Branch identity, Company ownership, assignments and authorization scope only.
+
+### Django Admin Vs Business Authority
+
+**Is Staff:** Allows entry to Django Admin only when configured.
+
+**Is Superuser:** Technical break-glass/bootstrap capability; never ordinary Tenant business authority.
+
+**Back Office:** Platform operational capability.
+
+**Company Membership:** Required for normal Company-scoped control-plane operations.
+
+**Rule:** Django staff/superuser/group/model permissions must never silently bypass VIRMS Company/Branch authorization for ordinary operations.
+
+## Initial Platform Bootstrap
+
+**Goal:** Remove the bootstrap chicken-and-egg problem.
+
+### Procedure
+
+- Create the first Django superuser interactively using createsuperuser.
+
+- Do not place its password in source, fixtures, migrations, prompts, shell arguments or Git.
+
+- Provide an explicit reviewed management-command/bootstrap procedure for establishing the initial Platform Back Office role and first Company membership.
+
+- The bootstrap procedure must use explicit operator-supplied identifiers and must not guess or auto-select a Company.
+
+- It must be atomic, idempotent where safe, audited and protected against accidental privilege duplication.
+
+- Company creation must not silently create memberships or business roles.
+
+- After normal Platform Back Office authority exists, ordinary administration must use the standard policy/command layer rather than raw superuser mutation.
+
+**Preferred Management Command Shape:** A narrowly scoped management command such as bootstrap_platform_admin using explicit existing user/company identifiers or an explicit first-company creation mode.
+
+### Security
+
+- No password command-line argument.
+
+- No embedded credentials.
+
+- No reusable bootstrap token stored in repository.
+
+- Record safe bootstrap audit metadata only.
+
+## Runtime Upgrade Policy
+
+**Target Django Series:** Django 5.2 LTS
+
+**Target Django Patch:** Use latest supported 5.2 patch available at implementation start.
+
+**Current Reference Patch:** 5.2.18
+
+**Target Drf:** Use the latest stable Django REST Framework release officially supporting Django 5.2 after compatibility verification.
+
+**Current Reference Drf:** 3.18.3
+
+**Python:** Retain compatible Python 3.12 unless repository/test evidence justifies a separate upgrade.
+
+### Rules
+
+- Reverify official supported versions immediately before dependency changes.
+
+- Upgrade Django and DRF intentionally, not as an unrelated dependency sweep.
+
+- Read release notes for breaking behavior.
+
+- Run baseline tests before upgrade and regression tests after upgrade.
+
+- Do not rewrite existing initial migrations because of framework upgrade.
+
+- Pin exact production/runtime versions after validation.
+
+## Session Policy
+
+**Authentication:** Backend-controlled Django session + CSRF.
+
+**Absolute Session Lifetime:** 12 hours default, environment-configurable.
+
+**Idle Timeout:** 60 minutes default, environment-configurable.
+
+**Note:** Avoid writing last_activity to the database on every request if that would create unnecessary write amplification. Use a bounded/touch strategy or another reviewed implementation.
+
+**Password Reset:** Invalidate existing sessions.
+
+**Deactivation:** Invalidate/deny existing sessions.
+
+**Compromise Revoke:** Invalidate all previous sessions using the approved epoch/revocation mechanism.
+
+**Client Token Storage:** No long-lived auth token in localStorage.
+
+**Implementation:** Server clock authority; issued_at never extended by activity. Idle last_activity touches at most once per bounded interval (proposed60s) using monotonic max/CAS under concurrent requests; do not save session every request. Compare idle using persisted touch time with documented up-to-touch-interval conservative early timeout, never silently extend beyond configured idle limit. Absolute12h and idle60min remain independent. No sensitive body/session-token logging.
+
+## Audit Hardening
+
+### Durable Audit Required For
+
+- account provisioning
+
+- password reset
+
+- account activation/deactivation
+
+- session compromise revoke
+
+- Company administration
+
+- Branch administration
+
+- membership changes
+
+- role/grant changes
+
+- sensitive Django Admin commands
+
+- other consequential protected administrative actions
+
+### Do Not Create Append Only Event For Every
+
+- ordinary failed login attempt
+
+- routine anonymous 401
+
+- routine authorization probe
+
+- every malformed request
+
+**Failed Login Handling:** Use LoginAttempt/rate-limit state and safe structured security logging.
+
+**Sensitive Denials:** Record durable denial audit only where it provides meaningful security/administrative evidence.
+
+**Anti Abuse:** An attacker must not be able to grow the append-only audit table without practical bound simply by sending login failures.
+
+**Secret Rule:** Never record password, temporary password, password hash, session token, CSRF token, request body or secret.
+
+## Trusted Proxy And Rate Limit Policy
+
+**Default Source Address:** REMOTE_ADDR
+
+**Forwarded Headers:** Do not trust X-Forwarded-For or similar client-controlled headers by default.
+
+**Proxy Rule:** Only parse forwarded client IP information when the immediate peer is a configured trusted proxy/reverse proxy.
+
+**Production Configuration:** Trusted proxy configuration must be explicit and environment-specific.
+
+**Rate Limit State:** Shared PostgreSQL-backed limiter is acceptable for Phase 1; no Redis requirement.
+
+### Tests
+
+- spoofed X-Forwarded-For cannot bypass limiter
+
+- trusted proxy path extracts intended source safely
+
+- concurrent admission is bounded
+
+- Admin login cannot bypass limiter
+
+## Reproducible Baseline Gate
+
+**Problem:** The current local backend/V2 implementation sources are not fully represented in main and include dirty/untracked work.
+
+**Preferred Solution:** Before Phase 1 implementation, create an explicitly approved version-controlled baseline of the exact existing backend/configuration/migrations/tests that Phase 1 will modify.
+
+**Important:** Do not commit or push that baseline in this planning run.
+
+### Implementation Gate
+
+- Record exact branch/HEAD.
+
+- Record git status.
+
+- Inventory exact backend/config/migration/test files Phase 1 will touch.
+
+- Record hashes or equivalent immutable baseline evidence.
+
+- Identify pre-existing dirty changes and ownership.
+
+- Obtain explicit user approval before creating any baseline commit/PR.
+
+- Phase 1 implementation must not begin against an ambiguous untracked foundation.
+
+**Fallback If User Refuses Version Control Baseline:** Create a complete immutable local backup/manifest and clearly report reduced review/rollback confidence before implementation.
+
+## Login Identity Migration
+
+Compute canonical strip().lower() for every existing row; reject empty canonical identifiers and report case/whitespace collisions as BUSINESS DECISION REQUIRED without passwords/PII dumps. No merge/auto suffix. Verify database trim/lower behavior versus Python including Unicode; if not equivalent use DB enforcement with documented matching canonicalization or reject unsupported identifier forms only after explicit identity-policy approval. Rehearse non-ASCII edge cases; do not silently restrict alphabet. Collision-free reviewed UUID→canonical-login mapping, successor data migration and canonical uniqueness enforcement, no initial rewrite.
+
+## Severity
+
+**A:** Must fix before Phase 1 implementation/completion
+
+**B:** Should fix before Phase 1 completion
+
+**C:** May defer only with owner/reason/target and no safety violation
+
+**D:** Informational
+
+## Changes V1 1
+
+### R1
+
+**Id:** R1
+
+**Change:** Update the existing temporary password design to the locked system-generated temporary-password + mandatory first-login replacement flow.
+
+#### Task Ids
+
+- 10
+
+- 11
+
+- 12
+
+- 15
+
+### R2
+
+**Id:** R2
+
+**Change:** Remove any wording that requires the operator to manually create the temporary password.
+
+#### Task Ids
+
+- 11
+
+- 15
+
+### R3
+
+**Id:** R3
+
+**Change:** Add explicit initial Platform Admin bootstrap architecture.
+
+#### Task Ids
+
+- 15
+
+- 18
+
+### R4
+
+**Id:** R4
+
+**Change:** Resolve BDR-01 using explicit CompanyRoleGrant mapping and no Cartesian role mapping.
+
+#### Task Ids
+
+- 6
+
+- 17
+
+### R5
+
+**Id:** R5
+
+**Change:** Resolve BDR-02 using the authorization matrix in this prompt.
+
+#### Task Ids
+
+- 6
+
+- 9
+
+- 15
+
+### R6
+
+**Id:** R6
+
+**Change:** Resolve BDR-03 using the shared-user lifecycle policy in this prompt.
+
+#### Task Ids
+
+- 12
+
+### R7
+
+**Id:** R7
+
+**Change:** Defer BDR-04 Branch inactive lifecycle; do not block Phase 1 identity/assignment work.
+
+#### Task Ids
+
+- 7
+
+### R8
+
+**Id:** R8
+
+**Change:** Add login_id canonicalization/collision preflight as an implementation gate.
+
+#### Task Ids
+
+- 0
+
+- 11
+
+- 17
+
+### R9
+
+**Id:** R9
+
+**Change:** Make Django is_staff/is_superuser/back_office/Company business authority distinctions explicit.
+
+#### Task Ids
+
+- 9
+
+- 15
+
+### R10
+
+**Id:** R10
+
+**Change:** Harden audit-denial strategy so ordinary attack traffic cannot create unbounded append-only audit growth.
+
+#### Task Ids
+
+- 2
+
+- 13
+
+### R11
+
+**Id:** R11
+
+**Change:** Add trusted-proxy/source-IP extraction rules for login rate limiting.
+
+#### Task Ids
+
+- 13
+
+### R12
+
+**Id:** R12
+
+**Change:** Add reproducible local backend baseline as a mandatory pre-implementation gate.
+
+#### Task Ids
+
+- 0
+
+### R13
+
+**Id:** R13
+
+**Change:** Update runtime dependency plan for supported Django 5.2 LTS + compatible current stable DRF, verified at implementation start.
+
+#### Task Ids
+
+- 1
+
+### R14
+
+**Id:** R14
+
+**Change:** Set configurable session defaults and prevent avoidable per-request DB write amplification.
+
+#### Task Ids
+
+- 3
+
+## Revision Checks Actually Run
+
+- Read-only current Git/source/config/target-policy reinspection and official version references.
+
+- Plan-only JSON/task/dependency/scope/parity/hash validation; no application tests, DB/migrations, users/credentials, baseline commit, push or deployment in revision run.
+
+## Revision Review Findings
+
+- VALID/ACTIONABLE: lower(trim()) candidate only, exact Unicode/nonempty enforcement required and tested.
+
+- VALID/ACTIONABLE: first-create retry tied to unique safe operation UUID and atomic audit/result, never Company name.
+
+- VALID/ACTIONABLE: global lifecycle role-to-action registry predicate explicitly represents authority; no hidden permission store inferred.
