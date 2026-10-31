@@ -25,6 +25,16 @@ def required(name):
     return value
 
 
+def positive_int_setting(name, default):
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError as error:
+        raise ImproperlyConfigured(f"{name} must be a positive integer") from error
+    if value <= 0:
+        raise ImproperlyConfigured(f"{name} must be a positive integer")
+    return value
+
+
 def csv_setting(name):
     return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
 
@@ -37,6 +47,32 @@ ALLOWED_HOSTS = csv_setting("DJANGO_ALLOWED_HOSTS")
 if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must list explicit hosts")
 CSRF_TRUSTED_ORIGINS = csv_setting("DJANGO_CSRF_TRUSTED_ORIGINS")
+try:
+    import ipaddress
+
+    VIRMS_TRUSTED_PROXY_NETWORKS = tuple(
+        ipaddress.ip_network(value, strict=False)
+        for value in csv_setting("VIRMS_TRUSTED_PROXY_CIDRS")
+    )
+except ValueError as error:
+    raise ImproperlyConfigured("VIRMS_TRUSTED_PROXY_CIDRS is invalid") from error
+VIRMS_FORWARDED_FOR_HEADER = os.getenv(
+    "VIRMS_FORWARDED_FOR_HEADER", "HTTP_X_FORWARDED_FOR"
+)
+if not VIRMS_FORWARDED_FOR_HEADER.startswith("HTTP_"):
+    raise ImproperlyConfigured("VIRMS_FORWARDED_FOR_HEADER must be an HTTP_ header")
+VIRMS_LOGIN_GLOBAL_LIMIT = positive_int_setting("VIRMS_LOGIN_GLOBAL_LIMIT", 300)
+VIRMS_LOGIN_GLOBAL_WINDOW_SECONDS = positive_int_setting(
+    "VIRMS_LOGIN_GLOBAL_WINDOW_SECONDS", 60
+)
+VIRMS_LOGIN_SOURCE_LIMIT = positive_int_setting("VIRMS_LOGIN_SOURCE_LIMIT", 30)
+VIRMS_LOGIN_SOURCE_WINDOW_SECONDS = positive_int_setting(
+    "VIRMS_LOGIN_SOURCE_WINDOW_SECONDS", 60
+)
+VIRMS_LOGIN_IDENTIFIER_LIMIT = positive_int_setting("VIRMS_LOGIN_IDENTIFIER_LIMIT", 3)
+VIRMS_LOGIN_IDENTIFIER_WINDOW_SECONDS = positive_int_setting(
+    "VIRMS_LOGIN_IDENTIFIER_WINDOW_SECONDS", 300
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -52,6 +88,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "core.http.RequestIDMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -117,7 +154,10 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
@@ -128,6 +168,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["core.permissions.DenyByDefault"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "core.http.api_exception_handler",
 }
 
 LANGUAGE_CODE = "en-us"
@@ -141,7 +182,7 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"
-            if DJANGO_ENV == "local"
+            if DJANGO_ENV == "local" and os.getenv("DJANGO_STATIC_MANIFEST") != "True"
             else "whitenoise.storage.CompressedManifestStaticFilesStorage"
         )
     },
@@ -173,3 +214,11 @@ if DJANGO_ENV != "local":
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+VIRMS_SESSION_ABSOLUTE_SECONDS = int(
+    os.getenv("VIRMS_SESSION_ABSOLUTE_SECONDS", "43200")
+)
+VIRMS_SESSION_IDLE_SECONDS = int(os.getenv("VIRMS_SESSION_IDLE_SECONDS", "3600"))
+if min(VIRMS_SESSION_ABSOLUTE_SECONDS, VIRMS_SESSION_IDLE_SECONDS) <= 0:
+    raise ImproperlyConfigured("Session lifetimes must be positive")
+SESSION_COOKIE_AGE = VIRMS_SESSION_ABSOLUTE_SECONDS

@@ -1,5 +1,13 @@
 # 04 — Change Impact & Compatibility
 
+## 2026-10-31 verified compatibility state
+
+Phase 1 account, Company/Branch authorization and migration safeguards are implemented through P1-19. One normal Company business User UUID is protected to exactly one Company; another Company uses an independent UUID account. Existing database rows are unverified and the migration refuses ambiguous multi-Company accounts; no auto-split is performed. Global `login_id` and email uniqueness are locked, with no Company selector. Platform technical identity remains separate. Finance/product modules and deployment remain outside this Phase 1 result.
+
+## 2026-10-31 implementation delta (worktree only)
+
+The 2026-10-19 snapshot below is historical. The current local implementation has passed fresh PostgreSQL migration replay, the full accounts/tenants regression, a supported legacy upgrade, explicit role/login mapping tests, restore rehearsal, audit privilege and Admin bypass tests, and bounded Company/Branch read query checks. The complete current evidence and accepted operational boundaries are in `docs/phase1-execution-progress.md`. Initial migrations were not rewritten. Existing production history, role configuration, cleanup scheduling, staging/production runtime and deployment remain unverified. No V2 finance or Phase 2 behavior was implemented.
+
 ## 0. Verification header
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`; inspected backend and architecture files are untracked.

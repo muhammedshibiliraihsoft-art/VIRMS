@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div id="content-main">
+    <p>Reset the password for <strong>{{ user.login_id }}</strong>?</p>
+    <p>The current password will stop working. A temporary password will be shown once.</p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="confirm" value="yes">
+      <div class="submit-row">
+        <input type="submit" value="Reset password" class="default">
+        <a href="{% url 'admin:accounts_user_change' user.pk %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

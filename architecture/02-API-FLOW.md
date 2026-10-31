@@ -1,5 +1,13 @@
 # 02 — API Flow
 
+## 2026-10-31 verified Phase 1 state
+
+One normal Company User UUID belongs to one Company. Another Company uses a separate account UUID with independent credentials and authorization. Global `login_id` and email uniqueness are locked; login has no Company selector. Provisioning, reset/status, revoke and scoped Company/Branch reads now use Company membership and the applicable scoped policy; cross-Company targets are hidden or denied. These are source and disposable-PostgreSQL test results, not staging/production runtime evidence.
+
+## 2026-10-31 implementation delta (worktree only)
+
+The dated 2026-10-19 route inventory below is a historical baseline. Current routes cover CSRF/login/logout/me/password change, Company-scoped account provisioning/reset/status/revoke, Company list/detail and scoped Branch list/detail, Django Admin adapters, and liveness/readiness. All prior legacy business-role authorization was removed from ordinary account lifecycle paths; explicit Platform technical/bootstrap boundaries remain. The current request inventory and classifications are in `docs/phase1-execution-progress.md`. Final source/tests ran on disposable PostgreSQL; live/staging HTTP behavior remains unverified.
+
 ## 0. Verification header
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`; current Django code is local and untracked.
@@ -8,22 +16,23 @@
 
 ## 1. Architecture state classification and purpose
 
-The current API surface is a **partial implementation of foundations**, not the full V2 contract. V2's required Company, Branch, enabled-module, action, object and field checks are target behavior; existing generic Tenant APIs do not prove them. System Design's V1 representative API paths are **HISTORICAL / SUPERSEDED technical target**, not current V2 endpoints. An absent endpoint is an implementation gap, not evidence that V1 remains authoritative.
+The current API surface is the completed **Phase 1 account and scope foundation**, not the full V2 product contract. Authentication, provisioning/lifecycle, Company/Branch reads, Django Admin adapters and operational probes are implemented and covered by disposable PostgreSQL regressions. V2 finance, media, vehicle and module workflows are not implemented. System Design's V1 representative API paths are **HISTORICAL / SUPERSEDED technical target**, not current V2 endpoints.
 
 ## 2. Current source-inspected request flow — one view
 
 ```mermaid
 flowchart LR
   C[HTTP caller] --> URL[Django /api/v1/auth or /tenants]
-  URL --> MW[Session + CSRF + active-account middleware]
-  MW --> V[Account / Tenant view]
-  V --> S[Current role + Tenant membership check]
-  S --> DB[(Local ORM model definitions)]
-  DB --> R[JSON / DRF response]
+  URL --> MW[CSRF + bounded login admission + session lease]
+  MW --> V[Account lifecycle or Company/Branch reader]
+  V --> S[Company policy + effective membership/grant/Branch scope]
+  S --> TX[Locked service transaction + audit]
+  TX --> DB[(PostgreSQL schema and constraints)]
+  DB --> R[Safe JSON / DRF response + request ID]
   R --> C
 ```
 
-The ORM box does not assert a verified live PostgreSQL connection. There is no current React caller, Branch/module check, Investor/Vehicle/Job/Accounting handler, public catalog or financial command. A private S3-compatible storage class is not an upload API.
+The PostgreSQL schema, migrations and runtime-role checks were exercised on disposable PostgreSQL 15.19; no shared database connection or live API was verified. There is no current React caller, module state, Investor/Vehicle/Job/Accounting handler, public catalog or financial command. A private S3-compatible storage class is not an upload API.
 
 ## 3. Current route and action registry
 
@@ -32,23 +41,26 @@ The ORM box does not assert a verified live PostgreSQL connection. There is no c
 | `GET /api/v1/auth/csrf/` | CONTEXT SETUP | Set CSRF cookie; JSON detail; test/browser prerequisite | CURRENT IMPLEMENTED, source inspected |
 | `POST /api/v1/auth/login/` | MUTATION | CSRF, Login ID/password, hashed-key failure throttle; Django session | CURRENT IMPLEMENTED, source inspected |
 | `POST /api/v1/auth/logout/` | MUTATION | CSRF and session clear | CURRENT IMPLEMENTED, source inspected |
-| `GET /api/v1/auth/me/` | AUTHORITATIVE READ / CONTEXT | Active User UUID, Login ID, effective roles and Tenant IDs, password-change flag | CURRENT IMPLEMENTED, source inspected |
-| `POST /api/v1/auth/password/change/` | MUTATION | Current password/new validation; User and security event atomically; session hash refresh | CURRENT IMPLEMENTED, source inspected |
-| `POST /api/v1/auth/accounts/provision/` | MUTATION | `ProvisionSerializer`, `can_manage` active role/Tenant; atomic User/role/membership/security event; returns UUID and temporary password | CURRENT IMPLEMENTED, source inspected |
-| `POST /api/v1/auth/accounts/<uuid:user_id>/reset/` | MUTATION | Locked target; manager must cover every current role × active Tenant; resets temporary credential | CURRENT IMPLEMENTED, source inspected |
-| `POST /api/v1/auth/accounts/<uuid:user_id>/status/` | MUTATION | Locked target, boolean state, account-security event; deactivation makes password unusable | CURRENT IMPLEMENTED, source inspected |
-| `GET /api/v1/tenants/`, `GET /api/v1/tenants/<uuid:pk>/` | AUTHORITATIVE READ | Allowed role plus active User/Tenant membership; active-Tenant paginated list/detail | CURRENT IMPLEMENTED, source inspected |
-| `/admin/` | ADMINISTRATIVE UI | Django Admin path with separate staff controls; not ordinary VIRMS API | CURRENT IMPLEMENTED, source inspected; full audit parity UNVERIFIED |
+| `GET /api/v1/auth/me/` | AUTHORITATIVE READ / CONTEXT | Active User UUID, globally unique Login ID, effective Company roles/grants, Company/Branch context and password-change flag | Phase 1 tests passed; live runtime UNVERIFIED |
+| `POST /api/v1/auth/password/change/` | MUTATION | Locked User and session lease; current password/new validation; hash/epoch/audit transaction; preserves current session and revokes others | Phase 1 tests passed |
+| `POST /api/v1/auth/accounts/provision/` | MUTATION | Company-scoped policy; generates a new User UUID and temporary credential; atomically creates one Company membership and scoped role grant | Phase 1 tests passed |
+| `POST /api/v1/auth/accounts/<uuid:user_id>/reset/` | MUTATION | Exact UUID target; Company-scoped lifecycle authorization; temporary credential, epoch/session revocation and audit | Phase 1 tests passed |
+| `POST /api/v1/auth/accounts/<uuid:user_id>/status/` | MUTATION | Exact UUID target; Company-scoped activate/deactivate; deactivation does not erase history | Phase 1 tests passed |
+| `POST /api/v1/auth/accounts/<uuid:user_id>/revoke/` | MUTATION | Exact UUID target; scoped session revocation and auth-epoch change | Phase 1 tests passed |
+| `GET /api/v1/tenants/`, `GET /api/v1/tenants/<uuid:pk>/` | AUTHORITATIVE READ | Active Company membership and effective readable grant; paginated Company summary | Phase 1 tests and query-bound audit passed |
+| `GET /api/v1/tenants/<uuid:company_id>/branches/`, detail | AUTHORITATIVE READ | Effective same-Company BranchAssignment intersected with Company read grant; paginated summary | Phase 1 tests, query-bound and EXPLAIN audit passed |
+| `/admin/`, `/admin/password_change/` | ADMINISTRATIVE UI | Scoped Company adapters; generic credential/role/membership mutation blocked; safe one-time temporary credential path | Admin/API parity and bypass tests passed |
+| `GET /health/live/`, `GET /health/ready/` | OPERATIONS PROBE | Liveness and migration-aware readiness; safe request correlation | Phase 1 tests passed |
 
-Source: `core/urls.py`, `apps/accounts/urls.py`, `apps/tenants/urls.py`, handlers, settings and tests. No source route for public signup/JWT, Investor/Fund, Branch, module state, Stock Vehicle, external Garage Job, Sale, Company Accounting, interim payment, Owner Distribution, media or public catalog. No observed production request trace supports calling any current request redundant/duplicate or assigning performance cost.
+Source: `core/urls.py`, `apps/accounts/urls.py`, `apps/tenants/urls.py`, handlers, policy/service layers, migrations and tests. No source route for public signup/JWT, Investor/Fund, module state, Stock Vehicle, external Garage Job, Sale, Company Accounting, interim payment, Owner Distribution, media or public catalog. No observed production request trace supports calling any current request redundant/duplicate.
 
 ## 4. Current execution, authorization and failure
 
-`login_view` parses JSON, checks LoginAttempt backoff, calls Django authentication, creates a session on success and removes the attempt row; failures update the hashed-key attempt. `ActiveAccountMiddleware` blocks inactive API accounts and limits a first-login User to auth/password routes. `/auth/me/` derives current roles and Tenant memberships. Unsafe DRF session requests use CSRF enforcement; DRF defaults to `DenyByDefault`, while implemented account/Tenant views explicitly require `IsAuthenticated`.
+`login_view` applies bounded request and source/identifier admission, canonicalizes the globally unique Login ID, authenticates and issues a locked User epoch plus a key-hashed server-side session lease. `ActiveAccountMiddleware` blocks inactive or stale sessions and restricts first-login Users to auth/password routes. `/auth/me/` returns bounded Company/Branch context. Unsafe browser requests use CSRF enforcement; DRF defaults to `DenyByDefault` and views require authentication. Ordinary lifecycle handlers use the Company-scoped policy and exact target UUID; the legacy global business role by itself grants no reset/status authority.
 
-Account provision first validates shape/role/Tenant UUID, then `can_manage` checks current active actor, required role and active Tenant membership. Back Office may provision Owner/Accountant; Accountant may provision Investor/Media. The provision write is atomic. Reset/status lock target and validate the manager against each active role/Tenant combination. Tenant list/detail filters its queryset to active membership after role filtering; a supplied Tenant UUID is not a grant. Error paths in source distinguish invalid input, missing auth, denied/missing scope, throttle and method rejection. Actual HTTP status/cookie behavior across a deployed proxy remains **UNVERIFIED**.
+Provision validates the requested Company/role/Branch and uses the current command/policy service; user UUID, membership and scoped grant are committed atomically. Reset/status/revoke lock the exact account and authorize the actor inside the target Company. A Company account cannot be attached to a second Company; independent accounts cannot be found by matching name/email. Company/Branch list selectors filter before serialization and paginate at 20 rows; 1→25-row fixture growth kept Company reads at 6 queries and Branch reads at 8. Error handling returns safe codes and request IDs while preserving `Retry-After` on throttling. Deployed proxy behavior remains **UNVERIFIED**.
 
-Current mutation → ORM event/model write → JSON/DRF response. No React cache, refetch, route transition or user-visible state is implemented. Account requests do not expose a general idempotency-key contract; atomicity alone is not proof that an uncertain network retry is safe. No queue/job producer, consumer, dead-letter or async financial event route exists. Current tests assert selected behavior but were not executed in this task.
+Current successful mutation → transaction-scoped model/security-event write → JSON response; credential-reset responses are no-store and temporary credentials are not logged or audited. There is no React cache, queue/job producer, consumer, dead-letter or async financial event route. Provisioning has a UUID-keyed operation/idempotency guard where supported; password/lifecycle operations are exact-target and transaction-locked. Tests and migration evidence are in `docs/phase1-execution-progress.md`.
 
 ## 5. V2 target request/action flow — not current endpoints
 

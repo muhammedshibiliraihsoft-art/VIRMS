@@ -1,3 +1,15 @@
+## 2026-10-31 identity decision update — supersedes shared-business-user assumptions below
+
+**Locked target:** Every ordinary Company business account belongs to exactly one Company/Tenant. The same human may have separate accounts in multiple Companies; each account has a distinct backend-generated immutable User UUID and independent password, sessions, roles, Branch scope, auth epoch, audit/security history and data authority. Never infer identity from names, email or phone, merge accounts, or manually assign UUIDs. Django superuser/platform bootstrap identities remain technical accounts, not ordinary Company accounts or implicit business grants.
+
+TenantMembership history may remain, but a normal Company User must never be attached to a second Company. CompanyRoleGrant and BranchAssignment remain within that single Company. Lifecycle of one account affects only that account. Replace earlier shared multi-Company User fixtures and shared-account lifecycle reasoning in this plan with separate-account isolation tests.
+
+**Unresolved business decisions:** Whether independent Company accounts may reuse email or login_id, and whether login_id/email uniqueness is global or Company-scoped. Preserve currently implemented global uniqueness until decided; do not add Company selection to login or weaken constraints by inference.
+
+**Implementation/migration boundary:** This is a documentation decision only. Current schema permits a User to join multiple Companies. Do not split existing rows automatically. P1-17 must preflight existing multi-Company Users and require an explicit mapping decision before any successor migration or data change. P1-11 creates a new User per Company; P1-12 lifecycle acts on one such account; P1-14/15 enforce the invariant in reads/Admin; P1-19 verifies it.
+
+---
+
 # VIRMS Architecture Phase 1 — Platform Core + Authentication Foundation
 
 > Version1.1 — PLAN REVISION ONLY. No application implementation or publication authorized.
@@ -200,7 +212,7 @@ Extend the existing Django modular monolith into a secure PostgreSQL-backed Comp
 
 - Backend validates identity, membership, module, role/action, Branch, object and fields. Owner read-only; Accountant ordinary business writer; Investor self-only; Media limited; Platform administration distinct from finance.
 
-- Platform Back Office manages Company/Branch/accounts/membership/modules. Accountant may provision Investor/Media in authorized scope; global shared-account reset authority is not fully specified.
+- Platform Back Office manages Company/Branch/accounts/membership/modules. Accountant may provision Investor/Media in authorized scope; each Company account has an independent lifecycle; global technical account handling remains separate.
 
 - Module OFF preserves records and authorized history/open-obligation actions; exact financial settlement exceptions remain unresolved.
 
@@ -330,7 +342,7 @@ Extend the existing Django modular monolith into a secure PostgreSQL-backed Comp
 
 - No persisted business module configuration in Phase 1: typed module hook, unsupported/unknown module default deny, core operations separately registered. No financial permissions or OFF exceptions invented.
 
-- Password minimum12, lowercase trimmed login_id, 12h absolute/60min idle and shared-user authority are locked user decisions, not remaining proposals. Retention/rate capacity tuning remains operational configuration before release.
+- Password minimum12, canonical login_id, 12h absolute/60min idle remain locked decisions. One-Company-per-business-account is locked 2026-10-31; login ID and email remain globally unique. Retention/rate capacity tuning remains operational configuration before release.
 
 ## Impact Report
 
@@ -358,7 +370,7 @@ Extend the existing Django modular monolith into a secure PostgreSQL-backed Comp
 
 - Company/Tenant list/detail privacy/pagination
 
-- Shared User with different Company/Branch roles
+- Separate UUID User accounts for the same human in different Companies; no cross-account state sharing
 
 - Future/finite/ended intervals
 
@@ -431,7 +443,7 @@ flowchart TD
 
 - Reset: verify business identity by controlled operator procedure, require safe reason, lock target and reauthorize global lifecycle permission; rotate credential/epoch, require private replacement, invalidate old sessions.
 
-- Deactivate: locked Platform Back Office global lifecycle authority covering all affected active memberships, inactive/unusable credential/epoch bump, preserve grants/history. Reactivation alone cannot restore old sessions/credential; fresh reset required.
+- Deactivate: lock the exact Company User account and verify authorized Company control-plane scope; make its credential unusable, bump its epoch, preserve its grants/history. Another Company account is unaffected. Reactivation alone cannot restore old sessions/credential; fresh reset required.
 
 - Compromise revoke: explicit authorized reasoned command increments epoch without mandatory password mutation; next protected request rejects prior sessions.
 
@@ -483,7 +495,7 @@ flowchart TD
 
 **Platform Scope Representation:** No new platform grant entity: active global RoleAssignment(role=back_office) represents platform identity; explicit current TenantMembership represents authorized Company control-plane scope, combined with the approved core action matrix. CompanyRoleGrant covers only business roles and cannot confer platform powers. This global platform-role plus explicit membership rule is intentional for control-plane administration, not the forbidden legacy global BUSINESS-role Cartesian mapping. Company-specific provisioning/Branch/membership actions require both. company.create and bootstrap establishment are explicitly Company-less platform actions under approved platform action policy; creation never silently grants membership. Initial membership/platform role comes from explicit approved operator bootstrap manifest. Suspension recovery requires current effective explicit Company membership and current platform role plus approved recovery action, ignoring only Company.is_active; historical/ended membership alone never authorizes recovery. No private-data wildcard access. The locked v1.1 matrix governs; unlisted delegation denies. Global lifecycle permission is a separate registered platform operation, never a Company business role.
 
-**Shared User Lifecycle:** Global reset/deactivate/reactivate/revoke requires active back_office plus explicit global lifecycle action authority and Company control-plane authority over ALL affected active memberships, or separately documented audited break-glass bootstrap/recovery procedure. Accountant has no global lifecycle authority even for single-Company targets. Single-Company targets require scoped authorized Back Office; multi-Company targets cannot be taken over from one Company. Unknown, orphan or privileged target cases fail closed to controlled break-glass. Lock target and stable membership parents so concurrent membership insertion cannot escape coverage. Representation: explicit global lifecycle action authority means the named role-to-action registry predicate: active global back_office AND current effective Company control-plane membership covering all affected active memberships. It is not an unstored extra per-operator permission or generic Django model permission. Any future differentiated platform permission requires separately approved representation. Unknown/orphan/privileged target remains break-glass only.
+**Company Account Lifecycle:** Reset/deactivate/reactivate/revoke acts on the exact User UUID only and requires authorized control-plane scope for that account Company. Another Company account held by the same human remains unaffected. Accountant has no platform lifecycle authority. Unknown, orphan or privileged targets fail closed to reviewed platform recovery. Lock the target User and Company membership parents; technical platform identities remain separate.
 
 ## Concurrency Transaction Idempotency
 
@@ -781,7 +793,7 @@ flowchart TD
 
 **Reads:** Bounded authorized recent cache can filter/search/sort locally; growing datasets use server pagination/filter/search/sort. Manual/controlled refresh and future TanStack Query, no full growing database fetch or polling added now.
 
-**Cache Scope:** Future keys include User UUID, Company UUID, Branch scope, operation/filter/page and context revision. Clear on logout/account/Company switch/session 401/scope change; revalidate before protected activity. Server rejects stale authority independently.
+**Cache Scope:** Future keys include User UUID, that account Company UUID, Branch scope, operation/filter/page and context revision. Clear on logout/account switch/session 401/scope change; revalidate before protected activity. Server rejects stale authority independently.
 
 **Versions:** Opaque live context revision supports invalidation; entity updated_at/revision supports later conditional reads. This is not a sync protocol and cannot remotely delete offline copies.
 
@@ -833,7 +845,7 @@ flowchart TD
 
 **Status:** RESOLVED
 
-**Decision:** Global reset/deactivate/reactivate/revoke requires active back_office plus explicit global lifecycle action authority and Company control-plane authority over ALL affected active memberships, or separately documented audited break-glass bootstrap/recovery procedure. Accountant has no global lifecycle authority even for single-Company targets. Single-Company targets require scoped authorized Back Office; multi-Company targets cannot be taken over from one Company. Unknown, orphan or privileged target cases fail closed to controlled break-glass. Lock target and stable membership parents so concurrent membership insertion cannot escape coverage.
+**Decision:** Reset/deactivate/reactivate/revoke targets one independent Company User UUID and requires explicit platform control-plane authority for that Company, or a reviewed technical recovery procedure. Accountant has no platform lifecycle authority. Another Company account held by the same human remains unaffected. Unknown, orphan or privileged targets fail closed. Lock the target User and stable Company membership parents.
 
 ### BDR-04
 
@@ -1637,17 +1649,17 @@ flowchart TD
 
 - All normal provision/reset/Admin account flows system-generate one-time temporary credentials, hash only/no-store/no retrieval; user sets permanent password through restricted session. Interactive superuser bootstrap is separate.
 
-- Global reset/deactivate/reactivate/revoke requires active back_office plus explicit global lifecycle action authority and Company control-plane authority over ALL affected active memberships, or separately documented audited break-glass bootstrap/recovery procedure. Accountant has no global lifecycle authority even for single-Company targets. Single-Company targets require scoped authorized Back Office; multi-Company targets cannot be taken over from one Company. Unknown, orphan or privileged target cases fail closed to controlled break-glass. Lock target and stable membership parents so concurrent membership insertion cannot escape coverage.
+- Reset/deactivate/reactivate/revoke targets one independent Company User UUID and requires explicit platform control-plane authority for that Company, or a reviewed technical recovery procedure. Accountant has no platform lifecycle authority. Another Company account held by the same human remains unaffected. Unknown, orphan or privileged targets fail closed. Lock the target User and stable Company membership parents.
 
 - Lifecycle action authority is explicit role-to-action predicate plus all-membership coverage, no unstored per-operator flag.
 
 #### Focused Tests
 
-- Two-Company shared User; each transition session denial; concurrent writes; status no-op; audit failure
+- Two independent Company accounts for same human; lifecycle in one leaves the other credentials/sessions/data unchanged
 
 - Generated temporary secret never stored plaintext/retrievable; first-login allowlist only; same/weak permanent password rejected; lost delivery fresh reset.
 
-- Accountant single/multi-Company global lifecycle denied; Back Office must cover all active target memberships; membership-insert race, unknown target fails closed.
+- Accountant platform lifecycle denied; authorized operator must cover the target account Company; cross-Company membership insertion and unknown target fail closed.
 
 **Rollback Or Recovery Notes:** No old session resurrection; fresh audited reset recovers
 
@@ -2139,7 +2151,7 @@ flowchart TD
 
 **Area:** Global lifecycle
 
-**Fixtures:** Shared User Company A/B different managers
+**Fixtures:** Two independent User UUID accounts for the same human in Companies A/B; each manager controls only the authorized Company account
 
 **Assert:** locked global authority only; reactivation never revives credentials/session
 
@@ -2325,7 +2337,7 @@ flowchart TD
 
 - Record exact worktree/revision/environment/DB/version and actual test discovery/results.
 
-- Use two Companies, multiple Branches, shared User/different roles, platform versus business identity, inactive/future/finite/ended grants; trace every API/Admin path through session/CSRF/policy/validation/transaction/audit/response.
+- Use two Companies, multiple Branches, separate User UUIDs for the same human with independent roles, platform versus business identity, inactive/future/finite/ended grants; trace every API/Admin path through session/CSRF/policy/validation/transaction/audit/response.
 
 - Attempt raw Admin POST/bulk/search/autocomplete/FK/privilege bypass; object/field scope and mixed-Company audit leakage.
 
@@ -2367,7 +2379,7 @@ flowchart TD
 
 - Branch isolation
 
-- shared multi-Company users
+- independent Company accounts for the same human; no shared business identity
 
 - default deny
 
@@ -2901,17 +2913,13 @@ User VIRMS-PHASE-01-PLAN-HARDENING-1.1, 2026-10-30; supersedes v1.0 proposals on
 
 **Default:** DENY
 
-### Shared User Lifecycle
+### Company Account Lifecycle (2026-10-31 decision)
 
-**Problem:** One User identity may participate in multiple Companies.
+**Identity:** Each ordinary Company User belongs to one Company only. The same human in another Company receives a distinct backend UUID account with independent credentials, sessions, roles, Branch scope and history.
 
-**Single Company User:** Authorized Platform Back Office operator with explicit scope may perform approved reset/revoke/lifecycle actions.
+**Reset/Deactivate/Reactivate/Revoke:** Operate on the selected account only. Another Company's separate account is unaffected. No shared-account coverage or cross-Company takeover rule applies.
 
-**Multi Company User:** A Company-local Accountant or ordinary Company operator must not globally deactivate/reset/revoke the shared account merely because they control one Company.
-
-**Global Reset Deactivate Reactivate Revoke:** Require Platform Back Office global lifecycle authority plus authority covering all affected active memberships, or an explicitly documented break-glass platform procedure.
-
-**Accountant Global Lifecycle:** False
+**Unresolved:** Login ID and email remain globally unique; login has no Company selector.
 
 **Unknown Case:** Fail closed.
 
@@ -3191,7 +3199,7 @@ Compute canonical strip().lower() for every existing row; reject empty canonical
 
 **Id:** R6
 
-**Change:** Resolve BDR-03 using the shared-user lifecycle policy in this prompt.
+**Change:** Resolve BDR-03 using account-local lifecycle; one Company account action does not affect another Company account.
 
 #### Task Ids
 

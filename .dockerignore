@@ -19,3 +19,5 @@ user_prompt.txt
 # Exclude local review worktrees and generated evidence from images.
 tmp/
 output/
+
+.venv*/

@@ -1,5 +1,13 @@
 # 01 — Data Flow
 
+## 2026-10-31 verified Phase 1 state
+
+One ordinary Company User UUID is protected to one Company by the `accounts.0007_one_company_account` PostgreSQL guard and by provisioning/Admin policy. The same human may have separate UUID accounts in other Companies; credentials, sessions, epochs, grants, Branch scope, and audit history stay independent. Existing databases are still unverified: migration preflight fails closed on multi-Company business accounts, and no account is auto-split. `login_id` and email remain globally unique; login has no Company selector.
+
+## 2026-10-31 implementation delta (worktree only)
+
+The dated 2026-10-19 material below is a historical baseline. The current worktree completes P1-11 through P1-19: account provisioning and lifecycle use Company-scoped policy; Login ID admission is bounded; Company/Branch readers use membership, scoped grants and effective assignments; Django Admin routes use scoped adapters; errors, request IDs and health probes are implemented; migrations include explicit legacy mapping and cutover safeguards. Final validation on disposable PostgreSQL 15.19 passed 129 accounts/tenants tests after the read-query audit additions, plus fresh migration and schema-drift checks. The exact result is recorded in `docs/phase1-execution-progress.md`. No finance module, frontend, persistent database or deployment was added or verified.
+
 ## 0. Verification header
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD: `b4a40772edec567297e96d72bf037df73ea0cae6`. The local Django foundation and these maps are untracked, so HEAD does not attest to their contents.

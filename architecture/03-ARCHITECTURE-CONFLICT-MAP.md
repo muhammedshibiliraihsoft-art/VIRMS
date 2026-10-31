@@ -1,5 +1,11 @@
 # 03 — Architecture Conflict Map
 
+## 2026-10-31 verified Phase 1 implementation
+
+The one-Company-per-normal-business-account rule is implemented with the PostgreSQL membership guard, service policy and Admin restrictions. Separate Company accounts retain independent UUIDs, credentials, sessions, grants, lifecycle and audit. Existing database contents remain unverified; the migration fails closed on multi-Company accounts and no rows are auto-split. Global `login_id` and email uniqueness remain in force; there is no Company login selector.
+
+P1-11 through P1-19 implementation and final local validation are recorded in `docs/phase1-execution-progress.md`. This changes the current implementation classification below; dated 2026-10-19 verification headers and tables remain historical snapshots. No financial or Phase 2 behavior was implemented.
+
 ## 0. Verification header
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`. Backend and architecture files inspected locally are untracked.
@@ -25,11 +31,12 @@ Folder names, DRAFT/FINAL labels and commit recency alone do not determine the c
 | Topic | CURRENT APPROVED/TARGET V2 | CURRENT IMPLEMENTED / tests | HISTORICAL / SUPERSEDED or stale text | Classification/action |
 |---|---|---|---|---|
 | Authority | V2 intended target; 01 says previous `/docs-final/` is historical baseline; 02/04/05/09/10 own V2 meanings | Code cannot choose product authority | `AGENTS.md`, README and older governance docs now distinguish V2 target, implementation and historical V1; System Design body remains historical/unreconciled | `CONFLICT-001` resolved by documentation; V2 BDRs remain open |
-| Isolation | Platform→Company/Tenant→Branch; Company hard boundary, Branch within Company; module/action/object/field scope | Generic Tenant, global role and Tenant membership; no Branch/module state | V1 Garage=Tenant, Tenant-scoped Garage operations | `PARTIAL_IMPLEMENTATION`, `CONFLICT-002`; do not treat code as V1 approval |
+| Isolation | Platform→Company/Tenant→Branch; Company hard boundary, Branch within Company; module/action/object/field scope | Phase 1 implements Company membership/grants, Branch assignment, account and read scopes; finance/module handlers remain absent | V1 Garage=Tenant, Tenant-scoped Garage operations | Phase 1 foundation scope implemented; `CONFLICT-002` remains for unbuilt modules |
+| Company account identity | Each ordinary business User UUID belongs to one Company; the same human in another Company has a separate account. Platform technical identities are distinct | `accounts.0007` PostgreSQL guard, provisioning policy and Admin protections enforce one Company for Company accounts. Disposable raw-SQL and upgrade tests pass; real rows remain unverified | Earlier shared Company account plan assumptions | `CONFLICT-006` implementation complete; migration fails closed on existing multi-Company rows; no automatic split; global login ID/email uniqueness retained |
 | Investor/Vehicle | Fund relationship at Company level across Branches; one Investor per funded Stock Vehicle; external customer Vehicle requires none | No Investor, Fund, Vehicle or Garage model/API | V1 global cross-Garage Investor/Fund, one Investor for every Vehicle | `RULE_SUPERSEDED` for target; `CONFLICT-003` compatibility review |
 | Money and Owner | Actual Company Running Capital separate; positive Investor/Company Share; Company-level period Owner Distribution; manual Loss | No finance tables/routes/tests | V1 per-deal Owner Pool, formula Loss/Owner contribution, no Company Accounting/Running Capital | `RULE_SUPERSEDED`; V2 `BUSINESS DECISION REQUIRED` in affected areas |
 | Protected rates | Platform Back Office changes Investor agreements, monthly rate, Owner split and sensitive defaults; Accountant confirms authorized transactions | No protected financial configuration | V1 Accountant could change Investor-specific percentage | `RULE_SUPERSEDED`; actor boundary implementation gap |
-| API and frontend | V2 Company/Branch/module-scoped backend, Garage independent of Investment, source-linked Accounting; React target | Account/Tenant routes only; test files present but unrun; no React | V1-derived System Design routes/diagrams and roadmap | `DOC_STALE` for business shape, `PARTIAL_IMPLEMENTATION` |
+| API and frontend | V2 Company/Branch/module-scoped backend, Garage independent of Investment, source-linked Accounting; React target | Phase 1 auth/lifecycle/provisioning/read APIs and Django Admin are covered by 129 disposable-PostgreSQL tests; no React or finance API | V1-derived System Design routes/diagrams and roadmap | Phase 1 auth foundation implemented; broader V2 product remains partial |
 | Existing production history | V2 text says no production V1 cutover needed | No tracked app code or live DB inspected | README describes replaced starter migrations | `UNVERIFIED`, `CONFLICT-005`; cannot infer live data state |
 
 No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidence proving one. The present business-target mismatch is primarily **missing implementation**, not proof the V2 target is wrong.
@@ -44,12 +51,12 @@ No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidenc
 - **Resolution:** V2 is **CURRENT APPROVED/TARGET**; V1 is **HISTORICAL / SUPERSEDED**. All 20 System Design files are explicitly historicalized, but their bodies are not V2-reconciled and still require section-level review before reuse.
 - **Status:** RESOLVED as a documentation-authority conflict. V2 business decisions and implementation gaps remain tracked separately under `CONFLICT-002` through `CONFLICT-005`.
 
-### CONFLICT-002 — Company/Branch/module target versus Tenant-only foundation
+### CONFLICT-002 — Company/Branch/module target versus Tenant-backed Phase 1 foundation
 
-- **Classification/area:** `PARTIAL_IMPLEMENTATION`; identity, tenancy, authorization and API. V2 requires Company membership, relevant Branch assignment, enabled-module gate, role/action and object/field scope. Current source has User, RoleAssignment, TenantMembership, active Tenant list/detail and account management; no Branch or module state/checks.
+- **Classification/area:** Phase 1 implements Company membership, CompanyRoleGrant, Branch assignment, account lifecycle/provisioning scope, Company/Branch reads and Django Admin adapters. The V2 enabled-module gate and product resource/object/field rules have no modules to govern yet.
 - **Historical influence:** V1 Garage=Tenant design may have shaped the foundation, but generic `Tenant` code alone does not prove a V1 business implementation.
 - **Why it matters:** a future financial/Job route built on Tenant membership alone could cross Branch/module boundaries or misassign Company money.
-- **Resolution:** implement V2 scope only through a separately authorized task after source/schema/runtime review; preserve valid current auth/account behavior. **Status:** OPEN implementation gap. Missing implementation is not evidence V1 remains authoritative.
+- **Resolution:** P1-11 through P1-19 verified the account/scope foundation on disposable PostgreSQL. Add module-specific gates with their owning V2 module in a later authorized phase; no financial behavior was introduced here. **Status:** Phase 1 foundation resolved; product-module implementation remains outside Phase 1.
 
 ### CONFLICT-003 — V1-derived finance/design assumptions versus V2 economics
 
@@ -65,9 +72,15 @@ No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidenc
 - **Why it matters:** a calculation, suggestion or historical V1 formula cannot supply an approved V2 economic/permission outcome.
 - **Resolution:** keep affected implementation blocked or manual only where V2 explicitly permits it until business decisions are recorded. Other defined V2 target boundaries remain describable. **Status:** OPEN.
 
-### CONFLICT-005 — Application history, tests and runtime evidence absent
+### CONFLICT-006 — Company business account identity cardinality
 
-- **Classification/area:** `UNVERIFIED`; schema/release/history. Backend source and migrations are untracked; tests were inspected but not run; live PostgreSQL, migration ledger, API, deployment and production transaction history were not checked.
+- **CURRENT TARGET:** one ordinary Company business account UUID belongs to exactly one Company. The same human in another Company uses a separate UUID account with independent credentials, sessions, roles, Branch scope and audit history. Technical platform identity remains separate.
+- **CURRENT IMPLEMENTED (2026-10-31 local worktree):** successor migration `accounts.0007` adds an immutable Company/platform account kind and a PostgreSQL trigger rejecting a second Company membership for Company accounts, including a new raw SQL insert. Provisioning, lifecycle and Admin policy use the same one-Company boundary. Fresh replay, direct-bypass tests and representative supported upgrade pass. Existing real rows remain unverified.
+- **Compatibility gate:** inspect existing multi-Company User counts and history before a successor constraint or reader cutover. Never auto-split or infer identity from name, email or phone. Global login ID/email uniqueness is the current rule; no Company login selector is required.
+
+### CONFLICT-005 — Application history and deployed runtime evidence absent
+
+- **Classification/area:** `UNVERIFIED`; schema/release/history. Current source and migrations are locally tested; no live staging/production PostgreSQL ledger, API, deployment or production transaction history was checked.
 - **Competing claims:** modified README says starter migrations were replaced; V2/01 and V2/06 say no production V1 cutover or dual calculation engine is required. These are documentation claims, not observed environment state.
 - **Resolution:** verify environment and actual history before any migration, compatibility or release decision. Do not invent existing customers/data, and do not assume zero records. **Status:** OPEN evidence gap.
 
