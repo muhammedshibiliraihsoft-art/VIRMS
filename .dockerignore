@@ -1,0 +1,21 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+venv
+__pycache__
+*.pyc
+.local-media
+.devcontainer
+.vscode
+staticfiles
+docs-final
+docs-legacy
+system-design
+architecture
+user_prompt.txt
+
+# Exclude local review worktrees and generated evidence from images.
+tmp/
+output/
