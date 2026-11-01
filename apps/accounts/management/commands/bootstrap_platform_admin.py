@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.accounts.audit import record_event
 from apps.accounts.management.commands import operator_auth
 from apps.accounts.models import AccountSecurityEvent, RoleAssignment, User
+from apps.accounts.platform_identity import has_company_business_history
 from apps.tenants.models import Tenant, TenantMembership
 from apps.tenants.primitives import _create_company
 
@@ -33,6 +34,7 @@ def _is_platform_superuser(user):
         and user.is_staff
         and user.is_superuser
         and not user.must_change_password
+        and not has_company_business_history(user.pk)
     )
 
 

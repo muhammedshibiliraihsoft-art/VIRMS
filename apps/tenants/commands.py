@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.accounts.audit import record_event
 from apps.accounts.locks import locked_users
-from apps.accounts.models import CompanyRoleGrant
+from apps.accounts.models import CompanyRoleGrant, User
 from apps.accounts.policy import require_action
 
 from . import primitives
@@ -119,6 +119,8 @@ def grant_role(*, actor, membership, role, branch=None):
         )
         if membership is None or role not in CompanyRoleGrant.Role.values:
             raise ValidationError("Invalid membership or role")
+        if users[membership.user_id].account_kind != User.AccountKind.COMPANY:
+            raise ValidationError("Company role grants require a Company account")
         if branch is not None:
             branch = Branch.objects.select_for_update().get(
                 pk=branch.pk, tenant=company
@@ -176,9 +178,9 @@ def end_scope_row(*, actor, row):
         if row.branch_id:
             Branch.objects.select_for_update().get(pk=row.branch_id, tenant=company)
         row = type(row).objects.select_for_update().get(pk=row.pk)
-        if row.effective_until is not None:
-            return row
         now = timezone.now()
+        if row.effective_until is not None and row.effective_until <= now:
+            return row
         if now <= row.effective_from:
             raise ValidationError("Cannot end future scope")
         row.effective_until = now

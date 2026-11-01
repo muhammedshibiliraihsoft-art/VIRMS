@@ -14,8 +14,8 @@ from django.utils import timezone
 from apps.accounts.audit import record_event
 from apps.accounts.management.commands import operator_auth
 from apps.accounts.models import AccountSecurityEvent, RoleAssignment, User
+from apps.accounts.platform_identity import is_platform_actor
 from apps.tenants.models import Tenant, TenantMembership
-from apps.tenants.selectors import current_interval
 
 MANIFEST_VERSION = "VIRMS-P1-LOGIN-MAP-1"
 MAX_MANIFEST_BYTES = 5 * 1024 * 1024
@@ -224,14 +224,7 @@ class Command(BaseCommand):
             account_kind=User.AccountKind.PLATFORM,
             must_change_password=False,
         ).first()
-        if (
-            actor is None
-            or not RoleAssignment.objects.filter(
-                user=actor, role=RoleAssignment.Role.BACK_OFFICE
-            )
-            .filter(current_interval())
-            .exists()
-        ):
+        if actor is None or not is_platform_actor(actor):
             raise CommandError("Actor must be an active Platform Back Office account")
         return actor
 

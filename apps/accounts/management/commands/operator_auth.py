@@ -21,9 +21,12 @@ def prompt_platform_password():
 
 def require_platform_password(password, actor):
     """Verify against the freshly locked actor hash without upgrading that hash."""
+    from apps.accounts.platform_identity import is_platform_identity_candidate
+
     if (
         not isinstance(password, str)
         or not password
         or not check_password(password, actor.password)
+        or not is_platform_identity_candidate(actor)
     ):
         raise CommandError("Platform Back Office authentication failed")

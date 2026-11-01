@@ -10,8 +10,8 @@ from apps.accounts.lifecycle import (
     revoke_account_sessions,
     set_account_status,
 )
-from apps.accounts.login_admission import admit_login
-from apps.accounts.models import AccountSecurityEvent, CompanyRoleGrant
+from apps.accounts.login_admission import admit_login, login_attempt
+from apps.accounts.models import AccountSecurityEvent, CompanyRoleGrant, LoginAttempt
 from apps.accounts.tests.test_users import make_user
 from apps.tenants.admin_scope import managed_companies
 from apps.tenants.commands import end_scope_row
@@ -281,24 +281,46 @@ class AuditCorrectionTests(TestCase):
             context, _ = company_context(self.user)
         self.assertEqual(context[0]["roles"], ["accountant"])
         self.assertEqual(context[0]["branches"], [])
-        prefetches = [
-            q["sql"]
-            for q in queries
-            if q["sql"].startswith(
-                (
-                    'SELECT "accounts_companyrolegrant".',
-                    'SELECT "tenants_branchassignment".',
-                )
-            )
+        sql = [query["sql"] for query in queries]
+        role_prefetch = [
+            query
+            for query in sql
+            if 'SELECT DISTINCT ON ("accounts_companyrolegrant"."membership_id"'
+            in query
         ]
-        self.assertEqual(len(prefetches), 2)
+        branch_prefetch = [
+            query
+            for query in sql
+            if 'ROW_NUMBER() OVER (PARTITION BY "tenants_branchassignment".'
+            in query
+        ]
+        self.assertEqual(len(role_prefetch), 1)
+        self.assertEqual(len(branch_prefetch), 1)
+        prefetches = role_prefetch + branch_prefetch
         for query in prefetches:
             self.assertIn('"effective_from" <=', query)
             self.assertIn('"effective_until" >', query)
 
-    def test_admission_key_cardinality_is_bounded_for_rotating_input(self):
+    @override_settings(
+        VIRMS_LOGIN_GLOBAL_LIMIT=100,
+        VIRMS_LOGIN_SOURCE_LIMIT=1000,
+        VIRMS_LOGIN_IDENTIFIER_LIMIT=1000,
+    )
+    def test_rotating_identifiers_are_distinct_and_admission_bounded(self):
         from apps.accounts.login_admission import _key
 
-        for kind in ("identifier", "source"):
-            keys = {_key(kind, str(index)) for index in range(65537)}
-            self.assertLessEqual(len(keys), 65536)
+        keys = {_key("identifier", str(index)) for index in range(65537)}
+        self.assertEqual(len(keys), 65537)
+
+        request = RequestFactory().post(
+            "/api/v1/auth/login/", REMOTE_ADDR="198.51.100.13"
+        )
+        admitted = 0
+        for index in range(1000):
+            with login_attempt(request, f"rotating-{index}") as outcome:
+                admitted += outcome.allowed
+                if outcome.allowed:
+                    outcome.authenticated = False
+
+        self.assertEqual(admitted, 100)
+        self.assertEqual(LoginAttempt.objects.filter(failures=1).count(), 100)

@@ -102,7 +102,10 @@ class LoginAttempt(TimestampedUUIDModel):
     retry_after = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        indexes = [models.Index(fields=["retry_after"], name="login_retry_after_idx")]
+        indexes = [
+            models.Index(fields=["retry_after"], name="login_retry_after_idx"),
+            models.Index(fields=["updated_at", "id"], name="login_state_expiry_idx"),
+        ]
 
 
 class AccountSecurityEvent(TimestampedUUIDModel):

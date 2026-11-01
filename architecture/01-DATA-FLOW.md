@@ -1,5 +1,7 @@
 # 01 — Data Flow
 
+> Isolated candidate update — 2026-11-01: account login-failure state, Company identity cutover guards, scoped lifecycle writes and bounded Branch summaries are updated in this candidate. The accounts/tenants suite passed 172/172 on disposable PostgreSQL 15.19. The owner accepted the concurrent-writer cutover risk with a mandatory legacy-writer pause; Phase 2 entry is READY for isolated development. Cutover and deployment remain unauthorized. See [candidate verification](../docs/phase1-execution-progress.md). The dated verification and implementation sections below describe earlier snapshots, not this candidate.
+
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
 ## 2026-10-31 verified Phase 1 state

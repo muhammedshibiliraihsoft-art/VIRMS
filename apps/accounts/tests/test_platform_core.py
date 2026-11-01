@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError, connection, transaction
 from django.test import TestCase
@@ -376,21 +378,28 @@ class AuditPrivilegeTests(TestCase):
         self.assertIsNone(record_sensitive_denial(actor=None))
 
     def test_runtime_role_cannot_mutate_or_truncate(self):
+        role = f"virms_test_audit_{uuid.uuid4().hex}"
+        quoted_role = connection.ops.quote_name(role)
         with connection.cursor() as cursor:
-            cursor.execute("CREATE ROLE virms_test_audit_runtime NOLOGIN")
-            cursor.execute("GRANT USAGE ON SCHEMA public TO virms_test_audit_runtime")
+            cursor.execute(f"CREATE ROLE {quoted_role} NOLOGIN")
+            cursor.execute(f"GRANT USAGE ON SCHEMA public TO {quoted_role}")
             cursor.execute(
-                "GRANT SELECT, INSERT ON accounts_accountsecurityevent TO virms_test_audit_runtime"
+                f"GRANT SELECT, INSERT ON accounts_accountsecurityevent TO {quoted_role}"
             )
-        for sql in [
-            "UPDATE accounts_accountsecurityevent SET outcome='changed'",
-            "DELETE FROM accounts_accountsecurityevent",
-            "TRUNCATE accounts_accountsecurityevent",
-        ]:
-            with self.assertRaises(DatabaseError), transaction.atomic():
-                with connection.cursor() as cursor:
-                    cursor.execute("SET LOCAL ROLE virms_test_audit_runtime")
-                    cursor.execute(sql)
+        try:
+            for sql in [
+                "UPDATE accounts_accountsecurityevent SET outcome='changed'",
+                "DELETE FROM accounts_accountsecurityevent",
+                "TRUNCATE accounts_accountsecurityevent",
+            ]:
+                with self.assertRaises(DatabaseError), transaction.atomic():
+                    with connection.cursor() as cursor:
+                        cursor.execute(f"SET LOCAL ROLE {quoted_role}")
+                        cursor.execute(sql)
+        finally:
+            with connection.cursor() as cursor:
+                cursor.execute(f"DROP OWNED BY {quoted_role}")
+                cursor.execute(f"DROP ROLE {quoted_role}")
 
 
 class SessionLeaseTests(TestCase):

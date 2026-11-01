@@ -207,6 +207,17 @@ class TenantMembershipAdmin(admin.ModelAdmin):
             .filter(tenant__in=managed_companies(request.user))
         )
 
+    def get_search_results(self, request, queryset, search_term):
+        queryset, may_have_duplicates = super().get_search_results(
+            request, queryset, search_term
+        )
+        if (
+            request.GET.get("model_name") == CompanyRoleGrant._meta.model_name
+            and request.GET.get("field_name") == "membership"
+        ):
+            queryset = queryset.filter(user__account_kind=User.AccountKind.COMPANY)
+        return queryset, may_have_duplicates
+
     def has_view_permission(self, request, obj=None):
         if not is_platform_admin_actor(request.user):
             return False
@@ -344,7 +355,7 @@ class CompanyRoleGrantAdmin(admin.ModelAdmin):
         if db_field.name == "membership":
             kwargs["queryset"] = TenantMembership.objects.filter(
                 tenant__in=companies, user__is_active=True
-            ).filter(current_interval())
+            ).filter(current_interval(), user__account_kind=User.AccountKind.COMPANY)
         elif db_field.name == "branch":
             kwargs["queryset"] = Branch.objects.filter(tenant__in=companies)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)

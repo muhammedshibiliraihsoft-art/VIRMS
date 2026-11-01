@@ -1,68 +1,56 @@
-> Superseded audit conclusion: the earlier completion assessment below missed verified authorization, temporal-selector and admission defects. See [the current correction audit](phase1-audit-corrections.md) for the fixes and latest validation. The earlier 129-test run is historical evidence, not proof of these corrected rules.
+# Phase 1 Candidate Verification — 2026-11-01
 
-# Phase 1 Execution Report — 2026-10-31
+> **Current gate: PHASE_2_ENTRY_READY for isolated Phase 2 development.** On 2026-11-01, the owner accepted the A2 migration cutover risk with the required legacy-writer pause described below. This acceptance does not authorize a database cutover, staging integration or deployment. This report describes only the isolated uncommitted candidate.
 
-> **Status: PHASE 1 COMPLETE** for the local backend implementation and exit gate (P1-00 through P1-19). This does not mean the product is deployed or ready for production cutover.
+## Candidate identity and boundaries
 
-## Worktree and Git state
+- Repository: D:/VIRMS
+- Candidate worktree: D:/VIRMS/tmp/phase1-consolidated-20261101
+- Branch: codex/phase1-consolidated
+- Exact base and current HEAD: 948df94b8e2cee0fe12075181d9fe602cd708ed9
+- The original D:/VIRMS dirty staging worktree and the older dirty tmp/reviewed-backend-baseline worktree were not changed.
+- Candidate changes are uncommitted and confined to Phase 1 backend, tests, configuration and verification documentation. No commit, push, merge, staging integration or deployment occurred.
 
-- Project/worktree: `D:/VIRMS/tmp/reviewed-backend-baseline`
-- Branch: `codex/reviewed-backend-baseline`
-- HEAD at final audit: `9a7dcced3126fa1da55a91d398b9aa1426800869`
-- Tracking state: one commit ahead of `origin/staging`; no commit or push was made.
-- Worktree is dirty with the Phase 1 implementation, migrations, tests, and documentation. Some changes predate the final audit and ownership of unrelated dirty material is not established; it was preserved.
-- The separate root checkout `D:/VIRMS` is also dirty and was not modified.
-- No merge, deployment, frontend, Phase 2, staging, production, or persistent/shared database operation occurred.
+## Verified fixes
 
-## Verified implementation
+- **A1 — PASS:** only failed credentials increment the identifier failure budget; successful API and Django Admin logins clear the exact identifier state. Source/global counters remain bounded all-attempt admission budgets before password hashing. Other identifiers and source/global protection are not cleared by an identifier success.
+- **A2 — PASS for the supported migrate path:** manage.py migrate preflights legacy identity before released migration 0007. Successor 0010 validates already-classified Platform identities and fails closed. Platform policy, selectors and Admin scope deny authority to identities with Company business-role/grant history. Existing UUIDs and history are preserved; no account split or automatic identity mapping occurs.
+- **A3 — PASS:** ending an active membership, role grant or Branch assignment sets its end to now, including finite future expiry. Future-start rows are rejected; already-ended rows are idempotent; one audit event is emitted for the transition.
+- **B1 — PASS:** /auth/me returns at most 20 stably ordered Branch summaries per Company with branches_truncated; paginated Branch reads retain full authorized access and query count stays bounded at 1, 25, 75 and 250 Branches.
+- **Additional Phase 1 security fix:** WhiteNoise now runs inside Django SecurityMiddleware. Before the fix, dynamic HTTP redirected while static HTTP returned 200 without nosniff/HSTS. After the fix, static HTTP redirects and forwarded HTTPS static responses return 200 with the configured security headers.
+- **Additional Platform identity fix:** Company role-grant commands reject Platform accounts; Django Admin form and autocomplete choices exclude Platform memberships. Provisioning and explicit legacy mapping paths already require Company-kind targets.
 
-| Area | Result |
-|---|---|
-| Identity and bootstrap | A normal Company account has one backend-generated User UUID and one Company. The same person in another Company uses a separate account. Login ID and email remain globally unique; login has no Company selector. Platform technical accounts do not receive implicit Company business authority. |
-| P1-01–10 foundation | Supported Django/DRF runtime and dependency locks; audit and session epoch/lease controls; Company membership, scoped grants, Branch assignments and default-deny policy; private password change with atomic audit/session guarantees. |
-| P1-11 provisioning | Provisioning authorizes against Company-scoped policy and atomically creates the independent account, membership, and scoped grant. Global business roles alone do not authorize it. |
-| P1-12 lifecycle | Reset/status/revoke operate on the exact User UUID, resolve its one Company, and require the applicable scoped policy. Legacy global business roles alone cannot mutate another account. Temporary credentials, auth-epoch/session invalidation, and actor/subject/scope audit behavior are covered. |
-| P1-13 login admission | Login attempts use bounded, shared PostgreSQL-backed admission with atomic behavior under concurrent processes. |
-| P1-14 scoped reads | Company and Branch reads require effective membership/grants/assignments, return bounded pages, and hide or deny out-of-scope targets. |
-| P1-15 Django Admin | Admin routes use scoped command adapters. Generic edits cannot bypass credential, role, membership, Company, or Branch safeguards. Safe password and temporary-credential flows are covered. |
-| P1-16 HTTP boundary | Request IDs, safe correlated errors, and liveness/readiness probes are implemented and tested. |
-| P1-17 migration/cutover rehearsal | Canonical Login ID and role-mapping operations require explicit reviewed mappings, authorization and operator re-authentication; replay is deterministic and idempotent. Migration locks/preflight prevent ambiguous identity cutover. A separate disposable PostgreSQL backup/restore rehearsal produced an exact fixture snapshot match. No live-data cutover was attempted. |
-| P1-18 documentation | README setup/bootstrap instructions and architecture maps describe the verified backend flow and explicit deployment/data boundaries. Frozen `/docs-final-v2/` documents were not edited in this finalization. |
-| P1-19 final audit | Full accounts/tenants regression, fresh migrations, schema-drift, lint, migration-plan, restore, read-query, and security review evidence is recorded below. |
+## Remaining material finding
 
-## Data, API, and authorization flow
+- **B — A2 concurrent cutover writer:** the read-only pre_migrate scan is not atomic with released migration 0007. A legacy Company-role write after the scan can let 0007 commit an immutable Platform classification; successor 0010 then rejects the upgrade. A PostgreSQL regression reproduces this sequence: UUID, role history and memberships remain, and the migration stops before 0010; no automatic repair is attempted. Runtime authorization fails closed for the ambiguous identity.
+- **Required cutover procedure:** stop every legacy account, membership, Company-role and Branch-scope writer before running check_account_identity_cutover and migrate; keep writers paused until the complete migration succeeds. On failure, do not bypass the error or re-enable writers; preserve the database, review the reported UUIDs and obtain explicit mapping/remediation.
+- **Owner disposition:** accepted by the user's “ok” response on 2026-11-01, specifically with all legacy account, membership, Company-role and Branch-scope writers paused before preflight and until migration success. This accepts the documented operational boundary for isolated Phase 2 entry; it does not authorize running a cutover or any staging/production action. No live or shared database was used to make that decision.
 
-Login ID/password -> CSRF-protected Django session -> locked active User/auth-epoch check -> bounded session lease -> authorized request. Mutations pass through policy and command/service layers, use a transaction and stable locks, write scoped audit evidence, and affect only the identified account/Company. Password changes/resets rotate the epoch and invalidate required old sessions.
+## Final adversarial re-audit
 
-Current account API includes `POST /api/v1/auth/accounts/provision/`, UUID-targeted reset/status/revoke endpoints, session/password endpoints, and `GET /api/v1/auth/me/`. Tenant-backed Company and Branch list/detail reads are paginated and scope-filtered. Django Admin uses the same policy/service boundary. `/health/live/` and `/health/ready/` are operational probes. No observed production request trace was available to classify a current request as redundant; no request was removed on request-count grounds.
+- A fresh-context, read-only reviewer re-checked the latest authentication, migration-preflight, Platform grant command/Admin changes and their regression coverage. It found no remaining A-level defect and no additional material B beyond the concurrent A2 cutover-writer risk above. It confirmed the early migration-prefix regression and Platform grant restrictions are covered. This was an internal independent review; no external cloud auditor or second model was invoked.
 
-One normal business User UUID cannot span Companies. Company membership/grants and Branch assignments are the authorization source; old global business roles do not grant Company lifecycle authority. Django `is_staff`/`is_superuser` does not silently grant ordinary Company business authority. Platform technical/break-glass actions remain explicit.
+## Migration and data evidence
 
-## Database and migration boundary
+- Disposable PostgreSQL 15.19 only. Fresh replay applied all accounts/tenants migrations through 0011; the migration plan then had no pending operations.
+- Upgrade tests cover the legacy 0006 prefix, the supported pre-0007 manage.py migrate guard, the concurrent post-scan write above, a valid earlier accounts.0003 prefix before CompanyRoleGrant exists, and preservation of UUID/role/membership history. Released migration 0007 was not edited.
+- Model/schema drift check passed: makemigrations --check --dry-run reported no changes.
+- A disposable pg_dump -Fc / pg_restore rehearsal produced identical source and restore snapshots for User, Company, membership, role/grant scope and migration ledger.
+- Runtime-role privilege test denied direct audit-record UPDATE/DELETE/TRUNCATE for a disposable PostgreSQL role. This does not verify any staging/production role configuration.
+- With 50,000 synthetic LoginAttempt rows, the cleanup EXPLAIN changed from sequential scan + external sort (~30.16 ms) to the candidate expiry index scan (~1.91 ms), with no external sort. This is representative synthetic evidence, not a production load test.
 
-Migrations after the original app foundations add audit/session controls, scoped grants, Branch scope, one-Company account enforcement, and canonical Login ID integrity. The PostgreSQL guard rejects a second Company for an ordinary account, including direct SQL. Canonicalization preflight takes a table lock through trigger installation; ambiguous/colliding historical identities fail closed. Mapping does not merge or auto-split accounts and preserves UUID/history where the reviewed mapping allows it.
+## Tests and checks
 
-The final full run began with an empty disposable PostgreSQL 15.19 database and applied all migrations. A separate restore rehearsal restored a fixture containing a User, Company, membership and grant; its source/restore fixture snapshots matched exactly. These checks do not establish what is in any existing database. Existing/staging/production rows, credentials, database privileges, backup policies, and live cutover state remain unverified.
+- Full command: python manage.py test apps.accounts apps.tenants --verbosity 1 --noinput — **172 collected, 172 passed, 0 failed, 0 skipped**, PostgreSQL 15.19, 189.613 seconds. Django system checks reported no issues.
+- Final focused group — **4/4 passed**: valid earlier migration prefix, A2 concurrent writer failure/data preservation, Platform role-grant Admin choices, and direct Platform grant denial.
+- Production middleware ordering regression — **1/1 passed**. Additional focused A1/A2/A3/B1, login-admission, migration-upgrade and runtime-role tests also passed; their cases are included in the full suite.
+- manage.py check: passed. manage.py migrate --plan: no pending operations. manage.py makemigrations --check --dry-run: no changes detected.
+- isort --check-only, flake8, Black checks on changed Python files, and git diff --check: passed.
+- manage.py check --deploy: exit 0 with informational security.W021 because HSTS preload is not enabled. Domain and deployment policy remain unset; this is not configured speculatively.
+- A fresh Dockerfile build could not fetch packages in the isolated no-network build. The local cached runtime image has the same requirements/lock hashes and a recorded successful pinned pip-install layer; pip check passed. An offline image containing the exact candidate source completed collectstatic, ran as UID 999 (virms), passed manage.py check, served /health/live/ and hashed Admin CSS, and verified HTTP redirect plus HTTPS nosniff/HSTS behavior. No external registry was accessed.
 
-## Validation actually run
+## Documentation and release scope
 
-- Final disposable run: `D:/VIRMS/tmp/phase1-clean-runtime/Scripts/python.exe D:/VIRMS/output/phase1-execution-2026-10-31/run_disposable_checks_selectable.py p1-19-final-full-regression`
-  - Verified an empty `virms_phase1_isolated` database on PostgreSQL 15.19, loopback-only in a `--tmpfs`, `--rm` Docker container.
-  - Django `check`: passed; fresh full migration replay: passed.
-  - `apps.accounts` + `apps.tenants`: **129 tests passed** in 538.412 seconds.
-  - `makemigrations --check --dry-run`: no changes detected.
-  - Disposable container stopped and removed. Evidence: `D:/VIRMS/output/phase1-execution-2026-10-31/p1-19-final-full-regression.json`.
-- Formatting/static checks: Black semantic check over 76 application Python files and the new migration: clean; `isort --check-only apps core`: passed; `flake8 apps core`: passed; `git diff --check`: clean. Git emitted only line-ending normalization warnings for existing working-copy files.
-- Scoped-read audit on disposable PostgreSQL: Company list held at 6 queries and Branch list at 8 queries from 1 to 25 rows; response was limited to 20 rows. PostgreSQL EXPLAIN compiled both selectors. This is a bounded regression check, not a production-scale load test. Evidence: `p1-19-scoped-read-metrics.json`.
-- Migration-plan probe: fresh plan/apply/post-plan succeeded; post-plan had no pending operations. `check --deploy` exited successfully with one informational `security.W021` warning: `SECURE_HSTS_PRELOAD` is not enabled. Configure it for a public deployment when the deployment domain/security policy is established. Evidence: `p1-19-migration-plan.json`.
-- Restore rehearsal: PostgreSQL 15.19 disposable source/restore databases; restore exit 0 and exact fixture snapshot equality. Evidence: `p1-17-restore-rehearsal.json`.
-- Focused lifecycle, provisioning, concurrency, Admin bypass, mapping, migration-race, stale-session, HTTP-boundary, and cross-Company isolation tests also ran as part of the final 129-test suite; earlier focused runs are recorded in the same output directory.
-
-## Risks and release boundary
-
-- **A — Must fix now:** No unresolved Phase 1 implementation defect was found in the final local audit.
-- **B — Before any live cutover:** Inspect a protected backup and real database migration ledger/data. The migration deliberately refuses multi-Company business accounts or canonical Login ID collisions; a reviewed mapping/decision is needed if preflight finds them. No records are auto-split.
-- **B — Before production:** Configure least-privilege database roles, operational session-lease cleanup scheduling, public-domain security settings including HSTS preload as appropriate, and backup/restore operations in the target environment. These were not provisioned here.
-- **Informational:** The final suite tests `apps.accounts` and `apps.tenants`; it is the Phase 1 backend regression suite, not proof of frontend integration, external consumers, production behavior, or the entire product.
-
-No finance/product modules, frontend, Phase 2, staging/production database changes, deployment, commit, or push are included in this Phase 1 completion claim.
+- README migration guidance and this candidate report describe the required identity cutover writer pause and current acceptance status. /docs-final-v2/ canonical target documents were not changed.
+- No frontend, Phase 2, finance, Vehicles, Garage, Sales, Collections, Accounting, dashboard or custom Back Office implementation is included.
+- No staging/production/shared database, push, merge, commit or deployment was touched.

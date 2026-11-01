@@ -74,6 +74,9 @@ class CompanyIdentityUpgradeTests(TransactionTestCase):
             is_superuser=True,
             must_change_password=False,
         )
+        RoleAssignment.objects.create(
+            user=platform, role="back_office", assigned_by=platform
+        )
         company_user = User.objects.create(
             id=company_user_id,
             login_id=f"company-{company_user_id.hex}",
@@ -230,10 +233,10 @@ class CompanyIdentityUpgradeTests(TransactionTestCase):
         platform_id = (
             User.objects.filter(is_superuser=True).values_list("id", flat=True).get()
         )
-        RoleAssignment.objects.create(
+        RoleAssignment.objects.get_or_create(
             user_id=platform_id,
             role="back_office",
-            assigned_by_id=platform_id,
+            defaults={"assigned_by_id": platform_id},
         )
         MigrationExecutor(connection).migrate(PRE_CANONICAL_FOUNDATION)
 
@@ -370,10 +373,10 @@ class CompanyIdentityUpgradeTests(TransactionTestCase):
         platform_id = (
             User.objects.filter(is_superuser=True).values_list("id", flat=True).get()
         )
-        RoleAssignment.objects.create(
+        RoleAssignment.objects.get_or_create(
             user_id=platform_id,
             role="back_office",
-            assigned_by_id=platform_id,
+            defaults={"assigned_by_id": platform_id},
         )
         MigrationExecutor(connection).migrate(PRE_CANONICAL_FOUNDATION)
         manifest = {

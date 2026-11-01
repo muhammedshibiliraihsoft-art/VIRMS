@@ -7,7 +7,12 @@ from django.db import connection
 from django.test import RequestFactory, TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 
-from apps.accounts.login_admission import _key, admit_login, clear_identifier_budget
+from apps.accounts.login_admission import (
+    _key,
+    admit_login,
+    clear_identifier_budget,
+    login_attempt,
+)
 from apps.accounts.models import LoginAttempt, User
 
 
@@ -15,6 +20,13 @@ def _request(remote_addr="198.51.100.10"):
     request = RequestFactory().post("/api/v1/auth/login/")
     request.META["REMOTE_ADDR"] = remote_addr
     return request
+
+
+def _identifier_attempt(request, login_id, *, authenticated=False):
+    with login_attempt(request, login_id) as outcome:
+        if outcome.allowed:
+            outcome.authenticated = authenticated
+        return outcome.allowed, outcome.retry_after
 
 
 class LoginAdmissionPolicyTests(TestCase):
@@ -55,8 +67,8 @@ class LoginAdmissionPolicyTests(TestCase):
     )
     def test_identifier_window_reopens_after_expiry(self):
         request = _request()
-        self.assertTrue(admit_login(request, self.user.login_id)[0])
-        self.assertFalse(admit_login(request, self.user.login_id)[0])
+        self.assertTrue(_identifier_attempt(request, self.user.login_id)[0])
+        self.assertFalse(_identifier_attempt(request, self.user.login_id)[0])
         row = LoginAttempt.objects.get(key=_key("identifier", self.user.login_id))
         expired = timezone.now() - timedelta(seconds=11)
         LoginAttempt.objects.filter(pk=row.pk).update(
@@ -64,21 +76,29 @@ class LoginAdmissionPolicyTests(TestCase):
             retry_after=expired,
         )
 
-        self.assertTrue(admit_login(request, self.user.login_id)[0])
+        self.assertTrue(_identifier_attempt(request, self.user.login_id)[0])
 
-    def test_success_does_not_clear_shared_identifier_slot(self):
+    def test_success_clears_only_exact_identifier_failure_state(self):
         request = _request()
-        self.assertTrue(admit_login(request, self.user.login_id)[0])
+        self.assertTrue(_identifier_attempt(request, self.user.login_id)[0])
+        self.assertTrue(
+            _identifier_attempt(
+                request, self.user.login_id, authenticated=True
+            )[0]
+        )
+        identifier = LoginAttempt.objects.get(
+            key=_key("identifier", self.user.login_id)
+        )
+        self.assertEqual(identifier.failures, 0)
+        self.assertIsNone(identifier.retry_after)
         clear_identifier_budget(self.user.login_id)
 
-        self.assertTrue(
-            LoginAttempt.objects.filter(
-                key=_key("identifier", self.user.login_id)
-            ).exists()
+        self.assertEqual(
+            LoginAttempt.objects.get(key=_key("global", "all")).failures, 2
         )
-        self.assertTrue(LoginAttempt.objects.filter(key=_key("global", "all")).exists())
-        self.assertTrue(
-            LoginAttempt.objects.filter(key=_key("source", "198.51.100.10")).exists()
+        self.assertEqual(
+            LoginAttempt.objects.get(key=_key("source", "198.51.100.10")).failures,
+            2,
         )
 
     def test_login_body_size_rejects_missing_invalid_and_oversized_lengths(self):
@@ -101,10 +121,12 @@ class LoginAdmissionPolicyTests(TestCase):
                     key=uuid.uuid4().hex * 2,
                     failures=1,
                     retry_after=expired_at,
+                    updated_at=expired_at,
                 )
                 for _ in range(1001)
             ]
         )
+        LoginAttempt.objects.all().update(updated_at=expired_at)
 
         call_command("prune_login_attempts", batch_size=500)
 
@@ -120,7 +142,7 @@ class LoginAdmissionMultiprocessTests(TransactionTestCase):
             email="parallel-account@example.invalid",
         )
 
-    def test_concurrent_processes_share_atomic_identifier_budget(self):
+    def test_concurrent_processes_share_atomic_identifier_failure_budget(self):
         from apps.accounts.testing_helpers import admit_login_in_process
 
         context = multiprocessing.get_context("spawn")
@@ -173,6 +195,6 @@ class LoginAdmissionMultiprocessTests(TransactionTestCase):
         self.assertEqual(sharp_s.login_id, "ß")
         self.assertEqual(double_s.login_id, "ss")
         request = _request()
-        self.assertTrue(admit_login(request, "ß")[0])
-        self.assertFalse(admit_login(request, "ß")[0])
-        self.assertTrue(admit_login(request, "SS")[0])
+        self.assertTrue(_identifier_attempt(request, "ß")[0])
+        self.assertFalse(_identifier_attempt(request, "ß")[0])
+        self.assertTrue(_identifier_attempt(request, "SS")[0])

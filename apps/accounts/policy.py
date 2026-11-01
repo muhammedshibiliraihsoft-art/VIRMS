@@ -5,7 +5,8 @@ from django.core.exceptions import PermissionDenied
 from apps.tenants.models import BranchAssignment, TenantMembership
 from apps.tenants.selectors import current_interval
 
-from .models import CompanyRoleGrant, RoleAssignment, User
+from .models import CompanyRoleGrant, User
+from .platform_identity import is_platform_actor
 
 PLATFORM_ACTIONS = {
     "company.create",
@@ -55,12 +56,9 @@ def require_action(
         return current
     if current.must_change_password:
         deny()
-    platform = (
-        current.account_kind == User.AccountKind.PLATFORM
-        and RoleAssignment.objects.filter(user=current, role="back_office")
-        .filter(current_interval())
-        .exists()
-    )
+    platform = is_platform_actor(current)
+    if current.account_kind == User.AccountKind.PLATFORM and not platform:
+        deny()
     if action == "company.create":
         if not platform or company is not None or branch is not None:
             deny()

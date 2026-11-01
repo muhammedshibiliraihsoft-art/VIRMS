@@ -1,5 +1,7 @@
 # 02 — API Flow
 
+> Isolated candidate update — 2026-11-01: identifier admission counts failed credentials while source/global admission stays bounded; successful API/Admin logins clear only that identifier state. The auth context returns up to 20 stable Branch summaries per Company with a truncation flag, while paginated Branch endpoints retain full authorized reads. Company account lifecycle uses scoped authorization. The accounts/tenants suite passed 172/172 on disposable PostgreSQL 15.19; live/staging HTTP remains unverified. The owner accepted the A2 cutover-writer risk with a mandatory legacy-writer pause, so Phase 2 entry is READY for isolated development. See [candidate verification](../docs/phase1-execution-progress.md). Dated API snapshots below are historical.
+
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
 ## 2026-10-31 verified Phase 1 state

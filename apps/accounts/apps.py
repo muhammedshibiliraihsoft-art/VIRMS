@@ -7,4 +7,5 @@ class AccountsConfig(AppConfig):
     label = "accounts"
 
     def ready(self):
+        from . import migration_preflight  # noqa: F401
         from . import session_security  # noqa: F401

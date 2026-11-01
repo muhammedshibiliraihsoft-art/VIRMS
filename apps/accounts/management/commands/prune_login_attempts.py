@@ -1,7 +1,4 @@
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone
-
-from apps.accounts.models import LoginAttempt
 
 
 class Command(BaseCommand):
@@ -14,10 +11,7 @@ class Command(BaseCommand):
         size = options["batch_size"]
         if not 1 <= size <= 1000:
             raise CommandError("batch-size must be 1..1000")
-        keys = list(
-            LoginAttempt.objects.filter(retry_after__lt=timezone.now())
-            .order_by("retry_after")
-            .values_list("pk", flat=True)[:size]
-        )
-        count, _ = LoginAttempt.objects.filter(pk__in=keys).delete()
+        from apps.accounts.login_admission import prune_expired_attempts
+
+        count = prune_expired_attempts(size)
         self.stdout.write(str(count))

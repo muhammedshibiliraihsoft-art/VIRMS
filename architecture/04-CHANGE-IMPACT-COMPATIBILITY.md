@@ -1,5 +1,7 @@
 # 04 — Change Impact & Compatibility
 
+> Isolated candidate update — 2026-11-01: the Phase 1 backend candidate passes 172/172 accounts/tenants tests on disposable PostgreSQL 15.19 and preserves released migration 0007. The read-only preflight cannot prevent a legacy role writer racing before 0007; required writer pause and recovery steps are documented and accepted by the owner. Phase 2 entry is READY for isolated development. No shared database or deployment was used. See [candidate verification](../docs/phase1-execution-progress.md). Dated compatibility statements below are historical snapshots.
+
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
 ## 2026-10-31 verified compatibility state

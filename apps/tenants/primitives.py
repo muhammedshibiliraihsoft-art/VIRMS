@@ -94,9 +94,9 @@ def _add_membership(*, actor, company, user):
 def _end_membership(*, actor, membership):
     _atomic_required()
     row = TenantMembership.objects.select_for_update().get(pk=membership.pk)
-    if row.effective_until is not None:
-        return row
     now = timezone.now()
+    if row.effective_until is not None and row.effective_until <= now:
+        return row
     if now <= row.effective_from:
         raise ValidationError("Cannot end a future membership")
     row.effective_until = now

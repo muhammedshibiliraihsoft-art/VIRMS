@@ -8,11 +8,12 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.tenants.selectors import company_context, current_interval
+from apps.tenants.selectors import company_context
 
-from .login_admission import admit_login, clear_identifier_budget
+from .login_admission import login_attempt
 from .login_id import canonical_login_id
-from .models import RoleAssignment, User
+from .models import RoleAssignment
+from .platform_identity import is_platform_actor
 
 logger = logging.getLogger(__name__)
 
@@ -56,23 +57,26 @@ def login_view(request):
     password = data.get("password")
     if not isinstance(login_id, str) or not isinstance(password, str):
         return JsonResponse({"detail": "Invalid credentials"}, status=401)
-    admitted, retry_after = admit_login(request, login_id)
-    if not admitted:
-        response = JsonResponse({"detail": "Too many attempts. Try later"}, status=429)
-        response["Retry-After"] = str(retry_after)
-        return response
-    try:
-        login_id = canonical_login_id(login_id, allow_empty=True)
-    except ValidationError:
-        login_id = ""
-    if not login_id:
+    with login_attempt(request, login_id) as outcome:
+        if not outcome.allowed:
+            response = JsonResponse(
+                {"detail": "Too many attempts. Try later"}, status=429
+            )
+            response["Retry-After"] = str(outcome.retry_after)
+            return response
+        try:
+            identity = canonical_login_id(login_id, allow_empty=True)
+        except ValidationError:
+            identity = ""
+        user = (
+            authenticate(request, username=identity, password=password)
+            if identity
+            else None
+        )
+        outcome.authenticated = user is not None and user.is_active
+    if not outcome.authenticated:
         logger.warning("Login failed")
         return JsonResponse({"detail": "Invalid credentials"}, status=401)
-    user = authenticate(request, username=login_id, password=password)
-    if user is None or not user.is_active:
-        logger.warning("Login failed")
-        return JsonResponse({"detail": "Invalid credentials"}, status=401)
-    clear_identifier_budget(login_id)
     login(request, user)
     return JsonResponse({"must_change_password": user.must_change_password})
 
@@ -93,12 +97,7 @@ def me_view(request):
         return JsonResponse({"detail": "Authentication required"}, status=401)
     companies, truncated = company_context(user)
     roles = {role for company in companies for role in company["roles"]}
-    if (
-        user.account_kind == User.AccountKind.PLATFORM
-        and RoleAssignment.objects.filter(user=user, role="back_office")
-        .filter(current_interval())
-        .exists()
-    ):
+    if is_platform_actor(user):
         roles.add(RoleAssignment.Role.BACK_OFFICE)
     return JsonResponse(
         {

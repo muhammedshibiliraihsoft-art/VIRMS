@@ -8,7 +8,8 @@ each Company shown by these adapters.
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
-from apps.accounts.models import RoleAssignment, User
+from apps.accounts.models import User
+from apps.accounts.platform_identity import is_platform_actor
 from apps.tenants.models import Tenant, TenantMembership
 from apps.tenants.selectors import current_interval
 
@@ -21,11 +22,7 @@ def is_platform_admin_actor(user):
         and user.is_superuser
         and not user.must_change_password
         and user.account_kind == User.AccountKind.PLATFORM
-        and RoleAssignment.objects.filter(
-            user=user, role=RoleAssignment.Role.BACK_OFFICE
-        )
-        .filter(current_interval())
-        .exists()
+        and is_platform_actor(user)
     )
 
 

@@ -11,7 +11,7 @@ from apps.accounts.models import (
     RoleAssignment,
     User,
 )
-from apps.tenants.admin import TenantMembershipAdmin
+from apps.tenants.admin import CompanyRoleGrantAdmin, TenantMembershipAdmin
 from apps.tenants.models import Tenant, TenantMembership
 
 
@@ -92,6 +92,35 @@ class AdminCommandAdapterTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("south-investor", response.content.decode())
+
+    def test_role_grant_admin_choices_exclude_platform_memberships(self):
+        from django.test import RequestFactory
+
+        response = self.client.get(
+            "/admin/autocomplete/",
+            {
+                "app_label": "accounts",
+                "model_name": "companyrolegrant",
+                "field_name": "membership",
+                "term": "platform-operator",
+                "page": 1,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("platform-operator", response.content.decode())
+
+        request = RequestFactory().get("/admin/tenants/companyrolegrant/add/")
+        request.user = self.operator
+        model_admin = CompanyRoleGrantAdmin(CompanyRoleGrant, admin.site)
+        membership_field = model_admin.formfield_for_foreignkey(
+            CompanyRoleGrant._meta.get_field("membership"), request
+        )
+        self.assertTrue(
+            membership_field.queryset.filter(pk=self.target_membership.pk).exists()
+        )
+        self.assertFalse(
+            membership_field.queryset.filter(pk=self.operator_membership.pk).exists()
+        )
 
     def test_admin_reset_uses_company_lifecycle_and_one_time_nostore_response(self):
         path = f"/admin/accounts/user/{self.target.pk}/password/"
