@@ -1,5 +1,7 @@
 # 04 — Change Impact & Compatibility
 
+> Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
+
 ## 2026-10-31 verified compatibility state
 
 Phase 1 account, Company/Branch authorization and migration safeguards are implemented through P1-19. One normal Company business User UUID is protected to exactly one Company; another Company uses an independent UUID account. Existing database rows are unverified and the migration refuses ambiguous multi-Company accounts; no auto-split is performed. Global `login_id` and email uniqueness are locked, with no Company selector. Platform technical identity remains separate. Finance/product modules and deployment remain outside this Phase 1 result.

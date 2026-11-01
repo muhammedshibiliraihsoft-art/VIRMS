@@ -11,10 +11,16 @@ from django.db import transaction
 from django.utils import timezone
 
 from .login_id import canonical_login_id
-from .models import LoginAttempt, User
+from .models import LoginAttempt
 
 
 def _key(kind, value):
+    # Fixed HMAC-distributed slots cap storage independently of account existence.
+    if kind in {"identifier", "source"}:
+        digest = hmac.new(
+            settings.SECRET_KEY.encode(), str(value).encode("utf-8"), hashlib.sha256
+        ).digest()
+        value = int.from_bytes(digest[:8], "big") % 65536
     payload = f"{kind}:{value}".encode("utf-8")
     return hmac.new(settings.SECRET_KEY.encode(), payload, hashlib.sha256).hexdigest()
 
@@ -72,7 +78,7 @@ def admit_login(request, login_id):
             settings.VIRMS_LOGIN_SOURCE_WINDOW_SECONDS,
         ),
     ]
-    if identity and User.objects.filter(login_id=identity).exists():
+    if identity:
         buckets.append(
             (
                 _key("identifier", identity),
@@ -118,6 +124,6 @@ def admit_login(request, login_id):
 
 
 def clear_identifier_budget(login_id):
-    identity = canonical_login_id(login_id, allow_empty=True)
-    if identity:
-        LoginAttempt.objects.filter(key=_key("identifier", identity)).delete()
+    # Slots can be shared by unrelated identities. A successful login must not
+    # clear another identity's budget; all slots expire by the normal window.
+    return None

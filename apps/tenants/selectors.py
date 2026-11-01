@@ -1,4 +1,4 @@
-from django.db.models import Exists, F, OuterRef, Q
+from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 READ_ROLES = ("owner", "accountant", "media")
@@ -14,7 +14,7 @@ def current_interval(at=None):
 def visible_companies(user, at=None):
     """Return active Company metadata inside the user's current read grants."""
     from apps.accounts.models import CompanyRoleGrant, RoleAssignment, User
-    from apps.tenants.models import Tenant, TenantMembership
+    from apps.tenants.models import BranchAssignment, Tenant, TenantMembership
 
     at = at or timezone.now()
     if not user.is_authenticated or not user.is_active or user.must_change_password:
@@ -30,23 +30,16 @@ def visible_companies(user, at=None):
         user=user, tenant_id=OuterRef("pk"), tenant__is_active=True
     ).filter(current_interval(at))
     if not platform:
+        assignment = BranchAssignment.objects.filter(
+            membership_id=OuterRef("membership_id"), branch_id=OuterRef("branch_id")
+        ).filter(current_interval(at))
         grant = (
             CompanyRoleGrant.objects.filter(
                 membership_id=OuterRef("pk"), role__in=READ_ROLES
             )
             .filter(current_interval(at))
-            .filter(
-                Q(branch__isnull=True)
-                | Q(
-                    branch__assignments__membership_id=F("membership_id"),
-                    branch__assignments__effective_from__lte=at,
-                )
-            )
-            .filter(
-                Q(branch__isnull=True)
-                | Q(branch__assignments__effective_until__isnull=True)
-                | Q(branch__assignments__effective_until__gt=at)
-            )
+            .annotate(_assigned=Exists(assignment))
+            .filter(Q(branch__isnull=True) | Q(_assigned=True))
         )
         membership = membership.annotate(_readable=Exists(grant)).filter(_readable=True)
     return (
@@ -74,47 +67,43 @@ def visible_branches(user, company_id, at=None):
         .filter(current_interval(at))
         .exists()
     )
-    assignments = Branch.objects.filter(
-        tenant_id=company_id,
-        assignments__membership__user=user,
-        assignments__membership__tenant_id=company_id,
-        assignments__membership__tenant__is_active=True,
+    from apps.accounts.models import CompanyRoleGrant
+    from apps.tenants.models import BranchAssignment
+
+    grant = (
+        CompanyRoleGrant.objects.filter(
+            membership_id=OuterRef("membership_id"), role__in=READ_ROLES
+        )
+        .filter(current_interval(at))
+        .filter(Q(branch__isnull=True) | Q(branch_id=OuterRef("branch_id")))
     )
-    assignments = (
-        assignments.filter(
-            assignments__effective_from__lte=at,
-            assignments__membership__effective_from__lte=at,
+    assignment = (
+        BranchAssignment.objects.filter(
+            branch_id=OuterRef("pk"),
+            membership__user=user,
+            membership__tenant_id=company_id,
+            membership__effective_from__lte=at,
         )
+        .filter(current_interval(at))
         .filter(
-            Q(assignments__effective_until__isnull=True)
-            | Q(assignments__effective_until__gt=at)
-        )
-        .filter(
-            Q(assignments__membership__effective_until__isnull=True)
-            | Q(assignments__membership__effective_until__gt=at)
+            Q(membership__effective_until__isnull=True)
+            | Q(membership__effective_until__gt=at)
         )
     )
     if not platform:
-        assignments = (
-            assignments.filter(
-                assignments__membership__role_grants__role__in=READ_ROLES,
-                assignments__membership__role_grants__effective_from__lte=at,
-            )
-            .filter(
-                Q(assignments__membership__role_grants__effective_until__isnull=True)
-                | Q(assignments__membership__role_grants__effective_until__gt=at)
-            )
-            .filter(
-                Q(assignments__membership__role_grants__branch__isnull=True)
-                | Q(assignments__membership__role_grants__branch_id=F("id"))
-            )
-        )
-    return assignments.order_by("name", "id").distinct()
+        assignment = assignment.annotate(_granted=Exists(grant)).filter(_granted=True)
+    return (
+        Branch.objects.filter(tenant_id=company_id)
+        .annotate(_visible=Exists(assignment))
+        .filter(_visible=True)
+        .order_by("name", "id")
+    )
 
 
 def company_context(user, at=None, *, limit=50):
     """Bounded self-context projection; it does not grant access by itself."""
-    from apps.tenants.models import TenantMembership
+    from apps.accounts.models import CompanyRoleGrant
+    from apps.tenants.models import BranchAssignment, TenantMembership
 
     at = at or timezone.now()
     company_ids = list(
@@ -128,7 +117,18 @@ def company_context(user, at=None, *, limit=50):
         )
         .filter(current_interval(at))
         .select_related("tenant")
-        .prefetch_related("role_grants", "branch_assignments__branch")
+        .prefetch_related(
+            Prefetch(
+                "role_grants",
+                queryset=CompanyRoleGrant.objects.filter(current_interval(at)),
+            ),
+            Prefetch(
+                "branch_assignments",
+                queryset=BranchAssignment.objects.filter(
+                    current_interval(at)
+                ).select_related("branch"),
+            ),
+        )
     )
     result = []
     for membership in memberships:

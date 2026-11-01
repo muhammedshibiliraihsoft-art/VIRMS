@@ -1,5 +1,7 @@
 # 01 — Data Flow
 
+> Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
+
 ## 2026-10-31 verified Phase 1 state
 
 One ordinary Company User UUID is protected to one Company by the `accounts.0007_one_company_account` PostgreSQL guard and by provisioning/Admin policy. The same human may have separate UUID accounts in other Companies; credentials, sessions, epochs, grants, Branch scope, and audit history stay independent. Existing databases are still unverified: migration preflight fails closed on multi-Company business accounts, and no account is auto-split. `login_id` and email remain globally unique; login has no Company selector.

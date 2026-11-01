@@ -139,13 +139,20 @@ class AuthenticationTests(TestCase):
             request.META["HTTP_X_FORWARDED_FOR"] = "not-an-ip"
             self.assertEqual(source_address(request), "10.0.0.2")
 
-    def test_rotating_unknown_identifiers_do_not_create_identifier_buckets(self):
+    def test_unknown_identifiers_consume_admission_slots(self):
         for i in range(10):
             response = self.csrf_post(
                 reverse("auth-login"), {"login_id": f"missing-{i}", "password": "wrong"}
             )
             self.assertEqual(response.status_code, 401)
-        self.assertLessEqual(LoginAttempt.objects.count(), 2)
+        from apps.accounts.login_admission import _key
+
+        for i in range(10):
+            self.assertTrue(
+                LoginAttempt.objects.filter(
+                    key=_key("identifier", f"missing-{i}")
+                ).exists()
+            )
 
     def test_admin_login_uses_same_identifier_admission_bucket(self):
         client = Client(enforce_csrf_checks=True)
@@ -316,7 +323,10 @@ class ProvisioningTests(TestCase):
     def test_unrelated_account_reset_is_hidden(self):
         target = make_user("target1", role="investor", tenant=self.other)
         self.client.force_login(self.accountant)
-        response = self.client.post(reverse("account-reset", args=[target.pk]))
+        response = self.client.post(
+            reverse("account-reset", args=[target.pk]),
+            data={"reason": "Verified operator request"},
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_global_business_role_without_company_grant_cannot_reset_or_deactivate(
@@ -328,12 +338,17 @@ class ProvisioningTests(TestCase):
         target = make_user("scoped-target", role="investor", tenant=self.tenant)
         self.client.force_login(actor)
         self.assertEqual(
-            self.client.post(reverse("account-reset", args=[target.pk])).status_code,
+            self.client.post(
+                reverse("account-reset", args=[target.pk]),
+                data={"reason": "Verified operator request"},
+            ).status_code,
             404,
         )
         denied = self.client.post(
             reverse("account-status", args=[target.pk]),
-            data=json.dumps({"is_active": False}),
+            data=json.dumps(
+                {"is_active": False, "reason": "Verified operator request"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(denied.status_code, 404)
@@ -345,8 +360,11 @@ class ProvisioningTests(TestCase):
         target = make_user("target1", role="investor", tenant=self.tenant)
         old_client = Client()
         old_client.force_login(target)
-        self.client.force_login(self.accountant)
-        response = self.client.post(reverse("account-reset", args=[target.pk]))
+        self.client.force_login(self.back_office)
+        response = self.client.post(
+            reverse("account-reset", args=[target.pk]),
+            data={"reason": "Verified operator request"},
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-store", response["Cache-Control"])
         target.refresh_from_db()
@@ -355,7 +373,7 @@ class ProvisioningTests(TestCase):
         event = AccountSecurityEvent.objects.get(
             action="reset_password", subject=target
         )
-        self.assertEqual(event.actor_id, self.accountant.pk)
+        self.assertEqual(event.actor_id, self.back_office.pk)
         self.assertEqual(event.company_id, self.tenant.pk)
         self.assertEqual(old_client.get(reverse("auth-me")).status_code, 401)
 
@@ -363,8 +381,11 @@ class ProvisioningTests(TestCase):
         target = make_user("revokeme", role="investor", tenant=self.tenant)
         old_session = Client()
         old_session.force_login(target)
-        self.client.force_login(self.accountant)
-        response = self.client.post(reverse("account-revoke", args=[target.pk]))
+        self.client.force_login(self.back_office)
+        response = self.client.post(
+            reverse("account-revoke", args=[target.pk]),
+            data={"reason": "Verified operator request"},
+        )
         self.assertEqual(response.status_code, 200)
         target.refresh_from_db()
         self.assertEqual(target.auth_epoch, 2)
@@ -372,7 +393,7 @@ class ProvisioningTests(TestCase):
         event = AccountSecurityEvent.objects.get(
             action="session.revoke", subject=target
         )
-        self.assertEqual(event.actor_id, self.accountant.pk)
+        self.assertEqual(event.actor_id, self.back_office.pk)
         self.assertEqual(event.company_id, self.tenant.pk)
 
     def test_other_company_independent_account_survives_reset_and_deactivation(self):
@@ -383,15 +404,20 @@ class ProvisioningTests(TestCase):
         second.save(update_fields=["first_name"])
         other_session = Client()
         other_session.force_login(second)
-        self.client.force_login(self.accountant)
+        self.client.force_login(self.back_office)
         self.assertEqual(
-            self.client.post(reverse("account-reset", args=[first.pk])).status_code,
+            self.client.post(
+                reverse("account-reset", args=[first.pk]),
+                data={"reason": "Verified operator request"},
+            ).status_code,
             200,
         )
         self.assertEqual(
             self.client.post(
                 reverse("account-status", args=[first.pk]),
-                data=json.dumps({"is_active": False}),
+                data=json.dumps(
+                    {"is_active": False, "reason": "Verified operator request"}
+                ),
                 content_type="application/json",
             ).status_code,
             200,
@@ -404,10 +430,12 @@ class ProvisioningTests(TestCase):
 
     def test_deactivation_blocks_login_and_preserves_history(self):
         target = make_user("target1", role="investor", tenant=self.tenant)
-        self.client.force_login(self.accountant)
+        self.client.force_login(self.back_office)
         response = self.client.post(
             reverse("account-status", args=[target.pk]),
-            data=json.dumps({"is_active": False}),
+            data=json.dumps(
+                {"is_active": False, "reason": "Verified operator request"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
@@ -427,17 +455,19 @@ class ProvisioningTests(TestCase):
         target = make_user("reactivate1", role="investor", tenant=self.tenant)
         old_session = Client()
         old_session.force_login(target)
-        self.client.force_login(self.accountant)
+        self.client.force_login(self.back_office)
 
         deactivated = self.client.post(
             reverse("account-status", args=[target.pk]),
-            data=json.dumps({"is_active": False}),
+            data=json.dumps(
+                {"is_active": False, "reason": "Verified operator request"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(deactivated.status_code, 200)
         reactivated = self.client.post(
             reverse("account-status", args=[target.pk]),
-            data=json.dumps({"is_active": True}),
+            data=json.dumps({"is_active": True, "reason": "Verified operator request"}),
             content_type="application/json",
         )
         self.assertEqual(reactivated.status_code, 200)
@@ -448,7 +478,10 @@ class ProvisioningTests(TestCase):
         self.assertEqual(target.auth_epoch, 3)
         self.assertEqual(old_session.get(reverse("auth-me")).status_code, 401)
 
-        reset = self.client.post(reverse("account-reset", args=[target.pk]))
+        reset = self.client.post(
+            reverse("account-reset", args=[target.pk]),
+            data={"reason": "Verified operator request"},
+        )
         self.assertEqual(reset.status_code, 200)
         self.assertIn("no-store", reset["Cache-Control"])
         target.refresh_from_db()
@@ -462,7 +495,9 @@ class ProvisioningTests(TestCase):
         self.client.force_login(self.accountant)
         response = self.client.post(
             reverse("account-status", args=[target.pk]),
-            data=json.dumps({"is_active": False}),
+            data=json.dumps(
+                {"is_active": False, "reason": "Verified operator request"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 404)

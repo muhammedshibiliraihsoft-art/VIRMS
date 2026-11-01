@@ -53,12 +53,18 @@ def provision_account(request):
 @permission_classes([IsAuthenticated])
 @transaction.atomic
 def reset_account_password(request, user_id):
-    from django.core.exceptions import PermissionDenied
+    from django.core.exceptions import PermissionDenied, ValidationError
 
     try:
-        temporary_password = reset_account(actor=request.user, user_id=user_id)
+        temporary_password = reset_account(
+            actor=request.user, user_id=user_id, reason=request.data.get("reason")
+        )
     except (User.DoesNotExist, PermissionDenied):
         raise Http404
+    except ValidationError:
+        return Response(
+            {"detail": "A safe reason of 1-500 characters is required"}, status=400
+        )
     return Response({"temporary_password": temporary_password})
 
 
@@ -70,12 +76,21 @@ def set_account_active(request, user_id):
     active = request.data.get("is_active")
     if not isinstance(active, bool):
         return Response({"detail": "is_active must be boolean"}, status=400)
-    from django.core.exceptions import PermissionDenied
+    from django.core.exceptions import PermissionDenied, ValidationError
 
     try:
-        set_account_status(actor=request.user, user_id=user_id, active=active)
+        set_account_status(
+            actor=request.user,
+            user_id=user_id,
+            active=active,
+            reason=request.data.get("reason"),
+        )
     except (User.DoesNotExist, PermissionDenied):
         raise Http404
+    except ValidationError:
+        return Response(
+            {"detail": "A safe reason of 1-500 characters is required"}, status=400
+        )
     return Response({"is_active": active})
 
 
@@ -83,10 +98,16 @@ def set_account_active(request, user_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def revoke_account_sessions_view(request, user_id):
-    from django.core.exceptions import PermissionDenied
+    from django.core.exceptions import PermissionDenied, ValidationError
 
     try:
-        epoch = revoke_account_sessions(actor=request.user, user_id=user_id)
+        epoch = revoke_account_sessions(
+            actor=request.user, user_id=user_id, reason=request.data.get("reason")
+        )
     except (User.DoesNotExist, PermissionDenied):
         raise Http404
+    except ValidationError:
+        return Response(
+            {"detail": "A safe reason of 1-500 characters is required"}, status=400
+        )
     return Response({"revoked": True, "auth_epoch": epoch})

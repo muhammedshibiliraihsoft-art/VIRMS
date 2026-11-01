@@ -2,6 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib import admin as django_admin
 from django.contrib import messages
+from django.contrib.admin.helpers import ActionForm
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
@@ -88,7 +89,11 @@ def _run_selected_accounts(request, queryset, operation, success_message):
     try:
         with transaction.atomic():
             for row in rows:
-                operation(actor=request.user, user_id=row.pk)
+                operation(
+                    actor=request.user,
+                    user_id=row.pk,
+                    reason=request.POST.get("reason"),
+                )
     except (PermissionDenied, ValidationError, User.DoesNotExist):
         messages.error(request, "The selected accounts could not be processed.")
         return None
@@ -96,8 +101,17 @@ def _run_selected_accounts(request, queryset, operation, success_message):
     return None
 
 
+class LifecycleActionForm(ActionForm):
+    reason = forms.CharField(
+        max_length=500,
+        required=False,
+        help_text="Required for account lifecycle actions. Never include credentials or secrets.",
+    )
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
+    action_form = LifecycleActionForm
     list_display = ("login_id", "email", "is_active", "must_change_password")
     list_filter = ("is_active", "must_change_password")
     search_fields = ("login_id", "email")
@@ -233,8 +247,12 @@ class UserAdmin(BaseUserAdmin):
         if request.method != "POST" or request.POST.get("confirm") != "yes":
             return HttpResponseForbidden("Confirm the approved reset action")
         try:
-            temporary_password = reset_account(actor=request.user, user_id=subject.pk)
-        except (PermissionDenied, User.DoesNotExist):
+            temporary_password = reset_account(
+                actor=request.user,
+                user_id=subject.pk,
+                reason=request.POST.get("reason"),
+            )
+        except (PermissionDenied, ValidationError, User.DoesNotExist):
             raise PermissionDenied
         return _account_admin_template(
             request,

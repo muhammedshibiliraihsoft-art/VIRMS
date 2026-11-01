@@ -34,11 +34,6 @@ PLATFORM_SCOPED_LIFECYCLE_ACTIONS = {
     for verb in ("reset", "status", "revoke")
     for role in ("investor", "media")
 }
-COMPANY_ACCOUNT_ACTIONS = {
-    f"account.{verb}.{role}"
-    for verb in ("reset", "status", "revoke")
-    for role in ("investor", "media")
-}
 READ_ACTIONS = {"core.company.read", "core.branch.read"}
 SELF_ACTIONS = {"self.password", "self.me", "self.logout"}
 
@@ -114,15 +109,10 @@ def require_action(
         # Back Office lifecycle authority remains constrained to the single
         # current Company membership and exact target resolved by the caller.
         return current
-    if (
-        action
-        not in READ_ACTIONS
-        | {
-            "account.provision.investor",
-            "account.provision.media",
-        }
-        | COMPANY_ACCOUNT_ACTIONS
-    ):
+    if action not in READ_ACTIONS | {
+        "account.provision.investor",
+        "account.provision.media",
+    }:
         deny()
     if platform and action == "core.company.read":
         return current  # Only minimal Company context, never business/financial data.

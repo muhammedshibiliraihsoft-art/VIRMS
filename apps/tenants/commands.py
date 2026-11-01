@@ -188,6 +188,7 @@ def end_scope_row(*, actor, row):
             actor=actor,
             subject=row.membership.user,
             company=company,
+            branch=row.branch,
             resource=row,
         )
         return row

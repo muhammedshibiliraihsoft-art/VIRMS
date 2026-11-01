@@ -5,11 +5,11 @@ Platform account, an active back-office assignment and a current membership in
 each Company shown by these adapters.
 """
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from apps.accounts.models import RoleAssignment, User
-from apps.tenants.models import Tenant
+from apps.tenants.models import Tenant, TenantMembership
 from apps.tenants.selectors import current_interval
 
 
@@ -33,14 +33,7 @@ def managed_companies(user):
     if not is_platform_admin_actor(user):
         return Tenant.objects.none()
     at = timezone.now()
-    return (
-        Tenant.objects.filter(
-            memberships__user=user,
-            memberships__effective_from__lte=at,
-        )
-        .filter(
-            Q(memberships__effective_until__isnull=True)
-            | Q(memberships__effective_until__gt=at)
-        )
-        .distinct()
-    )
+    membership = TenantMembership.objects.filter(
+        user=user, tenant_id=OuterRef("pk")
+    ).filter(current_interval(at))
+    return Tenant.objects.annotate(_managed=Exists(membership)).filter(_managed=True)

@@ -52,10 +52,27 @@ def _authorize(actor, target, verb):
     return company
 
 
-def reset_account(*, actor, user_id):
+def _safe_reason(reason):
+    if (
+        not isinstance(reason, str)
+        or not reason.strip()
+        or len(reason) > 500
+        or any(ord(c) < 32 for c in reason)
+    ):
+        raise ValidationError(
+            "A reason of 1-500 characters without control characters is required. Do not include credentials or secrets."
+        )
+    return reason.strip()
+
+
+def reset_account(*, actor, user_id, reason=None):
     with locked_users(actor.pk, user_id) as users:
+        current = users[actor.pk]
+        if actor.auth_epoch != current.auth_epoch or actor.password != current.password:
+            raise PermissionDenied("Authentication changed")
         target = users[user_id]
         company = _authorize(users[actor.pk], target, "reset")
+        reason = _safe_reason(reason)
         temporary_password = secrets.token_urlsafe(24)
         target.set_password(temporary_password)
         target.must_change_password = True
@@ -75,17 +92,22 @@ def reset_account(*, actor, user_id):
             actor=users[actor.pk],
             subject=target,
             company=company,
+            reason=reason,
             resource=target,
         )
         return temporary_password
 
 
-def set_account_status(*, actor, user_id, active):
+def set_account_status(*, actor, user_id, active, reason=None):
     if type(active) is not bool:
         raise ValidationError("is_active must be boolean")
     with locked_users(actor.pk, user_id) as users:
+        current = users[actor.pk]
+        if actor.auth_epoch != current.auth_epoch or actor.password != current.password:
+            raise PermissionDenied("Authentication changed")
         target = users[user_id]
         company = _authorize(users[actor.pk], target, "status")
+        reason = _safe_reason(reason)
         if target.is_active == active:
             return active
         target.is_active = active
@@ -109,15 +131,20 @@ def set_account_status(*, actor, user_id, active):
             actor=users[actor.pk],
             subject=target,
             company=company,
+            reason=reason,
             resource=target,
         )
         return active
 
 
-def revoke_account_sessions(*, actor, user_id):
+def revoke_account_sessions(*, actor, user_id, reason=None):
     with locked_users(actor.pk, user_id) as users:
+        current = users[actor.pk]
+        if actor.auth_epoch != current.auth_epoch or actor.password != current.password:
+            raise PermissionDenied("Authentication changed")
         target = users[user_id]
         company = _authorize(users[actor.pk], target, "revoke")
+        reason = _safe_reason(reason)
         target.auth_epoch += 1
         target.updated_by = users[actor.pk]
         target.save(update_fields=["auth_epoch", "updated_by", "updated_at"])
@@ -126,6 +153,7 @@ def revoke_account_sessions(*, actor, user_id):
             actor=users[actor.pk],
             subject=target,
             company=company,
+            reason=reason,
             resource=target,
         )
         return target.auth_epoch

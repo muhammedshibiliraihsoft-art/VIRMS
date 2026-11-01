@@ -1,12 +1,14 @@
+> Current execution note (2026-10-31): The plan below records the original design/review history. Current implementation and validation are recorded in docs/phase1-audit-corrections.md. Account lifecycle is scoped Platform control-plane authority; Accountant may provision Investor/Media but may not reset, status-change or revoke them. Older references to shared business users or global ordinary lifecycle authority are superseded by the one-Company identity rule above and current scoped policy.
+
 ## 2026-10-31 identity decision update — supersedes shared-business-user assumptions below
 
 **Locked target:** Every ordinary Company business account belongs to exactly one Company/Tenant. The same human may have separate accounts in multiple Companies; each account has a distinct backend-generated immutable User UUID and independent password, sessions, roles, Branch scope, auth epoch, audit/security history and data authority. Never infer identity from names, email or phone, merge accounts, or manually assign UUIDs. Django superuser/platform bootstrap identities remain technical accounts, not ordinary Company accounts or implicit business grants.
 
 TenantMembership history may remain, but a normal Company User must never be attached to a second Company. CompanyRoleGrant and BranchAssignment remain within that single Company. Lifecycle of one account affects only that account. Replace earlier shared multi-Company User fixtures and shared-account lifecycle reasoning in this plan with separate-account isolation tests.
 
-**Unresolved business decisions:** Whether independent Company accounts may reuse email or login_id, and whether login_id/email uniqueness is global or Company-scoped. Preserve currently implemented global uniqueness until decided; do not add Company selection to login or weaken constraints by inference.
+**Locked uniqueness:** Login ID and email remain globally unique across independent Company accounts. Login has no Company selector.
 
-**Implementation/migration boundary:** This is a documentation decision only. Current schema permits a User to join multiple Companies. Do not split existing rows automatically. P1-17 must preflight existing multi-Company Users and require an explicit mapping decision before any successor migration or data change. P1-11 creates a new User per Company; P1-12 lifecycle acts on one such account; P1-14/15 enforce the invariant in reads/Admin; P1-19 verifies it.
+**Implementation/migration boundary:** The one-Company invariant is implemented by service policy and accounts.0007 database guards. Existing ambiguous rows fail preflight; never split existing rows automatically. P1-17 must preflight existing multi-Company Users and require an explicit mapping decision before any successor migration or data change. P1-11 creates a new User per Company; P1-12 lifecycle acts on one such account; P1-14/15 enforce the invariant in reads/Admin; P1-19 verifies it.
 
 ---
 

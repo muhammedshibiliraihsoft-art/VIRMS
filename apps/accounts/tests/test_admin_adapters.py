@@ -100,7 +100,9 @@ class AdminCommandAdapterTests(TestCase):
         self.assertContains(confirmation, "north-investor")
         self.assertNotContains(confirmation, self.password)
 
-        response = self.client.post(path, {"confirm": "yes"})
+        response = self.client.post(
+            path, {"confirm": "yes", "reason": "Verified operator request"}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("no-store", response["Cache-Control"])

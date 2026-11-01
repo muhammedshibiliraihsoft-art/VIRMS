@@ -1,3 +1,5 @@
+> Superseded audit conclusion: the earlier completion assessment below missed verified authorization, temporal-selector and admission defects. See [the current correction audit](phase1-audit-corrections.md) for the fixes and latest validation. The earlier 129-test run is historical evidence, not proof of these corrected rules.
+
 # Phase 1 Execution Report — 2026-10-31
 
 > **Status: PHASE 1 COMPLETE** for the local backend implementation and exit gate (P1-00 through P1-19). This does not mean the product is deployed or ready for production cutover.

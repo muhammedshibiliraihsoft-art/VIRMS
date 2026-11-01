@@ -1987,11 +1987,8 @@
       "Technical Django superuser/platform bootstrap is distinct from ordinary Company business identity and grants no implicit Company business authority.",
       "TenantMembership history may remain; CompanyRoleGrant and BranchAssignment remain within the account Company; one account lifecycle affects only that account."
     ],
-    "unresolved": [
-      "Whether separate Company accounts may reuse email or login_id.",
-      "Whether email/login_id uniqueness remains global or becomes Company-scoped. Preserve current global uniqueness until decided; no Company login selector is authorized."
-    ],
-    "migration": "Documentation only now. Current schema allows multi-Company membership. P1-17 must preflight existing records and obtain explicit mapping; never split automatically.",
+    "unresolved": [],
+    "migration": "One-Company guard implemented in accounts.0007. Existing ambiguous accounts fail preflight; no automatic split. Login ID and email remain globally unique.",
     "task_impacts": {
       "P1-11": "Create a new independent User identity and one Company membership, then scoped role/Branch grants.",
       "P1-12": "Lifecycle affects only one independent account; other Company account remains unchanged.",
@@ -2000,5 +1997,6 @@
       "P1-17": "Preflight multi-Company memberships; no automatic account splitting.",
       "P1-19": "Test separate UUID accounts for one human and isolation of password/session/reset/lifecycle."
     }
-  }
+  },
+  "current_execution_note": "Original planning metadata is historical; see docs/phase1-audit-corrections.md for current audit. Company-scoped Platform lifecycle only; Accountant provisioning does not authorize reset/status/revoke."
 }

@@ -1,5 +1,7 @@
 # 03 — Architecture Conflict Map
 
+> Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
+
 ## 2026-10-31 verified Phase 1 implementation
 
 The one-Company-per-normal-business-account rule is implemented with the PostgreSQL membership guard, service policy and Admin restrictions. Separate Company accounts retain independent UUIDs, credentials, sessions, grants, lifecycle and audit. Existing database contents remain unverified; the migration fails closed on multi-Company accounts and no rows are auto-split. Global `login_id` and email uniqueness remain in force; there is no Company login selector.

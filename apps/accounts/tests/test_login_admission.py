@@ -66,12 +66,12 @@ class LoginAdmissionPolicyTests(TestCase):
 
         self.assertTrue(admit_login(request, self.user.login_id)[0])
 
-    def test_success_clears_only_identifier_budget(self):
+    def test_success_does_not_clear_shared_identifier_slot(self):
         request = _request()
         self.assertTrue(admit_login(request, self.user.login_id)[0])
         clear_identifier_budget(self.user.login_id)
 
-        self.assertFalse(
+        self.assertTrue(
             LoginAttempt.objects.filter(
                 key=_key("identifier", self.user.login_id)
             ).exists()
