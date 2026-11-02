@@ -1,0 +1,2491 @@
+{
+  "metadata": {
+    "title": "VIRMS Architecture Phase 2 — Frontend Foundation + Real Backend Integration",
+    "version": "1.0",
+    "mode": "IMPLEMENTED_CANDIDATE",
+    "status": "PHASE_2_READY_FOR_ACCEPTANCE on the isolated candidate; not integrated into staging",
+    "risk_level": "HIGH-RISK",
+    "observed_at": "2026-11-02 Asia/Calcutta",
+    "repository": "muhammedshibiliraihsoft-art/VIRMS",
+    "active_worktree": "D:/VIRMS/tmp/phase1-consolidated-20261101",
+    "branch": "codex/phase1-consolidated",
+    "head": "cac26195611432b44b2cc594aad5f2f0e208b69a",
+    "remote_tracking": "Not checked; no fetch or push was run",
+    "phase1_candidate": {
+      "worktree": "D:/VIRMS/tmp/phase1-consolidated-20261101",
+      "branch": "codex/phase1-consolidated",
+      "head": "cac26195611432b44b2cc594aad5f2f0e208b69a",
+      "state": "Phase 1 corrections and Phase 2 frontend are uncommitted and unstaged in this candidate; not integrated into staging",
+      "reported_evidence": "Current execution report records 199/199 accounts/tenants tests on disposable PostgreSQL 15.19, fresh migrations through accounts.0012, Django checks and schema drift check."
+    },
+    "skills_used": [
+      {
+        "name": "agent-skills:planning-and-task-breakdown",
+        "why": "Order implementation tasks by dependency, add explicit acceptance criteria, failure handling, and checkpoints."
+      },
+      {
+        "name": "agent-skills:api-and-interface-design",
+        "why": "Define only observed API contracts, preserve compatibility, distinguish errors and safe retry behavior."
+      },
+      {
+        "name": "agent-skills:security-and-hardening",
+        "why": "Plan cookie/CSRF, authorization, tenant isolation, cache cleanup, and adversarial integration checks."
+      },
+      {
+        "name": "agent-skills:frontend-ui-engineering",
+        "why": "Preserve the existing design and plan responsive, accessible loading and failure states."
+      }
+    ],
+    "planning_snapshot": "The original 2026-11-01 D:/VIRMS staging observations are retained in observed_repository_state as historical baseline; execution_result below is current."
+  },
+  "authority": {
+    "source_order": [
+      "Current user request and applicable AGENTS.md",
+      "docs-final-v2 as the approved target direction; its explicit unresolved decisions remain unresolved",
+      "Source, migrations, tests, and runtime evidence for implemented behavior",
+      "architecture/01-DATA-FLOW.md through architecture/04-CHANGE-IMPACT-COMPATIBILITY.md for verified/current versus target context",
+      "Older plans and /docs-final/ or /docs-legacy/ only as historical evidence"
+    ],
+    "read_documents": [
+      "AGENTS.md",
+      "README.md",
+      "docs-final-v2/01-business-rules.md",
+      "docs-final-v2/02-user-roles-permissions.md",
+      "docs-final-v2/03-system-modules.md",
+      "docs-final-v2/04-data-model-relationships.md",
+      "docs-final-v2/06-technical-architecture-engineering-operations.md",
+      "docs-final-v2/07-ui-navigation-structure.md",
+      "docs-final-v2/supporting/authentication-account-security.md",
+      "docs-final-v2/supporting/production-engineering-standards.md",
+      "architecture/01-DATA-FLOW.md",
+      "architecture/02-API-FLOW.md",
+      "architecture/03-ARCHITECTURE-CONFLICT-MAP.md",
+      "architecture/04-CHANGE-IMPACT-COMPATIBILITY.md",
+      "architecture/05-SYSTEM-STRUCTURE-MAP.md",
+      "architecture/phase-01-platform-core-auth/phase-01-platform-core-auth-implementation-plan.md",
+      "architecture/phase-01-platform-core-auth/phase-01-platform-core-auth-implementation-plan.json",
+      "planning/V2-DEVELOPMENT-ROADMAP.md",
+      "tmp/reviewed-backend-baseline/docs/phase1-execution-progress.md",
+      "tmp/reviewed-backend-baseline/docs/phase1-audit-corrections.md",
+      "tmp/reviewed-backend-baseline/docs/phase1-final-defect-fixes.md"
+    ],
+    "skills_source": "Installed local skills were used. No remote skill repository was fetched."
+  },
+  "observed_repository_state": {
+    "git": {
+      "branch": "staging",
+      "head": "ed114b2667a707034b01bc58211d58aa70013314",
+      "status": "Dirty: README modified; historical architecture/docs/system-design files deleted; backend, frontend demos, planning, architecture maps, and other files untracked; no staged changes observed. Preserve all unrelated work.",
+      "remote": "Local origin/staging tracking ref is one commit ahead; no network fetch or remote equality claim."
+    },
+    "implemented_backend_in_staging_worktree": {
+      "status": "VERIFIED FROM WORKTREE, incomplete relative to V2",
+      "evidence": [
+        "Django project in core/ with accounts, tenants and common apps, DRF, session authentication, CSRF, auth routes, Django Admin, and read-only Tenant list/detail routes.",
+        "The staging worktree source has only accounts.0001 and tenants.0001 migration files; it has no Branch model/API or Company-scoped Phase 1 model set.",
+        "Current staging auth/me returns account flags, global roles and tenant_ids; it does not expose the richer Company/Branch context present in the separate Phase 1 candidate."
+      ]
+    },
+    "phase1_candidate": {
+      "status": "VERIFIED FROM A SEPARATE DIRTY WORKTREE; NOT IN staging",
+      "evidence": [
+        "The separate codex/audit worktree contains Branch and BranchAssignment, scoped selectors, lifecycle changes, and candidate Company Branch read endpoints.",
+        "Its uncommitted final correction report and saved runner result record A1/A2/A3/B1 fixes and 158/158 PostgreSQL tests.",
+        "Candidate code and report are not merged into D:/VIRMS staging; current staging acceptance is therefore not established."
+      ]
+    },
+    "frontend": {
+      "primary_candidate": "demo/react — React 19, TypeScript, Vite, Tailwind; local UI prototype with AppShell, rail/dock/flyout navigation and 45 blueprint view records. App.tsx uses in-memory route state; only dashboard view uses a URL query parameter. No React Router, Django API client, login or auth state was found.",
+      "secondary_reference": "demo/accountant-ui-demo — separate Next.js demo with GET/PUT /api/mock and local .demo-data/store.json, revision checks and demo-only data services. It is not the Django API or a production persistence contract.",
+      "tests": "demo/react package has no test script; the separate Next.js demo has Node tests for mock/demo services. No frontend runtime, browser, accessibility, or build check was run in this planning task.",
+      "source_classification": "VERIFIED FROM WORKTREE for files and source behavior; product runtime and release use are UNVERIFIED"
+    },
+    "mock_and_placeholder": [
+      "The React app imports initial* data arrays; refresh restores local data and page actions mutate React state. Dashboard values include local derivations and a static performance series.",
+      "The separate accountant demo persists only to its local JSON mock store; its endpoint and revision token are not backend contracts.",
+      "A local theme preference is stored in localStorage; it is presentation state, not authentication."
+    ],
+    "missing_for_phase2": [
+      "Real React login/password replacement/logout UI and authenticated app bootstrap.",
+      "Typed Django API client with cookie credentials, CSRF header handling, request ID and safe error mapping.",
+      "Protected URL routes, Company/Branch context integration, role-aware presentation, TanStack Query server state and logout cache purge.",
+      "Frontend security, component, integration and responsive/accessibility regression coverage."
+    ],
+    "unverified": [
+      "Whether the Vite or Next demo is deployed or used by real operators; browser behavior and user acceptance.",
+      "Current staging or production database schema/data, applied migrations, deployment, CORS/proxy topology and external API consumers.",
+      "A released frontend/API contract; no live React-to-Django call was observed."
+    ]
+  },
+  "phase_goal": "Complete the reusable VIRMS frontend foundation and connect it securely to the accepted Phase 1 Django backend while preserving the existing VIRMS UI. Replace mock integration with real authenticated Company/Branch-scoped data only where an accepted backend contract exists. Implement no future business-domain backend modules.",
+  "phase_entry_gate": {
+    "implementation_allowed_only_when": [
+      "All Phase 1 A-level defects are fixed in the exact target branch and reviewed; required B-level blockers are resolved or explicitly dispositioned.",
+      "A fresh disposable PostgreSQL regression run passes against that exact source, including auth/session, Company/Branch isolation, Admin/API parity and migrations.",
+      "Migration replay and cutover rehearsal are reviewed and use only disposable/isolated data; any real legacy identity ambiguity has an explicit reviewed treatment before a real upgrade.",
+      "The Phase 1 API shapes and error/session/CSRF behavior are stable, documented, and contract-tested for the frontend to consume.",
+      "The branch/worktree and dirty files are inventoried; Phase 2 does not silently copy uncommitted work from another worktree."
+    ],
+    "current_result": "PASSED for exact local candidate source: 199/199 accounts/tenants tests, PostgreSQL migration replay through accounts.0012, Django check, schema-drift check, and reviewed API contract. Staging remains unmodified and is not represented as Phase 2 acceptance evidence."
+  },
+  "scope": [
+    "Preserve and integrate the demo/react Vite shell after P2-01 confirms it as the target; keep demo/accountant-ui-demo as a separate reference unless separately authorized.",
+    "Add the minimum functional Login, first-password replacement, session-expired and logout surfaces using existing design tokens and visual patterns.",
+    "Consume accepted Phase 1 auth, Company/Tenant, and Branch read contracts; add no business endpoint, table, migration or business calculation.",
+    "Provide client-side route guards and role-aware navigation only as UX; Django remains the authority.",
+    "Replace mock values only when a real accepted source exists; otherwise retain a clearly separated reference/demo surface or show an unavailable/not-integrated state without false success."
+  ],
+  "out_of_scope": [
+    "Investor Fund, Vehicle finance, Garage Job backend, Sales, Buyer Collections, Running Capital, Accounting ledger, Company Share, Profit/Loss, Owner Distribution, Investor reconciliation/settlement, media workflow, report calculations, AI, and all business APIs/tables.",
+    "Real dashboard metrics or dashboard backend aggregation. Existing dashboard UI remains and its real-data integration is last in later phases.",
+    "Redesigning or deleting existing business pages, changing canonical V2 business rules, changing Django Admin into a new back-office UI, or choosing a hosting provider.",
+    "Production/staging migrations, shared database mutation, deployment, commit, push, merge, or Phase 3 implementation."
+  ],
+  "preservation_rules": [
+    "Keep existing sidebar, navigation, top bar, page layouts, cards, tables, typography, colors, responsive patterns and interactions; change only what integration requires.",
+    "New auth UI is one centered card on a clean page using existing VIRMS styling; no split-screen marketing, hero artwork or new branding system.",
+    "Do not change existing route keys/page behavior just to fit a router. Current React view keys are client state, not established public URL routes.",
+    "Do not reuse mock IDs as server identity; backend UUIDs are authoritative. Preserve demo/reference data separately from authenticated API state.",
+    "Do not present local business values or local success toasts as persisted business truth after auth integration."
+  ],
+  "current_vs_target": [
+    {
+      "area": "React application shell",
+      "current": "Vite React shell and shared components exist under demo/react; source is local/untracked and runtime is unverified.",
+      "target": "Reuse the same shell and visual system with minimal integration changes.",
+      "gap": "No auth or Django connection.",
+      "action": "REUSE"
+    },
+    {
+      "area": "Authentication UI / login",
+      "current": "No login page or login API caller found.",
+      "target": "Centered Login ID/password form using existing design language.",
+      "gap": "New functional surface.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "First-password change",
+      "current": "Backend candidate has password-change flow; React has no gate/form.",
+      "target": "Restrict app routes until password change succeeds.",
+      "gap": "No frontend flow.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "Logout",
+      "current": "AppShell exposes an onLogout callback; no session API call.",
+      "target": "CSRF-protected server logout plus local auth/cache cleanup.",
+      "gap": "Callback is prototype-only.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "Session expiry/revocation",
+      "current": "Backend candidate enforces sessions/auth epoch; React has no auth lifecycle.",
+      "target": "Treat protected 401 as stale session, clear user-scoped state and return safely to login.",
+      "gap": "No handling.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "CSRF",
+      "current": "Django endpoint exists; no browser client.",
+      "target": "Fetch CSRF cookie and send token for unsafe cookie-authenticated requests.",
+      "gap": "No client handling.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "API client",
+      "current": "No fetch/axios client in demo/react.",
+      "target": "Typed, bounded client with credentials, error/request-ID parsing and safe retries.",
+      "gap": "No client boundary.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "/auth/me/",
+      "current": "Endpoint exists; current staging and Phase 1 candidate response shapes differ.",
+      "target": "Accepted contract drives initial auth, first-password and Company context.",
+      "gap": "Contract must pass P2-00 and be typed.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "Company context",
+      "current": "Mock Garage selector; no real Company selection.",
+      "target": "Ordinary business account has one Company; no normal Company switcher. Platform identity stays separate.",
+      "gap": "No real context wiring in React.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "Branch context",
+      "current": "Garage selector filters mock data; not authorization.",
+      "target": "List only authorized Branches; allow Company-wide context only where API supports it.",
+      "gap": "Mock Branch mapping and server permission are not equivalent.",
+      "action": "MOCK TO REAL"
+    },
+    {
+      "area": "Protected routing",
+      "current": "Single-page in-memory route state; no React Router or auth guard.",
+      "target": "Public, authenticated and first-password route boundaries with safe redirects.",
+      "gap": "No URL-level guard.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "Role-aware presentation",
+      "current": "Navigation is static prototype registry.",
+      "target": "Hide/show for UX from accepted role state; backend authorizes each operation.",
+      "gap": "No user-role view mapping.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "TanStack Query",
+      "current": "Not installed; local component state/cache service exists.",
+      "target": "One QueryClient with auth-scoped keys and explicit invalidation.",
+      "gap": "No remote server-state layer.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "Cache/session cleanup",
+      "current": "Local dashboard cache and in-memory mock data; no authenticated identity boundary.",
+      "target": "Memory-only sensitive query data and full user-scope purge on logout/revocation.",
+      "gap": "Potential future cross-user cache leak.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "Errors",
+      "current": "Status messages and local simulated success/error paths.",
+      "target": "Map 400/401/403/404/409/429/network/5xx without leaking internals or false success.",
+      "gap": "No API error contract.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "Loading/empty states",
+      "current": "Some prototype empty and skeleton states; no API loading contract.",
+      "target": "Preserve existing states and add no blank/false-success transitions.",
+      "gap": "Auth/API states missing.",
+      "action": "REUSE"
+    },
+    {
+      "area": "Responsive behavior",
+      "current": "Responsive shell styles exist; runtime validation is unverified.",
+      "target": "Preserve composition and validate narrow phone through desktop.",
+      "gap": "No current browser evidence.",
+      "action": "REUSE"
+    },
+    {
+      "area": "Accessibility",
+      "current": "No completed accessibility audit found.",
+      "target": "Keyboard/focus, labels, status announcements, contrast and responsive forms.",
+      "gap": "Coverage unverified.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "Mock data",
+      "current": "React local initial* arrays; second Next demo uses local JSON mock API.",
+      "target": "Every field classified; never silently treat either store as Django truth.",
+      "gap": "All business sources need contract mapping.",
+      "action": "MOCK TO REAL"
+    },
+    {
+      "area": "Real backend integration",
+      "current": "No Django caller in either UI.",
+      "target": "Use accepted session/auth/Company/Branch endpoints only.",
+      "gap": "No integration tests or callers.",
+      "action": "INTEGRATION REQUIRED"
+    },
+    {
+      "area": "Existing business pages",
+      "current": "45 blueprint view records across prototype/business/reference/report pages; many are pending or local mock.",
+      "target": "Preserve UI; connect only available API-backed context; defer business data.",
+      "gap": "Business APIs do not exist in accepted Phase 1 scope.",
+      "action": "OUT OF PHASE 2"
+    },
+    {
+      "area": "Dashboards",
+      "current": "Four local dashboard views, local derived metrics and static chart data.",
+      "target": "Keep UI; defer all real metrics until authoritative module sources exist.",
+      "gap": "No source APIs; aggregate semantics would be invented.",
+      "action": "OUT OF PHASE 2"
+    },
+    {
+      "area": "Tests",
+      "current": "Vite app has no test script; separate Next demo has mock-only tests.",
+      "target": "Unit, component, real Django session integration, security and viewport checks.",
+      "gap": "No Phase 2 frontend validation suite.",
+      "action": "NEW FOUNDATION REQUIRED"
+    },
+    {
+      "area": "Documentation",
+      "current": "V2 and maps define target/current state; maps and roadmap contain stale frontend/phase labels.",
+      "target": "Document only verified Phase2 design and corrected implementation/roadmap truth.",
+      "gap": "Phase numbering and local prototype status are misdescribed.",
+      "action": "INTEGRATION REQUIRED"
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "Phase 1 acceptance",
+      "required": true,
+      "state": "NOT PASSED in current staging worktree; see phase_entry_gate"
+    },
+    {
+      "name": "Auth/session/CSRF API",
+      "required": true,
+      "source": "Phase 1 accepted auth routes; no new auth endpoints planned"
+    },
+    {
+      "name": "Company context",
+      "required": true,
+      "source": "Accepted /api/v1/auth/me/ and/or paginated /api/v1/tenants/ contract; exact consumer selected after P2-00"
+    },
+    {
+      "name": "Branch context",
+      "required": true,
+      "source": "Candidate GET /api/v1/tenants/{company_id}/branches/; absent from current staging source and blocked on Phase 1 acceptance"
+    },
+    {
+      "name": "Frontend authority",
+      "required": true,
+      "source": "demo/react Vite shell selected as primary candidate based on its UI blueprint; confirm during P2-01 before code; Next demo remains reference"
+    },
+    {
+      "name": "Business modules",
+      "required": false,
+      "source": "Not dependencies for Phase 2 because business-data conversion is explicitly deferred"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "P2-00",
+      "title": "Phase 1 acceptance and reproducible baseline gate",
+      "purpose": "Verify the exact target branch contains accepted Phase 1 security/auth/Company/Branch behavior and a reproducible disposable-PostgreSQL regression before any Phase 2 implementation.",
+      "current_evidence": "Staging source lacks the Phase 1 Branch model/migrations; candidate fixes and 158/158 result are in a separate dirty codex/audit worktree.",
+      "dependencies": [],
+      "expected_files_or_areas": [
+        "git/worktree state",
+        "Phase 1 source, migrations, tests and run evidence",
+        "API contract documentation"
+      ],
+      "backend_dependency": "All Phase 1 A-level and required B-level work must be present and reviewed.",
+      "api_dependency": "Lock auth, me, Company/Tenant, Branch, CSRF, errors and pagination contracts.",
+      "frontend_dependency": "None; gate blocks frontend code until passed.",
+      "security_impact": "Critical prerequisite for session, tenant and branch trust.",
+      "company_tenant_impact": "Verify one Company per business account and cross-Company denial.",
+      "branch_impact": "Verify authorized Branch assignments and direct UUID denial.",
+      "session_auth_impact": "Verify CSRF, first-password, auth epoch/revocation, login throttling and logout semantics.",
+      "mock_data_impact": "None; do not use mock clients as evidence.",
+      "backward_compatibility": "No branch switch or dependency on uncommitted work; test against exact target source.",
+      "implementation_steps": [
+        "Inspect exact target worktree/branch and preserve dirty work.",
+        "Review all Phase 1 A/B findings, fixes, migrations and API schemas.",
+        "Run required account/tenant/Admin/session regressions on disposable PostgreSQL only.",
+        "Record pass/fail evidence, API contract and unresolved migration-data boundaries."
+      ],
+      "tests": [
+        "Phase 1 focused and full regression suite on disposable PostgreSQL",
+        "Fresh migration replay and schema drift check",
+        "API contract tests for auth, Company and Branch scope"
+      ],
+      "failure_cases": [
+        "Any A-level defect, required B blocker, migration failure, ambiguous contract or shared database target blocks Phase 2 implementation."
+      ],
+      "regression_scope": "All account, session, CSRF, password, tenant, branch, Admin, throttling, migration and concurrency tests.",
+      "completion_criteria": "Exact Phase 2 base contains reviewed Phase 1 fixes; disposable regression and migration gate pass; API contract is stable and recorded.",
+      "documentation_impact": "Update Phase 1 evidence and entry-gate status only from actual run artifacts.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-01",
+      "title": "Frontend inventory and preservation baseline",
+      "purpose": "Verify the real Vite shell, route keys, page states and approved visuals before integration; keep the Next accountant demo distinct.",
+      "current_evidence": "demo/react has AppShell and 45 UI blueprint records but client-state routes; demo/accountant-ui-demo is separate Next/local-mock reference.",
+      "dependencies": [
+        "P2-00"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/src/App.tsx",
+        "components/AppShell.tsx",
+        "navigationRegistry.ts",
+        "UI blueprint",
+        "demo/accountant-ui-demo"
+      ],
+      "backend_dependency": "None beyond accepted target identity/context boundary.",
+      "api_dependency": "No API addition; identify only current accepted APIs.",
+      "frontend_dependency": "Select demo/react as primary after source review; inventory existing shell, page aliases, route keys and visual states.",
+      "security_impact": "Keep reference/mock data isolated from authenticated views.",
+      "company_tenant_impact": "Record Company selector absence/presence without creating one for ordinary business accounts.",
+      "branch_impact": "Distinguish local Garage filter from authorized Branch context.",
+      "session_auth_impact": "Mark auth UI/state as absent before implementation.",
+      "mock_data_impact": "Inventory every UI view and source; no mock data called live.",
+      "backward_compatibility": "Preserve all current route keys, alias behavior and accepted shell interactions.",
+      "implementation_steps": [
+        "Map AppShell, navigation groups, 45 blueprint views, route aliases and in-memory state.",
+        "Capture a read-only visual baseline at representative widths.",
+        "Record the target shell and separately classify the Next demo as reference."
+      ],
+      "tests": [
+        "Static route/component inventory and link/key parity",
+        "Read-only browser baseline at 320, 390, 768, 1024 and 1440 CSS px"
+      ],
+      "failure_cases": [
+        "If the primary frontend target differs from demo/react or accepted UI baseline cannot be established, stop before markup changes."
+      ],
+      "regression_scope": "Every existing shell, sidebar/dock/flyout, topbar, route alias, card, table, form and responsive pattern.",
+      "completion_criteria": "Primary source and preserved UI contract are recorded; before/after visual review is reproducible.",
+      "documentation_impact": "Store route and preservation inventory in Phase 2 plan; update only verified deltas later.",
+      "risk_level": "STANDARD"
+    },
+    {
+      "id": "P2-02",
+      "title": "Mock data and API dependency field inventory",
+      "purpose": "Map every route and every mock field to a verified V2/backend source or an explicit defer/unsupported classification before data conversion.",
+      "current_evidence": "React types define Garage, Investor, Vehicle, Job, inventory, expense, sale, payment, audit, activity and dashboard data; no Django business API exists.",
+      "dependencies": [
+        "P2-00",
+        "P2-01"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/src/types/index.ts",
+        "data/mockData.ts",
+        "components",
+        "demo/accountant-ui-demo/src/mock/types.ts",
+        "V2 modules/data model"
+      ],
+      "backend_dependency": "Read only; use accepted Phase 1 contracts and V2 module boundaries.",
+      "api_dependency": "Inventory actual endpoints; future business endpoints stay NOT IMPLEMENTED — FUTURE MODULE.",
+      "frontend_dependency": "Map all 45 blueprint records, aliases, consumers and source fields.",
+      "security_impact": "Prevent mock UUIDs, fake role claims, PII and local data from crossing into authenticated requests.",
+      "company_tenant_impact": "Identify Company owner for each future record; no cross-Company assumptions.",
+      "branch_impact": "Map Branch only from accepted Branch fields; Garage-to-Branch mappings need a real source relation.",
+      "session_auth_impact": "Keep identity/session fields separate from business mock schemas.",
+      "mock_data_impact": "Classify each field DIRECT REAL FIELD, DERIVED REAL FIELD, FUTURE MODULE DATA, REDUNDANT, UNSUPPORTED MOCK or BUSINESS DECISION REQUIRED.",
+      "backward_compatibility": "Preserve the demo/reference fixture contract; do not silently reinterpret existing fields.",
+      "implementation_steps": [
+        "Enumerate every route, mock source, fields/actions, target API and owning module.",
+        "Compare field semantics with V2 model docs and accepted serializer shapes.",
+        "Record conversion, keep/defer, blocked module and unavailable-state behavior."
+      ],
+      "tests": [
+        "Field-to-source completeness check",
+        "Route coverage check for all 45 records plus aliases and contextual details"
+      ],
+      "failure_cases": [
+        "No direct mapping by similar label, ID, email, name or arithmetic; unresolved semantics remain unsupported or explicitly require a business decision."
+      ],
+      "regression_scope": "All page columns, filters, actions, financial messages, IDs, statuses and empty states that consume mock fields.",
+      "completion_criteria": "Every page and typed field has a source/classification and a no-false-success disposition.",
+      "documentation_impact": "Maintain mock_data_inventory and future module/API dependencies.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-03",
+      "title": "Frontend runtime and safe environment configuration",
+      "purpose": "Make the primary Vite app reproducibly target the accepted Django environment without exposing secrets or broadening browser origins.",
+      "current_evidence": "Vite 6/React 19/TypeScript/Tailwind 4; package-lock exists; dev server binds loopback and has no Django proxy or API config.",
+      "dependencies": [
+        "P2-00",
+        "P2-01"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/package.json",
+        "package-lock.json",
+        "vite.config.ts",
+        "deployment/runtime config documentation"
+      ],
+      "backend_dependency": "Accepted Django local origin and session cookie settings.",
+      "api_dependency": "API base path and same-origin/proxy strategy must match accepted endpoint prefix.",
+      "frontend_dependency": "Use current npm lock; add only necessary runtime/test dependencies after review.",
+      "security_impact": "No secrets in VITE_* values; explicit CORS/CSRF allowlist if cross-origin, never wildcard credentials.",
+      "company_tenant_impact": "No data-scope change.",
+      "branch_impact": "No scope change.",
+      "session_auth_impact": "Preserve secure cookie and SameSite behavior across chosen origin topology.",
+      "mock_data_impact": "Keep reference stores and mock endpoints out of production API configuration.",
+      "backward_compatibility": "Keep existing localhost Vite command/port unless an evidenced conflict requires a documented adjustment.",
+      "implementation_steps": [
+        "Select same-origin reverse proxy or explicit allowlisted cross-origin setup from actual environment needs.",
+        "Add public non-secret environment validation and developer-safe defaults.",
+        "Document startup/teardown and no-auto-migration behavior."
+      ],
+      "tests": [
+        "Config validation for missing/invalid API origin",
+        "Browser cookie/CSRF reachability smoke test against isolated Django"
+      ],
+      "failure_cases": [
+        "Credentialed wildcard CORS, secret in client bundle, insecure cookie mismatch or ambiguous production origin blocks release."
+      ],
+      "regression_scope": "Existing Vite dev/preview commands, build inputs, lockfile and deployment base path.",
+      "completion_criteria": "Reproducible frontend configuration points only at the approved backend origin and contains no secret.",
+      "documentation_impact": "Document origin, proxy/CORS and local integration setup.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-04",
+      "title": "Typed API client, CSRF, request IDs and retry boundary",
+      "purpose": "Create one reusable browser client for the accepted Django session APIs and parse their actual responses safely.",
+      "current_evidence": "No client in React; Django uses cookie sessions/CSRF and candidate responses include request ID/error metadata on some paths.",
+      "dependencies": [
+        "P2-00",
+        "P2-03"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/src/services or api layer",
+        "API types",
+        "client unit tests"
+      ],
+      "backend_dependency": "No backend changes; accepted API errors and CSRF behavior are prerequisite.",
+      "api_dependency": "Use observed endpoints only; credentials include; CSRF cookie/token for unsafe methods; preserve status and Retry-After.",
+      "frontend_dependency": "One fetch wrapper; runtime parse of unknown response JSON; consistent typed results/errors.",
+      "security_impact": "Never store session token; do not log credentials or sensitive bodies; avoid unsafe automatic retries.",
+      "company_tenant_impact": "No authorization in the client.",
+      "branch_impact": "No authorization in the client.",
+      "session_auth_impact": "Use HttpOnly session cookie and readable CSRF token only; clear on 401 where auth boundary requires.",
+      "mock_data_impact": "Do not route production calls to /api/mock or local JSON storage.",
+      "backward_compatibility": "Do not change Django routes or response contracts; tolerate documented additive fields.",
+      "implementation_steps": [
+        "Define typed request/response adapters from accepted Phase 1 contracts.",
+        "Use credentials: include and a CSRF bootstrap/header for unsafe requests.",
+        "Carry X-Request-ID if present; map detail/code/request_id/Retry-After without assuming all handlers have identical error bodies.",
+        "Retry only bounded safe reads; no automatic replay of login/password/logout or other unsafe calls after unknown outcomes."
+      ],
+      "tests": [
+        "Client tests for cookies, CSRF, request ID, malformed body and 400/401/403/404/409/429/5xx/network errors",
+        "Assert POST requests are not blindly replayed"
+      ],
+      "failure_cases": [
+        "Missing CSRF, unexpected content type, network timeout, unknown status and malformed response render safe failure rather than success."
+      ],
+      "regression_scope": "Current no-API behavior, CSRF protection, request body limits, error privacy and session-cookie contract.",
+      "completion_criteria": "All Django browser requests use the client; no duplicate request helper or token persistence exists.",
+      "documentation_impact": "Add exact client contract and retry/error policy.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-05",
+      "title": "Authentication state model and bootstrap boundary",
+      "purpose": "Define loading, authenticated, unauthenticated, first-password, stale-session and failed-network states before wiring page guards.",
+      "current_evidence": "React has no auth provider/state; AppShell logout is a callback; candidate backend exposes /auth/me/ and a first-password flag.",
+      "dependencies": [
+        "P2-00",
+        "P2-03",
+        "P2-04"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/src/auth or state layer",
+        "App root",
+        "auth unit tests"
+      ],
+      "backend_dependency": "Use accepted auth epoch/session behavior; no backend changes.",
+      "api_dependency": "Define an AuthGateway using the P2-04 client; actual /me integration is P2-10.",
+      "frontend_dependency": "Auth state is app-wide; keep local page state local.",
+      "security_impact": "Default deny while state is unknown; never infer authentication from cached user data.",
+      "company_tenant_impact": "No company selection from localStorage.",
+      "branch_impact": "No branch selection grants access.",
+      "session_auth_impact": "Represent 401, revoked/inactive and first-password-required distinctly from network error and 403.",
+      "mock_data_impact": "Fixtures only in unit tests; no production mock login.",
+      "backward_compatibility": "Preserve page layout after authenticated state resolves; public login is the only new route surface.",
+      "implementation_steps": [
+        "Define explicit discriminated auth states and transitions.",
+        "Keep server state as source of truth and bootstrap once per app load.",
+        "Specify safe handling for unavailable backend without false anonymous/success states."
+      ],
+      "tests": [
+        "Unit tests for initial, authenticated, unauthenticated, must-change and network-failure transitions"
+      ],
+      "failure_cases": [
+        "A stale cached auth object, double bootstrap or out-of-order response must not reopen protected views."
+      ],
+      "regression_scope": "App mount, shell render, current route keys and session refresh behavior.",
+      "completion_criteria": "Auth state transitions are deterministic, default-deny, and independently testable.",
+      "documentation_impact": "Document auth state diagram and startup behavior.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-06",
+      "title": "Login UI and real login integration",
+      "purpose": "Implement the single functional auth form using Login ID/password, CSRF and the accepted Django session flow.",
+      "current_evidence": "No login component/API caller exists; candidate POST login accepts login_id/password and sets a session cookie.",
+      "dependencies": [
+        "P2-04",
+        "P2-05"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/src/auth/LoginView.tsx",
+        "auth service",
+        "auth component tests"
+      ],
+      "backend_dependency": "Accepted CSRF-protected login endpoint and login throttling.",
+      "api_dependency": "POST /api/v1/auth/login/; response/cookies/status locked by P2-00.",
+      "frontend_dependency": "New centered card; preserve existing tokens and shell outside auth route.",
+      "security_impact": "Do not reveal whether Login ID exists; never persist password; handle 429 and Retry-After.",
+      "company_tenant_impact": "Company is not selected at login unless accepted API explicitly supplies a platform flow.",
+      "branch_impact": "No branch selector at login.",
+      "session_auth_impact": "CSRF GET then POST; on success refresh server identity; obey must_change_password.",
+      "mock_data_impact": "No demo credentials or fake authenticated state in production build.",
+      "backward_compatibility": "Do not change backend login fields; keep server rate limits authoritative.",
+      "implementation_steps": [
+        "Add labeled Login ID and password inputs and accessible submit/error states.",
+        "Bootstrap CSRF, submit once, and map generic credential/rate-limit errors.",
+        "Refresh auth state from /auth/me after success and route according to first-password state."
+      ],
+      "tests": [
+        "Component and integration tests for success, invalid credentials, 429, CSRF failure and network timeout"
+      ],
+      "failure_cases": [
+        "Unknown outcome does not blindly resubmit; password remains only in component memory and is cleared after success/unmount."
+      ],
+      "regression_scope": "No layout changes to business shell; verify existing global styles and keyboard form behavior.",
+      "completion_criteria": "Valid login creates only a backend session and routes to accepted first-password or app state; failures are generic and accessible.",
+      "documentation_impact": "Document login request/response, CSRF bootstrap and status behavior.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-07",
+      "title": "First-login temporary-password replacement",
+      "purpose": "Connect the mandatory temporary-password replacement flow and prevent ordinary app entry before backend confirmation.",
+      "current_evidence": "Candidate backend has must_change_password flag, password endpoint and first-password middleware; React has no flow.",
+      "dependencies": [
+        "P2-06",
+        "P2-09",
+        "P2-10"
+      ],
+      "expected_files_or_areas": [
+        "auth password view",
+        "password API adapter",
+        "protected route state",
+        "component and integration tests"
+      ],
+      "backend_dependency": "Accepted password policy, endpoint validation and middleware remain authoritative.",
+      "api_dependency": "POST /api/v1/auth/password/change/ with accepted fields and error shape.",
+      "frontend_dependency": "One focused form using existing auth style; no bypass links into business views.",
+      "security_impact": "No password in URLs, logs, storage or analytics; no frontend-only enforcement.",
+      "company_tenant_impact": "No tenant context until accepted password state permits app use.",
+      "branch_impact": "No branch context until password gate clears.",
+      "session_auth_impact": "Use current temporary session only as allowed by backend; refresh /auth/me after success.",
+      "mock_data_impact": "No mock password replacement.",
+      "backward_compatibility": "Keep existing business route keys; store a safe requested destination only in memory or validated URL state.",
+      "implementation_steps": [
+        "Render gate when /auth/me says must_change_password.",
+        "Validate confirmation for UX, submit to backend, preserve server validation errors.",
+        "On success refresh server state and only then resume safe local path."
+      ],
+      "tests": [
+        "Valid change, weak/mismatched values, wrong current password, backend rejection, direct route bypass and reload"
+      ],
+      "failure_cases": [
+        "API 401/403/400 or network error keeps restricted route and never shows success."
+      ],
+      "regression_scope": "Temporary login, session continuity, required password middleware and safe return path.",
+      "completion_criteria": "No protected view/action is usable until backend reports the first-password gate cleared.",
+      "documentation_impact": "Record first-login and password-error transitions.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-08",
+      "title": "Logout, session expiry and revocation handling",
+      "purpose": "Connect logout and clear every authenticated client cache when the server session expires, is revoked or the account becomes inactive.",
+      "current_evidence": "AppShell has onLogout only; candidate session/auth_epoch middleware invalidates stale sessions; no client cleanup exists.",
+      "dependencies": [
+        "P2-04",
+        "P2-05",
+        "P2-06",
+        "P2-14"
+      ],
+      "expected_files_or_areas": [
+        "AppShell callback",
+        "auth service",
+        "API error boundary",
+        "query client",
+        "security tests"
+      ],
+      "backend_dependency": "Accepted logout and session-revocation contract.",
+      "api_dependency": "CSRF-protected POST logout; protected 401 is the session-expiry signal; distinguish 403.",
+      "frontend_dependency": "Clear auth state, query cache, page-local sensitive state and selected scope.",
+      "security_impact": "Purge cache before another user can sign in; do not treat logout timeout as server success.",
+      "company_tenant_impact": "Clear Company context and data cache.",
+      "branch_impact": "Clear Branch context and filtered state.",
+      "session_auth_impact": "Server remains source of truth; revocation returns to login after local purge.",
+      "mock_data_impact": "Do not persist sensitive responses in dashboard localStorage; preserve theme preference only.",
+      "backward_compatibility": "Keep current AppShell logout interaction but replace local-only success with actual result handling.",
+      "implementation_steps": [
+        "POST logout with CSRF; clear local state and query cache on confirmed logout or protected 401.",
+        "On uncertain network outcome, purge local data and show safe status; next /me determines server session.",
+        "Handle inactivity/epoch/account revocation from any protected response without retry loop."
+      ],
+      "tests": [
+        "Logout success/failure, 401 expiry, stale epoch, inactive account, other-user sign-in and cache-leak checks"
+      ],
+      "failure_cases": [
+        "403 must not be mistaken for expiry; repeated 401 must not loop; local cache is cleared even when network is down."
+      ],
+      "regression_scope": "Existing selected Branch/Garage UI state, route state, theme preference and backend session revocation.",
+      "completion_criteria": "No prior user's sensitive data remains in memory/query cache after logout or 401; API session outcome is not overstated.",
+      "documentation_impact": "Document logout and stale-session policy.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-09",
+      "title": "Protected routing and safe redirects",
+      "purpose": "Introduce URL-level public/auth/first-password boundaries while preserving existing view keys and aliases.",
+      "current_evidence": "React uses activeRoute state at / and a dashboard view query; no router package or protected route exists.",
+      "dependencies": [
+        "P2-05",
+        "P2-06",
+        "P2-07"
+      ],
+      "expected_files_or_areas": [
+        "demo/react/src/main.tsx",
+        "App.tsx",
+        "navigation registry",
+        "router tests",
+        "package lock"
+      ],
+      "backend_dependency": "None; route guards are UX only.",
+      "api_dependency": "Use auth state; backend still guards every API.",
+      "frontend_dependency": "Add minimal routing only if it preserves navigation semantics.",
+      "security_impact": "Validate local-only redirects; never trust route/role state for permission.",
+      "company_tenant_impact": "No Company switcher inferred by route.",
+      "branch_impact": "No Branch permission from URL.",
+      "session_auth_impact": "Gate first-password and unauthenticated users; resolve bootstrap before protected render.",
+      "mock_data_impact": "Do not expose mock actions as authorized routes.",
+      "backward_compatibility": "Keep / as Dashboard, existing activeRoute keys, detail back behavior and ?view dashboard selection unless a tested additive mapping is approved.",
+      "implementation_steps": [
+        "Map public login, first-password and current app view keys to safe route state.",
+        "Add pending/error/not-found boundaries and safe internal return destinations.",
+        "Preserve existing in-app navigation through a compatibility adapter."
+      ],
+      "tests": [
+        "Direct URL, refresh, back/forward, open redirect, anonymous and must-change route tests"
+      ],
+      "failure_cases": [
+        "Malformed, external or unauthorized redirect resolves to safe default; unknown route never shows protected data."
+      ],
+      "regression_scope": "All 45 current view records, contextual detail navigation, aliases and dashboard query state.",
+      "completion_criteria": "Protected app views wait for server auth and existing navigation remains functional.",
+      "documentation_impact": "Document route map and safe redirects.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-10",
+      "title": "/auth/me/ identity and session bootstrap integration",
+      "purpose": "Make the accepted server response the single source for authenticated identity, roles, first-password gate and current Company summary.",
+      "current_evidence": "Staging and Phase 1 candidate /auth/me response shapes differ; candidate adds companies and truncation metadata.",
+      "dependencies": [
+        "P2-04",
+        "P2-05",
+        "P2-06",
+        "P2-09"
+      ],
+      "expected_files_or_areas": [
+        "auth API types",
+        "bootstrap hook",
+        "TopBar/account area",
+        "contract tests"
+      ],
+      "backend_dependency": "Use only exact Phase 1 accepted serializer contract.",
+      "api_dependency": "GET /api/v1/auth/me/; 401 unauthenticated/stale; no hidden alternate endpoint.",
+      "frontend_dependency": "Validate response at boundary; do not assume extra fields exist.",
+      "security_impact": "Never trust cached roles or Company IDs; prevent stale response from restoring a revoked session.",
+      "company_tenant_impact": "Represent one Company for ordinary business account; handle empty/truncated response safely.",
+      "branch_impact": "No Branch authority is derived from me roles alone.",
+      "session_auth_impact": "Bootstrap on app entry and after login/password change; revalidate after relevant 401/session transition without polling.",
+      "mock_data_impact": "Replace hardcoded demo user labels only where API provides safe identity; no account mock fallback.",
+      "backward_compatibility": "Keep existing TopBar composition and avoid contract-breaking response assumptions.",
+      "implementation_steps": [
+        "Create runtime validator for the accepted /me fields.",
+        "Use it for bootstrap and post-login refresh.",
+        "Handle malformed, 401 and 5xx separately; respect company_context_truncated."
+      ],
+      "tests": [
+        "Contract fixtures from Django tests, 401, malformed response, revoked auth epoch and truncation handling"
+      ],
+      "failure_cases": [
+        "Missing Company or unexpected multiple Company for a business identity must not create implicit selection or disclose another scope."
+      ],
+      "regression_scope": "Login, first-password, refresh, logout, navigation and account display.",
+      "completion_criteria": "Auth and identity state always reflects the current accepted backend response.",
+      "documentation_impact": "Record fields and bounds of /auth/me/ response.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-11",
+      "title": "Company context integration",
+      "purpose": "Display and retain the exact Company context authorized by the server without a normal Company account switcher.",
+      "current_evidence": "V2 says one Company per business account; current React has a local all-Garages filter; candidate /me includes scoped Company summaries.",
+      "dependencies": [
+        "P2-10"
+      ],
+      "expected_files_or_areas": [
+        "AppShell context area",
+        "Company context selectors/types",
+        "context tests"
+      ],
+      "backend_dependency": "Company membership and account-kind rules must be accepted in Phase 1.",
+      "api_dependency": "Use /auth/me and only call paginated Tenant list when a real platform workflow needs it.",
+      "frontend_dependency": "Render authorized Company label and safe empty/forbidden state.",
+      "security_impact": "Never use names/labels to resolve identity or permit access.",
+      "company_tenant_impact": "Ordinary business account has one Company and no switcher; Platform identities remain distinct and do not inherit business authority.",
+      "branch_impact": "Company scope is parent boundary; Branch selection remains separate.",
+      "session_auth_impact": "Company state clears on logout, 401 or identity change.",
+      "mock_data_impact": "Do not equate mock Garage IDs to Company IDs.",
+      "backward_compatibility": "Keep shell placement and Company-wide behavior where already supported.",
+      "implementation_steps": [
+        "Consume exact Company summaries from accepted response.",
+        "Show no Company selector for ordinary Company accounts.",
+        "Handle no/multiple/truncated contexts without silently choosing a Company."
+      ],
+      "tests": [
+        "One-company account, no membership, platform identity separation, truncation and Company change after logout/login"
+      ],
+      "failure_cases": [
+        "No active Company or ambiguous business context blocks Company data access; no fallback by slug/name."
+      ],
+      "regression_scope": "TopBar/shell, role-aware views and all future Company-scoped query keys.",
+      "completion_criteria": "Every rendered Company context is server-derived and one-company rules are preserved.",
+      "documentation_impact": "Document Company context contract and no-switcher rule.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-12",
+      "title": "Authorized Branch context and filters",
+      "purpose": "Load Branch choices from the accepted scoped API and make Branch selection a data filter only, never an authorization grant.",
+      "current_evidence": "React Garage selector filters mock records; Phase1 candidate has paginated Company-scoped Branch list/detail, absent from staging source.",
+      "dependencies": [
+        "P2-10",
+        "P2-11",
+        "P2-14",
+        "P2-15"
+      ],
+      "expected_files_or_areas": [
+        "AppShell Branch context",
+        "tenant/Branch API adapter",
+        "scope tests"
+      ],
+      "backend_dependency": "BranchAssignment and same-Company authorization must pass P2-00.",
+      "api_dependency": "Candidate GET /api/v1/tenants/{company_id}/branches/; use only accepted pagination/serializer contract.",
+      "frontend_dependency": "Render Company-wide option only where explicitly supported; stable Branch UUID selection.",
+      "security_impact": "Selector never grants or broadens access; direct UUID requests remain backend-authorized.",
+      "company_tenant_impact": "Reject Branch whose Company differs from the current server-derived Company.",
+      "branch_impact": "Respect current assigned Branches and distinguish current scope from historical Branch records.",
+      "session_auth_impact": "Clear selected Branch on identity/session change and verify selection remains authorized.",
+      "mock_data_impact": "Do not map existing mock garageId to live Branch until a real business API establishes relationship.",
+      "backward_compatibility": "Preserve existing mock filter in reference mode; do not silently relabel it a real Branch filter.",
+      "implementation_steps": [
+        "Fetch accepted scoped list and handle pagination/truncation.",
+        "Bind the current selection to actual backend Branch UUID.",
+        "Pass filters only to endpoints whose accepted contract supports them."
+      ],
+      "tests": [
+        "Authorized and unauthorized Branch lists, cross-Company UUID, stale assignment, Company-wide selection and paging"
+      ],
+      "failure_cases": [
+        "403/404, empty or stale lists do not fall back to all Branches or mock IDs."
+      ],
+      "regression_scope": "Current Garage selector, all views that receive a filter, Company-wide summary semantics and context changes.",
+      "completion_criteria": "Only authorized Branches are selectable; backend tests prove permission independent from UI.",
+      "documentation_impact": "Document branch list, bounds, filters and selector permission boundary.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-13",
+      "title": "Role-aware navigation and action presentation",
+      "purpose": "Use accepted role/action capabilities only to simplify the UI while preserving backend default-deny authorization.",
+      "current_evidence": "Static nav registry currently shows prototype routes to every local viewer; backend candidate uses scoped roles/grants.",
+      "dependencies": [
+        "P2-10",
+        "P2-11"
+      ],
+      "expected_files_or_areas": [
+        "navigationRegistry.ts",
+        "AppShell",
+        "role presentation tests"
+      ],
+      "backend_dependency": "Do not add permission rules; consume accepted safe presentation fields only.",
+      "api_dependency": "Use /me roles/context only if the contract defines them; no invented capability endpoint.",
+      "frontend_dependency": "Keep role mapping separate from route and service authorization.",
+      "security_impact": "UI hiding is never access control; direct API remains tested server-side.",
+      "company_tenant_impact": "Use role within current Company scope, never global role as cross-Company authority.",
+      "branch_impact": "Branch-specific controls require the accepted scope, not a selected Branch alone.",
+      "session_auth_impact": "Clear nav state on identity refresh/revoke.",
+      "mock_data_impact": "No fake role fallback for demo user.",
+      "backward_compatibility": "Preserve navigation visual hierarchy and current valid keys.",
+      "implementation_steps": [
+        "Map only confirmed role presentation rules.",
+        "Show unauthorized route safely without fetching private data.",
+        "Keep all server-side mutation checks unchanged."
+      ],
+      "tests": [
+        "Role-by-navigation matrix and direct protected API negative tests"
+      ],
+      "failure_cases": [
+        "Missing/unknown role yields least-privilege UI; it does not cause a privilege grant."
+      ],
+      "regression_scope": "All roles in V2: Owner, Accountant, Investor, Media, Platform Back Office; actual exposed Phase 2 UI only.",
+      "completion_criteria": "Role presentation follows accepted mapping and no test treats frontend visibility as authorization.",
+      "documentation_impact": "Record UX-only role mapping and backend authority.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-14",
+      "title": "TanStack Query server-state and cache policy",
+      "purpose": "Introduce a bounded remote-data layer with identity-scoped keys and secure logout/session cleanup, without speculative caching optimization.",
+      "current_evidence": "TanStack Query is not installed; current dashboard cache is a local prototype service.",
+      "dependencies": [
+        "P2-04",
+        "P2-05",
+        "P2-10"
+      ],
+      "expected_files_or_areas": [
+        "QueryClient provider",
+        "query keys",
+        "auth lifecycle",
+        "package-lock.json"
+      ],
+      "backend_dependency": "Use accepted response identity and list bounds.",
+      "api_dependency": "Queries call P2-04 client; mutations never retry automatically unless contract says idempotent.",
+      "frontend_dependency": "QueryClient for server state; useState/context for local auth/UI state.",
+      "security_impact": "No sensitive persisted query cache; clear all auth-scoped queries on logout/401/account change.",
+      "company_tenant_impact": "Keys include server-derived Company UUID where applicable.",
+      "branch_impact": "Keys include selected authorized Branch UUID where applicable.",
+      "session_auth_impact": "New session triggers fresh queries; revoked session cancels and purges.",
+      "mock_data_impact": "Do not persist local mock or financial data into production QueryClient.",
+      "backward_compatibility": "Keep current UI states and avoid duplicate parallel caches.",
+      "implementation_steps": [
+        "Choose conservative defaults and typed key factories.",
+        "Define invalidation for login/logout/context changes and mutation results.",
+        "Keep auth and sensitive data in memory only; no persistence plugin."
+      ],
+      "tests": [
+        "Query-key isolation across two users/Companies/Branches; logout purge; retry and cancellation behavior"
+      ],
+      "failure_cases": [
+        "A user change cannot read prior cache; stale request completion cannot repopulate after logout."
+      ],
+      "regression_scope": "Current dashboardCacheService, refresh behavior and local preference storage.",
+      "completion_criteria": "One clear server-state source, bounded retries and verified cache boundary exist.",
+      "documentation_impact": "Document query-key and cache lifecycle policy.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-15",
+      "title": "Shared loading, error, empty and conflict states",
+      "purpose": "Use consistent states for API/auth failures without blank screens, false success or internal detail leakage.",
+      "current_evidence": "Some React skeleton/empty/status messages exist; no Django error mapper.",
+      "dependencies": [
+        "P2-04",
+        "P2-05",
+        "P2-14"
+      ],
+      "expected_files_or_areas": [
+        "shared state components",
+        "API error mapper",
+        "auth forms and shell"
+      ],
+      "backend_dependency": "Use existing statuses/error payloads; do not change server semantics in Phase 2.",
+      "api_dependency": "Map 400, 401, 403, 404, 409, 429, network, timeout, 5xx and service unavailable.",
+      "frontend_dependency": "Reuse existing tokens/messages and preserve form input where safe.",
+      "security_impact": "Show generic safe errors; keep request_id for support without exposing stack/PII.",
+      "company_tenant_impact": "Forbidden/missing Company remains safe and does not reveal existence.",
+      "branch_impact": "Forbidden/unavailable Branch has no all-Branch fallback.",
+      "session_auth_impact": "401 transitions to stale-session handling; 403 remains forbidden.",
+      "mock_data_impact": "Never show local success as API success.",
+      "backward_compatibility": "Preserve current status component hierarchy and existing empty states.",
+      "implementation_steps": [
+        "Map backend status to user state and action.",
+        "Add loading, retry-safe, empty, forbidden, missing, conflict and offline states.",
+        "Expose request ID only as support reference."
+      ],
+      "tests": [
+        "Component tests for each status and accessible live-region behavior"
+      ],
+      "failure_cases": [
+        "Unknown payload/status, stale form submit and timeout yield safe failure and no duplicate mutation."
+      ],
+      "regression_scope": "Login, password, shell context, existing page empty/skeleton/toast states.",
+      "completion_criteria": "All shared states are consistent, accessible and do not fabricate persistence.",
+      "documentation_impact": "Document status-to-UX mapping.",
+      "risk_level": "STANDARD"
+    },
+    {
+      "id": "P2-16",
+      "title": "API-backed identity and context surfaces only",
+      "purpose": "Replace mock data only in existing shell/context surfaces for which accepted Phase 1 APIs are authoritative; do not convert business pages without endpoints.",
+      "current_evidence": "Accepted Phase1 candidate offers /auth/me, Tenant/Company and Branch reads; no business module APIs exist.",
+      "dependencies": [
+        "P2-02",
+        "P2-10",
+        "P2-11",
+        "P2-12",
+        "P2-14",
+        "P2-15"
+      ],
+      "expected_files_or_areas": [
+        "TopBar/AppShell",
+        "Garages / Branches view if compatible",
+        "typed context selectors"
+      ],
+      "backend_dependency": "No backend business change; accepted read contracts only.",
+      "api_dependency": "/auth/me, optional paginated Tenant reads, scoped Branch list only.",
+      "frontend_dependency": "Map real actor/Company/Branch context to existing shell; keep unbacked route content separate or unavailable.",
+      "security_impact": "No direct identifier grants access; no private business prefetch.",
+      "company_tenant_impact": "Company context comes from server and one-company account rule.",
+      "branch_impact": "Branch list is server-scoped; branch filter sent only to an API that supports it.",
+      "session_auth_impact": "Context is cleared/refetched on identity changes.",
+      "mock_data_impact": "No business mock fields are presented as persisted data.",
+      "backward_compatibility": "Preserve business page layout and route keys; no fabricated replacement fields.",
+      "implementation_steps": [
+        "Wire current account summary and Branch context to accepted APIs.",
+        "Convert only fields classified DIRECT/DERIVED REAL FIELD with contract proof.",
+        "Keep management writes in Django Admin unless a current API contract explicitly exists."
+      ],
+      "tests": [
+        "Real backend integration for me/company/branch; prove no calls to absent business endpoints"
+      ],
+      "failure_cases": [
+        "If required field/API is missing, retain reference behavior only outside live authenticated state or render unavailable state."
+      ],
+      "regression_scope": "TopBar, context selectors, Garages/Branches route and untouched business views.",
+      "completion_criteria": "All converted fields have server provenance; no business operation falsely reports saved state.",
+      "documentation_impact": "Record per-page conversion and API caller.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-17",
+      "title": "Unsupported mock-field reconciliation and safe defer behavior",
+      "purpose": "Apply the page/field inventory so mock-only domains remain clearly non-live and unsupported fields are not silently substituted.",
+      "current_evidence": "Mock fields span future domains and full parts inventory, which V2 excludes from its current baseline.",
+      "dependencies": [
+        "P2-02",
+        "P2-16"
+      ],
+      "expected_files_or_areas": [
+        "mockData selectors",
+        "business page data boundaries",
+        "demo/reference mode"
+      ],
+      "backend_dependency": "No new endpoint/table/model.",
+      "api_dependency": "No API for mock-only fields; mark future APIs not implemented.",
+      "frontend_dependency": "Preserve page layouts; separate reference data from real authenticated state.",
+      "security_impact": "No tenant cache contamination or cross-user local storage of business data.",
+      "company_tenant_impact": "Mock Company IDs never attach records to a live Company.",
+      "branch_impact": "Mock garage IDs never attach data to a live Branch absent a real relation.",
+      "session_auth_impact": "Auth success does not relabel sample content as the user's business data.",
+      "mock_data_impact": "Preserve reference UI; disable/contain local consequential actions in live state unless an API exists.",
+      "backward_compatibility": "Do not delete existing mock pages or alter demo-only API schemas.",
+      "implementation_steps": [
+        "Apply explicit classifications from P2-02 by route and field.",
+        "Keep V2 unsupported Inventory as reference/defer, not an assumed approved module.",
+        "Remove or relabel only false live-success affordances required for safe integration."
+      ],
+      "tests": [
+        "Assert no unsupported API request, no local fake success in live state and retained demo/reference workflows"
+      ],
+      "failure_cases": [
+        "Unmapped, mixed-semantics or BDR-dependent fields remain deferred and do not mutate state."
+      ],
+      "regression_scope": "All business route forms, toasts, selectors, reports and local persistence paths.",
+      "completion_criteria": "Every field is mapped, derived from an approved source, or explicitly not live/deferred.",
+      "documentation_impact": "Keep field-level mapping and defer list current.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-18",
+      "title": "Responsive and accessibility regression",
+      "purpose": "Validate preserved UI and the new authentication/context surfaces at required widths and keyboard/screen-reader interactions.",
+      "current_evidence": "Responsive styles and some loading/empty components exist; runtime/browser and a11y evidence is unverified.",
+      "dependencies": [
+        "P2-01",
+        "P2-06",
+        "P2-07",
+        "P2-09",
+        "P2-11",
+        "P2-12",
+        "P2-15",
+        "P2-17"
+      ],
+      "expected_files_or_areas": [
+        "demo/react views and shared components",
+        "browser/accessibility test setup"
+      ],
+      "backend_dependency": "Isolated backend for authenticated screens; no production access.",
+      "api_dependency": "Use deterministic API fixtures except end-to-end session path.",
+      "frontend_dependency": "Preserve layouts, support long text and touch targets, no redesign.",
+      "security_impact": "Ensure errors/password forms do not leak data or lose focus safely.",
+      "company_tenant_impact": "Long Company names do not reveal or hide scope incorrectly.",
+      "branch_impact": "Branch selector remains usable at phone widths and with long labels.",
+      "session_auth_impact": "Login/expired state layout and focus are verified.",
+      "mock_data_impact": "Use synthetic non-sensitive fixtures.",
+      "backward_compatibility": "Compare all touched existing screens to baseline.",
+      "implementation_steps": [
+        "Run browser at 320, 390, 768, 1024 and 1440 CSS px.",
+        "Check keyboard order, focus restoration, form labels, live regions, contrast and zoom.",
+        "Check sidebar/drawer, dense tables/forms, overflow and safe areas."
+      ],
+      "tests": [
+        "Browser viewport screenshots/checks and automated accessibility scan; keyboard-only flows"
+      ],
+      "failure_cases": [
+        "Clipping, keyboard trap, unlabeled input, false status color or overlapping mobile sheet blocks exit gate."
+      ],
+      "regression_scope": "Auth, topbar, sidebar/dock/flyout, context, tables, forms, modals and states.",
+      "completion_criteria": "No blocking responsive/a11y regression; accepted UI structure preserved.",
+      "documentation_impact": "Record tested browsers/viewports and remaining known nonblocking issues.",
+      "risk_level": "STANDARD"
+    },
+    {
+      "id": "P2-19",
+      "title": "Frontend unit, component, integration and security regression suite",
+      "purpose": "Prove the browser-to-Django session and scope flow with real backend behavior, not frontend mocks alone.",
+      "current_evidence": "Vite app has no test script; saved Phase1 tests cover backend only; Next mock tests do not prove Django security.",
+      "dependencies": [
+        "P2-04",
+        "P2-06",
+        "P2-07",
+        "P2-08",
+        "P2-09",
+        "P2-10",
+        "P2-11",
+        "P2-12",
+        "P2-13",
+        "P2-14",
+        "P2-15",
+        "P2-16",
+        "P2-17"
+      ],
+      "expected_files_or_areas": [
+        "Vite test harness",
+        "API/auth component tests",
+        "disposable Django/PostgreSQL runner",
+        "browser integration tests"
+      ],
+      "backend_dependency": "Run against isolated Phase1 backend and disposable PostgreSQL only.",
+      "api_dependency": "Use accepted contracts and real cookie/CSRF behavior.",
+      "frontend_dependency": "Unit API helpers/auth/query/errors; component login/password/routing/states; integration flow.",
+      "security_impact": "Test CSRF, expired/revoked session, cross-Company/Branch UUID, direct API access, cache leak and first-password bypass.",
+      "company_tenant_impact": "A Company UUID cannot disclose another Company's records.",
+      "branch_impact": "Unauthorized Branch UUID fails even if manually entered.",
+      "session_auth_impact": "Login → session → /me → password gate → protected route → logout/expiry.",
+      "mock_data_impact": "Mock-only tests cannot satisfy backend security gate.",
+      "backward_compatibility": "Keep existing Phase1 backend regression suite green; do not weaken assertions.",
+      "implementation_steps": [
+        "Choose minimal Vite-compatible unit/component test tools and pin in package lock.",
+        "Add deterministic unit and component tests.",
+        "Add browser integration against disposable Django/PostgreSQL with teardown.",
+        "Capture test discovery and environment identity in evidence."
+      ],
+      "tests": [
+        "Unit: API helpers, auth transitions, keys and error mapping",
+        "Component: login/password/routes/context/loading/errors",
+        "Integration/security: CSRF, session, /me, Branch scope, direct UUID, cache purge and bypass denial"
+      ],
+      "failure_cases": [
+        "Persistent/shared DB, mocked-only security proof, nondiscovered tests or unsupported browser environment fails gate."
+      ],
+      "regression_scope": "All Phase1 account/tenant/Admin/session/migration tests plus touched UI flow tests.",
+      "completion_criteria": "Required tests actually run and pass in the correct environment; evidence identifies source and DB target.",
+      "documentation_impact": "Document exact test commands, discovery and proven/unproven behavior.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-20",
+      "title": "Dashboard and future-module mock dependency map",
+      "purpose": "Preserve dashboard UI and record its mock dependencies, while deferring real dashboard data until authoritative module sources exist.",
+      "current_evidence": "Dashboard has four local views, derived metrics, static chart data and local refresh/cache; no business API exists.",
+      "dependencies": [
+        "P2-02",
+        "P2-16"
+      ],
+      "expected_files_or_areas": [
+        "Dashboard views",
+        "mock field inventory",
+        "phase boundary documentation"
+      ],
+      "backend_dependency": "No dashboard backend or business aggregate in Phase 2.",
+      "api_dependency": "No invented endpoint or metric contract.",
+      "frontend_dependency": "Keep current dashboard composition and demo/reference behavior separated from live data.",
+      "security_impact": "Do not expose cross-Company aggregates from mock data.",
+      "company_tenant_impact": "Future metrics must be Company-scoped from source APIs.",
+      "branch_impact": "Future Branch metrics require source attribution and explicit Company-wide rules.",
+      "session_auth_impact": "Do not let authentication make stale mock metrics appear authoritative.",
+      "mock_data_impact": "Record each metric/source and defer real conversion; static performance series is unsupported mock.",
+      "backward_compatibility": "Do not redesign or remove current dashboard UI.",
+      "implementation_steps": [
+        "Map dashboard cards/charts to their source mock fields.",
+        "Mark real-data conversion as later than source modules.",
+        "Keep no fake live metrics in authenticated mode."
+      ],
+      "tests": [
+        "Inventory completeness and regression checks that dashboards call no absent business API"
+      ],
+      "failure_cases": [
+        "Any request to invent aggregates or derive money without authoritative sources is deferred."
+      ],
+      "regression_scope": "Dashboard overview, operations, analytics, financial views and dashboard cache.",
+      "completion_criteria": "Every dashboard dependency has an owner/future API dependency and dashboards remain last for real data.",
+      "documentation_impact": "Document dashboard deferral and source-module prerequisites.",
+      "risk_level": "HIGH"
+    },
+    {
+      "id": "P2-21",
+      "title": "Verified architecture and living-map documentation",
+      "purpose": "Record only Phase 2 contract/design decisions that are verified after implementation; preserve target/current distinction and V2 authority.",
+      "current_evidence": "Current maps claimed no React prototype and roadmap used an older Phase2 label; local source proves prototypes exist and this plan defines the new Phase2 boundary.",
+      "dependencies": [
+        "P2-01",
+        "P2-02",
+        "P2-19",
+        "P2-20"
+      ],
+      "expected_files_or_areas": [
+        "Phase2 plan MD/JSON",
+        "architecture/01-05 maps",
+        "planning/V2-DEVELOPMENT-ROADMAP.md"
+      ],
+      "backend_dependency": "Document only accepted backend truth.",
+      "api_dependency": "Keep actual route contracts and future endpoints distinct.",
+      "frontend_dependency": "Document verified frontend runtime/integration state, not proposal as implemented.",
+      "security_impact": "Keep security boundaries traceable.",
+      "company_tenant_impact": "Record one-company and platform identity split.",
+      "branch_impact": "Record selector is not permission and API scope.",
+      "session_auth_impact": "Record cookie/CSRF/session transitions.",
+      "mock_data_impact": "Maintain field and dashboard defer inventory.",
+      "backward_compatibility": "Update only changed statements; no cosmetic rewrite of frozen V2 docs.",
+      "implementation_steps": [
+        "Compare completed work/evidence to plan.",
+        "Update only living statements whose verified truth changed.",
+        "Keep business rules and unresolved decisions untouched."
+      ],
+      "tests": [
+        "Markdown links, JSON/Markdown task parity and documentation diff review"
+      ],
+      "failure_cases": [
+        "Unverified claims, source drift or scope expansion stays marked unverified and blocks completion claim."
+      ],
+      "regression_scope": "Phase1 and Phase2 architecture maps, API flow, current-state matrix and roadmap sequence.",
+      "completion_criteria": "Docs match verified code/tests and explicitly label proposed/future work.",
+      "documentation_impact": "This task is the documentation update itself.",
+      "risk_level": "STANDARD"
+    },
+    {
+      "id": "P2-22",
+      "title": "Final Phase 2 integration and exit audit",
+      "purpose": "Audit the complete auth/context integration, preserved UI, security boundaries, test evidence, migration state and explicit business-module deferrals.",
+      "current_evidence": "Phase2 is plan-only today; no implementation or frontend runtime proof exists.",
+      "dependencies": [
+        "P2-00",
+        "P2-01",
+        "P2-02",
+        "P2-03",
+        "P2-04",
+        "P2-05",
+        "P2-06",
+        "P2-07",
+        "P2-08",
+        "P2-09",
+        "P2-10",
+        "P2-11",
+        "P2-12",
+        "P2-13",
+        "P2-14",
+        "P2-15",
+        "P2-16",
+        "P2-17",
+        "P2-18",
+        "P2-19",
+        "P2-20",
+        "P2-21"
+      ],
+      "expected_files_or_areas": [
+        "complete React/Django integration",
+        "disposable PostgreSQL evidence",
+        "architecture maps and Phase2 artifacts"
+      ],
+      "backend_dependency": "Phase1 accepted and no unauthorized business backend/schema changes.",
+      "api_dependency": "All callers match accepted documented Phase1 contracts.",
+      "frontend_dependency": "Preserved shell, auth, context, error and cache behavior complete.",
+      "security_impact": "No A-level auth, CSRF, cache, Company/Branch or bypass defect remains.",
+      "company_tenant_impact": "One-company rule and Company isolation pass.",
+      "branch_impact": "Only authorized branches are visible/selectable; direct UUID denial passes.",
+      "session_auth_impact": "Login/password/logout/expiry/revocation and cache purge pass end-to-end.",
+      "mock_data_impact": "Every page/field mapped; no live business success or dashboard metrics invented.",
+      "backward_compatibility": "Existing routes/keys/layout and valid reference workflows remain intact.",
+      "implementation_steps": [
+        "Review task acceptance and actual file diff.",
+        "Run full frontend and backend regression with disposable DB.",
+        "Run responsive/accessibility review and migration/schema check.",
+        "Verify no Phase3/business module or dashboard API leaked into scope; document remaining risk."
+      ],
+      "tests": [
+        "Full unit/component/browser integration/security suite",
+        "Phase1 full PostgreSQL regression and fresh migration replay",
+        "Browser width/accessibility gate and diff/documentation consistency"
+      ],
+      "failure_cases": [
+        "Any failed required test, unverified API contract, migration issue, UI redesign, live mock data or unapproved business API blocks phase exit."
+      ],
+      "regression_scope": "All preserved page routes/components, backend session/auth/Company/Branch/Admin and migration behavior.",
+      "completion_criteria": "Every phase exit-gate item is evidenced; no business module is falsely called complete; review stops before Phase3.",
+      "documentation_impact": "Publish final verified status and list explicit deferred surfaces.",
+      "risk_level": "HIGH"
+    }
+  ],
+  "api_inventory": [
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/csrf/",
+      "classification": "REQUIRED",
+      "availability": "Both staging worktree and Phase1 candidate; exact cookie/headers contract still gated.",
+      "caller": "Browser API client before unsafe requests.",
+      "authentication": "Public bootstrap.",
+      "csrf": "Issues CSRF cookie; GET itself is safe.",
+      "request": "None.",
+      "response": "Observed JSON detail plus CSRF cookie.",
+      "errors": "HTTP/network failure; exact CSRF failure response must be contract-tested.",
+      "pagination_bounds": "None.",
+      "company_branch_scope": "None.",
+      "frontend_consumer": "Login/password/logout client."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login/",
+      "classification": "REQUIRED",
+      "availability": "Both worktrees; candidate adds bounded-body and shared admission behavior.",
+      "caller": "Login form.",
+      "authentication": "Unauthenticated; successful response establishes Django session cookie.",
+      "csrf": "Required.",
+      "request": "login_id, password.",
+      "response": "Observed must_change_password flag; candidate returns it after session login.",
+      "errors": "400 invalid request, 401 generic credentials, 429 with Retry-After; candidate contract to lock.",
+      "pagination_bounds": "Body bounded in candidate.",
+      "company_branch_scope": "No Company/Branch selection authority.",
+      "frontend_consumer": "P2-06."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout/",
+      "classification": "REQUIRED",
+      "availability": "Both worktrees.",
+      "caller": "AppShell logout.",
+      "authentication": "Cookie session; server logout is authoritative.",
+      "csrf": "Required.",
+      "request": "None.",
+      "response": "Observed detail confirmation.",
+      "errors": "CSRF/network failure; unknown outcome handled without claiming server logout.",
+      "pagination_bounds": "None.",
+      "company_branch_scope": "Ends current session, not cross-account business data.",
+      "frontend_consumer": "P2-08."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/me/",
+      "classification": "REQUIRED",
+      "availability": "Both worktrees, but response differs. Candidate adds companies and truncation metadata.",
+      "caller": "Auth bootstrap and post-login/password refresh.",
+      "authentication": "Required session; 401 unauthenticated/stale.",
+      "csrf": "Safe GET; no CSRF header required.",
+      "request": "None.",
+      "response": "Candidate: id, login_id, must_change_password, scoped roles, tenant_ids, companies and company_context_truncated. Lock exact fields at P2-00.",
+      "errors": "401, 5xx, network; preserve request ID where present.",
+      "pagination_bounds": "Candidate Company context is bounded and has truncation flag.",
+      "company_branch_scope": "Current account Company summaries only; no Branch permission from role string.",
+      "frontend_consumer": "P2-05/P2-10/P2-11."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/password/change/",
+      "classification": "REQUIRED",
+      "availability": "Both worktrees; candidate delegates to serialized password lifecycle.",
+      "caller": "First-password and private password form.",
+      "authentication": "Authenticated allowed session.",
+      "csrf": "Required.",
+      "request": "current_password, new_password, confirm_password.",
+      "response": "Observed detail confirmation.",
+      "errors": "400 validation, 401 unauthenticated, CSRF/network; exact payload contract gated.",
+      "pagination_bounds": "Request size bounded by accepted backend contract.",
+      "company_branch_scope": "Self account only.",
+      "frontend_consumer": "P2-07."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tenants/",
+      "classification": "CONDITIONAL",
+      "availability": "Both worktrees as read-only Tenant list; candidate uses scoped Company selectors.",
+      "caller": "Only a surface that needs paginated Company summaries; not a duplicate of /auth/me without need.",
+      "authentication": "Authenticated and membership/role scoped by backend.",
+      "csrf": "Safe GET.",
+      "request": "Accepted page query only.",
+      "response": "DRF paginated Tenant summaries; candidate page size defaults to 20.",
+      "errors": "401/403/404 and bounded API errors.",
+      "pagination_bounds": "Server pagination; consume next/previous/count as accepted.",
+      "company_branch_scope": "Backend-filtered authorized Company/Tenant set.",
+      "frontend_consumer": "Optional Platform/Company context read; no normal account switcher."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tenants/{company_uuid}/",
+      "classification": "CONDITIONAL",
+      "availability": "Both worktrees read-only detail; exact fields from TenantSummarySerializer.",
+      "caller": "Explicit Company detail screen only if approved in UI.",
+      "authentication": "Authenticated; backend queryset scoping.",
+      "csrf": "Safe GET.",
+      "request": "Company UUID.",
+      "response": "Observed id, name, slug, is_active summary.",
+      "errors": "401/403/404.",
+      "pagination_bounds": "Single object.",
+      "company_branch_scope": "Must not reveal nonmember Company.",
+      "frontend_consumer": "No current page requires it."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tenants/{company_uuid}/branches/",
+      "classification": "REQUIRED",
+      "availability": "Phase1 candidate only; absent from current staging source.",
+      "caller": "Authorized Branch selector/context.",
+      "authentication": "Authenticated; visible_branches filters current Company membership and Branch assignment.",
+      "csrf": "Safe GET.",
+      "request": "Company UUID and accepted pagination query only.",
+      "response": "Paginated Branch summaries with id, tenant_id, name.",
+      "errors": "401/403/404 and request ID where present.",
+      "pagination_bounds": "DRF default page size 20 in candidate; contract must be locked.",
+      "company_branch_scope": "URL Company UUID is not authority; backend scopes rows.",
+      "frontend_consumer": "P2-12."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tenants/{company_uuid}/branches/{branch_uuid}/",
+      "classification": "CONDITIONAL",
+      "availability": "Phase1 candidate only; absent from current staging source.",
+      "caller": "Specific Branch detail only if a Phase2 screen needs it.",
+      "authentication": "Authenticated; backend queryset scoped to Company/Branch access.",
+      "csrf": "Safe GET.",
+      "request": "Company UUID and Branch UUID.",
+      "response": "Branch summary id, tenant_id, name.",
+      "errors": "401/403/404.",
+      "pagination_bounds": "Single object.",
+      "company_branch_scope": "Direct UUID must not bypass authorization.",
+      "frontend_consumer": "No current prototype route requires detail."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/accounts/provision/",
+      "classification": "CONDITIONAL",
+      "availability": "Current and candidate lifecycle API; candidate authorization differs from old global role behavior.",
+      "caller": "Platform account operation; current React has no account management page.",
+      "authentication": "Privileged backend policy; do not infer from UI role.",
+      "csrf": "Required.",
+      "request": "Provisioning contract is backend-defined; no client contract in Phase2.",
+      "response": "Temporary credential/account result is sensitive and not a React feature in this phase.",
+      "errors": "Validation/permission/conflict; exact shape varies.",
+      "pagination_bounds": "Single mutation.",
+      "company_branch_scope": "Company-scoped in accepted Phase1 policy.",
+      "frontend_consumer": "Django Admin/back-office path only; no React caller."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/accounts/{user_uuid}/reset/",
+      "classification": "CONDITIONAL",
+      "availability": "Current and candidate; candidate is Company-scoped.",
+      "caller": "Django Admin/back-office adapter, not current React.",
+      "authentication": "Privileged lifecycle policy.",
+      "csrf": "Required.",
+      "request": "Target User UUID plus backend-required fields.",
+      "response": "Sensitive temporary-password lifecycle response.",
+      "errors": "Permission/validation/not-found; preserve non-enumeration.",
+      "pagination_bounds": "Single target UUID.",
+      "company_branch_scope": "Exact target identity and authorized Company.",
+      "frontend_consumer": "No React integration planned."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/accounts/{user_uuid}/status/",
+      "classification": "CONDITIONAL",
+      "availability": "Current and candidate; candidate is Company-scoped.",
+      "caller": "Django Admin/back-office adapter.",
+      "authentication": "Privileged lifecycle policy.",
+      "csrf": "Required.",
+      "request": "Target UUID and status action.",
+      "response": "Lifecycle result/audit contract is backend-defined.",
+      "errors": "Permission/validation/not-found.",
+      "pagination_bounds": "Single target UUID.",
+      "company_branch_scope": "Exact target account and Company scope.",
+      "frontend_consumer": "No React integration planned."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/accounts/{user_uuid}/revoke/",
+      "classification": "CONDITIONAL",
+      "availability": "Phase1 candidate only; absent from current staging source.",
+      "caller": "Django Admin/back-office adapter.",
+      "authentication": "Privileged lifecycle policy.",
+      "csrf": "Required.",
+      "request": "Target User UUID.",
+      "response": "Revocation result.",
+      "errors": "Permission/validation/not-found.",
+      "pagination_bounds": "Single target UUID.",
+      "company_branch_scope": "Exact target account and authorized Company.",
+      "frontend_consumer": "No React integration planned."
+    },
+    {
+      "method": "GET",
+      "path": "/health/live/ and /health/ready/",
+      "classification": "CONDITIONAL",
+      "availability": "Phase1 candidate only.",
+      "caller": "Operational probe/monitor, not browser route.",
+      "authentication": "Operational exposure is deployment-specific; no frontend authentication use.",
+      "csrf": "Safe GET.",
+      "request": "None.",
+      "response": "live/ready or 503 unready.",
+      "errors": "503 readiness failure.",
+      "pagination_bounds": "None.",
+      "company_branch_scope": "None.",
+      "frontend_consumer": "No user-facing page."
+    },
+    {
+      "method": "GET/POST",
+      "path": "/admin/ and admin/password_change/",
+      "classification": "CONDITIONAL",
+      "availability": "Django Admin HTML path in backend; custom password path is Phase1 candidate.",
+      "caller": "Separate server-rendered Django Admin session.",
+      "authentication": "Staff/Admin permissions and backend adapters.",
+      "csrf": "Django Admin CSRF protection.",
+      "request": "HTML forms, not React API JSON.",
+      "response": "HTML/admin redirects and messages.",
+      "errors": "Admin permission/form messages.",
+      "pagination_bounds": "Admin changelist behavior.",
+      "company_branch_scope": "Scoped Admin adapters; parity remains tested by backend.",
+      "frontend_consumer": "Not a React API client; keep back-office UI separate."
+    }
+  ],
+  "mock_data_inventory": {
+    "primary_source": "demo/react/src/data/mockData.ts and src/types/index.ts",
+    "secondary_reference_source": "demo/accountant-ui-demo/src/mock/types.ts and local GET/PUT /api/mock",
+    "page_rule": "All page records below are UI/reference views. Only Company/Branch/auth context has a Phase1 API candidate. No business page receives real Phase1 domain data.",
+    "field_classification": [
+      {
+        "type": "Garage",
+        "fields": {
+          "id": "UNSUPPORTED MOCK identifier; replace with backend Branch UUID, never reuse demo value",
+          "name": "DIRECT REAL FIELD only from Branch.name",
+          "location": "UNSUPPORTED MOCK; no Branch field in candidate serializer",
+          "active": "UNSUPPORTED MOCK; Branch active-state field is not in candidate serializer"
+        }
+      },
+      {
+        "type": "Investor",
+        "fields": {
+          "id": "FUTURE MODULE DATA; mock ID is not identity",
+          "name": "FUTURE MODULE DATA",
+          "principal": "FUTURE MODULE DATA; authoritative Fund ledger not implemented",
+          "used": "FUTURE MODULE DATA; derived from future ledger",
+          "available": "FUTURE MODULE DATA; derived from future ledger"
+        }
+      },
+      {
+        "type": "FundCredit",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "investorId": "FUTURE MODULE DATA; later Company-scoped relation",
+          "amount": "FUTURE MODULE DATA; confirmed Fund event required",
+          "date": "FUTURE MODULE DATA",
+          "note": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "PrincipalRecovery",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "vehicleId": "FUTURE MODULE DATA",
+          "saleId": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA; actual recovery event required",
+          "date": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "Vehicle",
+        "fields": {
+          "id": "FUTURE MODULE DATA; server UUID required",
+          "number": "FUTURE MODULE DATA",
+          "model": "FUTURE MODULE DATA",
+          "type": "FUTURE MODULE DATA; later Vehicle workflow",
+          "garageId": "UNSUPPORTED MOCK link until API exposes authoritative Branch attribution",
+          "person": "UNSUPPORTED MOCK ambiguous display source until real Investor/customer relationship exists",
+          "investorId": "FUTURE MODULE DATA; Company-scoped relationship",
+          "status": "FUTURE MODULE DATA; backend lifecycle source",
+          "purchase": "FUTURE MODULE DATA; authoritative purchase event",
+          "totalCost": "FUTURE MODULE DATA; derived from approved costs once",
+          "imageUrl": "FUTURE MODULE DATA; approved media API not implemented"
+        }
+      },
+      {
+        "type": "WorkEntry",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "date": "FUTURE MODULE DATA",
+          "category": "FUTURE MODULE DATA",
+          "description": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "JobCost",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "date": "FUTURE MODULE DATA",
+          "category": "FUTURE MODULE DATA",
+          "description": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA; authoritative cost event"
+        }
+      },
+      {
+        "type": "JobCharge",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "date": "FUTURE MODULE DATA",
+          "category": "FUTURE MODULE DATA",
+          "description": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA; authoritative charge event"
+        }
+      },
+      {
+        "type": "StatusHistoryEntry",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "timestamp": "FUTURE MODULE DATA",
+          "from": "FUTURE MODULE DATA",
+          "to": "FUTURE MODULE DATA",
+          "actor": "FUTURE MODULE DATA; backend actor identity required",
+          "note": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "Job",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "vehicleId": "FUTURE MODULE DATA",
+          "garageId": "UNSUPPORTED MOCK link until Branch attribution is supplied by an API",
+          "number": "FUTURE MODULE DATA",
+          "description": "FUTURE MODULE DATA",
+          "status": "FUTURE MODULE DATA; backend workflow state",
+          "date": "FUTURE MODULE DATA",
+          "charge": "FUTURE MODULE DATA",
+          "received": "FUTURE MODULE DATA; actual receipt source",
+          "workEntries": "FUTURE MODULE DATA",
+          "costs": "FUTURE MODULE DATA",
+          "charges": "FUTURE MODULE DATA",
+          "statusHistory": "FUTURE MODULE DATA; immutable/authoritative history required"
+        }
+      },
+      {
+        "type": "Item",
+        "fields": {
+          "id": "UNSUPPORTED MOCK under current V2 baseline; full Parts Inventory out of scope",
+          "name": "UNSUPPORTED MOCK",
+          "category": "UNSUPPORTED MOCK",
+          "active": "UNSUPPORTED MOCK"
+        }
+      },
+      {
+        "type": "Batch",
+        "fields": {
+          "id": "UNSUPPORTED MOCK",
+          "itemId": "UNSUPPORTED MOCK",
+          "garageId": "UNSUPPORTED MOCK",
+          "date": "UNSUPPORTED MOCK",
+          "quantity": "UNSUPPORTED MOCK",
+          "cost": "UNSUPPORTED MOCK"
+        }
+      },
+      {
+        "type": "Issue",
+        "fields": {
+          "id": "UNSUPPORTED MOCK",
+          "batchId": "UNSUPPORTED MOCK",
+          "vehicleId": "UNSUPPORTED MOCK",
+          "jobId": "UNSUPPORTED MOCK",
+          "expenseId": "UNSUPPORTED MOCK",
+          "jobCostId": "UNSUPPORTED MOCK",
+          "quantity": "UNSUPPORTED MOCK",
+          "price": "UNSUPPORTED MOCK",
+          "date": "UNSUPPORTED MOCK",
+          "investor": "UNSUPPORTED MOCK",
+          "capital": "UNSUPPORTED MOCK"
+        }
+      },
+      {
+        "type": "ExpenseCorrection",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "date": "FUTURE MODULE DATA",
+          "reason": "FUTURE MODULE DATA; audit reason must be server-recorded",
+          "oldAmount": "FUTURE MODULE DATA",
+          "oldInvestor": "FUTURE MODULE DATA",
+          "oldCapital": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA",
+          "investor": "FUTURE MODULE DATA",
+          "capital": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "Expense",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "vehicleId": "FUTURE MODULE DATA",
+          "garageId": "UNSUPPORTED MOCK Branch relation until API contract",
+          "description": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA",
+          "investor": "FUTURE MODULE DATA",
+          "capital": "FUTURE MODULE DATA",
+          "date": "FUTURE MODULE DATA",
+          "category": "FUTURE MODULE DATA; V2 classification required",
+          "jobId": "FUTURE MODULE DATA",
+          "costType": "FUTURE MODULE DATA",
+          "corrections": "FUTURE MODULE DATA; linked history"
+        }
+      },
+      {
+        "type": "SaleCorrection",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "date": "FUTURE MODULE DATA",
+          "actor": "FUTURE MODULE DATA; server actor required",
+          "reason": "FUTURE MODULE DATA",
+          "oldPrice": "FUTURE MODULE DATA",
+          "price": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "Sale",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "vehicleId": "FUTURE MODULE DATA",
+          "buyer": "FUTURE MODULE DATA; Company-scoped Buyer",
+          "price": "FUTURE MODULE DATA",
+          "received": "FUTURE MODULE DATA; derived from confirmed payments",
+          "corrections": "FUTURE MODULE DATA; immutable linked corrections"
+        }
+      },
+      {
+        "type": "BuyerRefund",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "saleId": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA; actual refund event",
+          "principalBacked": "FUTURE MODULE DATA; not an approved independent field yet",
+          "date": "FUTURE MODULE DATA",
+          "method": "FUTURE MODULE DATA",
+          "reason": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "AuditRecord",
+        "fields": {
+          "id": "UNSUPPORTED MOCK; not a backend audit event UUID",
+          "date": "UNSUPPORTED MOCK",
+          "action": "UNSUPPORTED MOCK; no audit list API",
+          "detail": "UNSUPPORTED MOCK; never treated as immutable audit evidence"
+        }
+      },
+      {
+        "type": "Payment",
+        "fields": {
+          "id": "FUTURE MODULE DATA; separate server event identity",
+          "kind": "UNSUPPORTED MOCK union until Buyer/customer/capital event APIs are defined",
+          "targetId": "FUTURE MODULE DATA; relation not trusted from mock",
+          "amount": "FUTURE MODULE DATA; actual confirmation required",
+          "date": "FUTURE MODULE DATA",
+          "method": "FUTURE MODULE DATA"
+        }
+      },
+      {
+        "type": "OtherIncomeReceipt",
+        "fields": {
+          "id": "FUTURE MODULE DATA",
+          "garageId": "UNSUPPORTED MOCK Branch relation until API contract",
+          "description": "FUTURE MODULE DATA",
+          "source": "FUTURE MODULE DATA",
+          "amount": "FUTURE MODULE DATA; actual Company receipt",
+          "method": "FUTURE MODULE DATA",
+          "timestamp": "FUTURE MODULE DATA",
+          "actor": "FUTURE MODULE DATA; backend actor required"
+        }
+      },
+      {
+        "type": "ActivityItem",
+        "fields": {
+          "id": "UNSUPPORTED MOCK derived feed; no activity API",
+          "code": "UNSUPPORTED MOCK",
+          "title": "UNSUPPORTED MOCK",
+          "subtitle": "UNSUPPORTED MOCK",
+          "amount": "UNSUPPORTED MOCK derived amount",
+          "status": "UNSUPPORTED MOCK",
+          "statusVariant": "UNSUPPORTED MOCK",
+          "date": "UNSUPPORTED MOCK",
+          "type": "UNSUPPORTED MOCK"
+        }
+      },
+      {
+        "type": "monthlyPerformanceData/dashboardCache",
+        "fields": {
+          "monthlyPerformanceData": "UNSUPPORTED MOCK static chart; dashboard metrics deferred",
+          "dashboardCacheEntry": "UNSUPPORTED MOCK prototype cache; replace with memory-only query cache for real data",
+          "theme preference": "REUSE as non-sensitive UI preference; not auth/session storage"
+        }
+      },
+      {
+        "type": "Company/Branch context",
+        "fields": {
+          "Company.id": "DIRECT REAL FIELD from accepted server UUID only",
+          "Company.name": "DIRECT REAL FIELD from accepted summary",
+          "Branch.id": "DIRECT REAL FIELD from accepted Branch UUID only",
+          "Branch.name": "DIRECT REAL FIELD from accepted Branch summary",
+          "Branch.tenant_id": "DIRECT REAL FIELD for scope association; still not permission by itself"
+        }
+      }
+    ],
+    "pages": [
+      {
+        "route": "Dashboard",
+        "mock_source": "React App local initial* state and derived metrics",
+        "target_api": "No Phase 1 business API; /auth/me is shell identity only",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later, after module sources; dashboard last",
+        "blocked_module": "Reports/Dashboard and source modules",
+        "action": "Keep UI; defer real metrics; never show mock values as live"
+      },
+      {
+        "route": "All Vehicles",
+        "mock_source": "initialVehicles",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Vehicle phase",
+        "blocked_module": "Vehicle Management",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Stock / Investor",
+        "mock_source": "initialVehicles + initialInvestors + initialExpenses",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Vehicle/Investment phase",
+        "blocked_module": "Vehicle/Investment",
+        "action": "Preserve; no mock actions as live writes"
+      },
+      {
+        "route": "Customer Vehicles",
+        "mock_source": "initialVehicles + garage/job mock data",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Garage/Vehicle phase",
+        "blocked_module": "Garage/Vehicle",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Garage Jobs",
+        "mock_source": "initialJobs, work, costs, charges",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Garage phase",
+        "blocked_module": "Garage Jobs",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Investor Fund",
+        "mock_source": "investor, fundCredits, recoveries",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Investment phase",
+        "blocked_module": "Investment/Fund",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Vehicle Sales",
+        "mock_source": "sales, vehicles",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Sales phase",
+        "blocked_module": "Sales",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Collections",
+        "mock_source": "payments, sales and jobs",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Buyer/Customer receipt phases",
+        "blocked_module": "Buyer Collections/Garage receipts",
+        "action": "Preserve; no fake confirmation"
+      },
+      {
+        "route": "Sale Corrections & Refunds",
+        "mock_source": "saleCorrections, buyerRefunds, payments",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Sales/correction phase",
+        "blocked_module": "Sales/refunds",
+        "action": "Preserve as reference"
+      },
+      {
+        "route": "Investor Profit & Interim",
+        "mock_source": "Notice UI and mock Investor values",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Investment decisions",
+        "blocked_module": "Investor profit/interim",
+        "action": "Keep read-only notice; unresolved finance rules stay blocked"
+      },
+      {
+        "route": "Reconciliation & Settlement",
+        "mock_source": "Notice UI and mock positions",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later reconciliation phase",
+        "blocked_module": "Investor settlement",
+        "action": "Keep read-only notice"
+      },
+      {
+        "route": "Items & Purchases",
+        "mock_source": "items, batches, issues",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Keep only as separate reference; do not implement inventory backend"
+      },
+      {
+        "route": "Stock Issues",
+        "mock_source": "issues, batches, expenses",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Keep as reference"
+      },
+      {
+        "route": "Stock Reports",
+        "mock_source": "batches, issues, local cost math",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Keep as reference; no live valuation"
+      },
+      {
+        "route": "Garage Revenue",
+        "mock_source": "jobs, charges, payments",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Garage/Accounting phase",
+        "blocked_module": "Garage/Accounting",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Company Income",
+        "mock_source": "otherIncomeReceipts",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Accounting phase",
+        "blocked_module": "Company Accounting",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Company Expenses",
+        "mock_source": "expenses and corrections",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Expense/Accounting phase",
+        "blocked_module": "Accounting",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Running Capital",
+        "mock_source": "expense capital portions and recoveries",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Running Capital phase",
+        "blocked_module": "Running Capital",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "Company Result",
+        "mock_source": "CompanyResultView calculations over mock arrays",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "After authoritative accounting sources",
+        "blocked_module": "Company Accounting/reports",
+        "action": "Preserve reference; never treat computed mock as result"
+      },
+      {
+        "route": "Transactions",
+        "mock_source": "payments, receipts and activity arrays",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "After source modules",
+        "blocked_module": "Accounting/audit",
+        "action": "Preserve reference UI"
+      },
+      {
+        "route": "All Reports",
+        "mock_source": "ReportShell local selectors and mock arrays",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "After source modules; dashboards/reports last",
+        "blocked_module": "Reports",
+        "action": "Preserve layout, defer values"
+      },
+      {
+        "route": "Audit & Corrections",
+        "mock_source": "mock audit/correction arrays",
+        "target_api": "No business audit/correction read API",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later audit/correction phase",
+        "blocked_module": "Audit and Corrections",
+        "action": "Preserve; mock log is not audit evidence"
+      },
+      {
+        "route": "Garages / Branches",
+        "mock_source": "initialGarages and SettingsAdminView local CRUD",
+        "target_api": "Candidate GET /api/v1/tenants/{company_uuid}/branches/ only",
+        "api_currently_exists": true,
+        "real_data_conversion": "Phase2 read-only authorized Branch context if P1 gate passes; no create/update API",
+        "blocked_module": "Branch management writes remain Django Admin/Phase1 contract",
+        "action": "Convert read-only list only if layout/contract maps; do not preserve mock CRUD as real"
+      },
+      {
+        "route": "Demo Data",
+        "mock_source": "React local reset/import and separate Next /api/mock file store",
+        "target_api": "No production API",
+        "api_currently_exists": false,
+        "real_data_conversion": "Not in authenticated production surface",
+        "blocked_module": "Demo tooling",
+        "action": "Keep isolated reference only"
+      },
+      {
+        "route": "Vehicle Detail",
+        "mock_source": "selectedVehicleId + initialVehicles and linked costs",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Vehicle/Investment phase",
+        "blocked_module": "Vehicle Management",
+        "action": "Preserve contextual detail UI"
+      },
+      {
+        "route": "Garage Job Detail",
+        "mock_source": "selectedJobId + initialJobs/work/costs",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Garage phase",
+        "blocked_module": "Garage Jobs",
+        "action": "Preserve contextual detail UI"
+      },
+      {
+        "route": "Company Consolidated",
+        "mock_source": "ReportShell aggregates mock arrays",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "After source modules",
+        "blocked_module": "Company reports",
+        "action": "Preserve; defer aggregation"
+      },
+      {
+        "route": "Garage-wise",
+        "mock_source": "ReportShell filters mock Garage IDs",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "After source modules",
+        "blocked_module": "Branch/Garage reports",
+        "action": "Keep separate from authorized Branch selector"
+      },
+      {
+        "route": "Vehicle Cost",
+        "mock_source": "Vehicle expenses/jobs/issues",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Vehicle/Accounting phase",
+        "blocked_module": "Vehicle cost",
+        "action": "Preserve reference"
+      },
+      {
+        "route": "Investor",
+        "mock_source": "investors/vehicles/payments",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Investor views",
+        "blocked_module": "Investment/Investor Portal",
+        "action": "Preserve reference"
+      },
+      {
+        "route": "Investor Fund Report",
+        "mock_source": "Investor principal/credits/recoveries",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Investment phase",
+        "blocked_module": "Fund reporting",
+        "action": "Preserve; no mock balance presented as live"
+      },
+      {
+        "route": "Expense",
+        "mock_source": "expenses/corrections",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Accounting phase",
+        "blocked_module": "Expense",
+        "action": "Preserve reference"
+      },
+      {
+        "route": "Garage Jobs Report",
+        "mock_source": "jobs, cost, charges and receipt arrays",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Garage phase",
+        "blocked_module": "Garage reports",
+        "action": "Preserve; report last"
+      },
+      {
+        "route": "Inventory Current Stock",
+        "mock_source": "items/batches/issues",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Reference only"
+      },
+      {
+        "route": "Inventory Purchases",
+        "mock_source": "items and batch purchase arrays",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Reference only"
+      },
+      {
+        "route": "Inventory Issues",
+        "mock_source": "issues and stock batch arrays",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Reference only"
+      },
+      {
+        "route": "Product Margin",
+        "mock_source": "batch purchase and issue calculations",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Reference only; no live margin"
+      },
+      {
+        "route": "Sales",
+        "mock_source": "sale and payment mock arrays",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Sales phase",
+        "blocked_module": "Sales",
+        "action": "Preserve reference"
+      },
+      {
+        "route": "Buyer Receivables",
+        "mock_source": "sale price minus local received values",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Sales/Collections phase",
+        "blocked_module": "Buyer receivables",
+        "action": "Preserve; no mock arithmetic as actual balance"
+      },
+      {
+        "route": "Customer Garage Receivables",
+        "mock_source": "job charges and local received values",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Garage/Accounting phase",
+        "blocked_module": "Garage receipts",
+        "action": "Preserve reference"
+      },
+      {
+        "route": "Running Capital Report",
+        "mock_source": "local expense capital and recovery values",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Running Capital/Accounting phase",
+        "blocked_module": "Running Capital",
+        "action": "Preserve; no mock capital position as live"
+      },
+      {
+        "route": "Owner Distribution",
+        "mock_source": "notice/local Company result data",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Company Accounting; existing notice stays read-only",
+        "blocked_module": "Owner distribution",
+        "action": "Preserve read-only notice"
+      },
+      {
+        "route": "Inventory",
+        "mock_source": "activeRoute/activeTab only; navigation key",
+        "target_api": "No current V2 Parts Inventory API",
+        "api_currently_exists": false,
+        "real_data_conversion": "None in Phase2/current V2 baseline",
+        "blocked_module": "Full Parts Inventory not in baseline",
+        "action": "Preserve navigation compatibility; no business implementation"
+      },
+      {
+        "route": "Accounting",
+        "mock_source": "activeRoute/activeTab alias into Garage Revenue view",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "Later Accounting phase",
+        "blocked_module": "Company Accounting",
+        "action": "Preserve alias; no ledger API"
+      },
+      {
+        "route": "Reports",
+        "mock_source": "activeRoute/activeTab navigation key",
+        "target_api": "NOT IMPLEMENTED — FUTURE MODULE",
+        "api_currently_exists": false,
+        "real_data_conversion": "After modules; dashboard/report last",
+        "blocked_module": "Reporting",
+        "action": "Preserve navigation compatibility"
+      }
+    ],
+    "aliases_and_context": [
+      {
+        "route": "Overview",
+        "classification": "REDUNDANT alias of Dashboard; no separate query"
+      },
+      {
+        "route": "Vehicles",
+        "classification": "REDUNDANT alias of All Vehicles; no separate query"
+      },
+      {
+        "route": "Vehicle Detail and Garage Job Detail",
+        "classification": "CONDITIONAL contextual views using selected local IDs; not stable URL/API identities"
+      },
+      {
+        "route": "GET/PUT /api/mock",
+        "classification": "CONDITIONAL only for isolated Next demo; never production Django integration"
+      }
+    ]
+  },
+  "data_flows": {
+    "protected_app": "Browser → React Router → auth bootstrap → typed API client → Django session/CSRF → authentication → Company/Branch authorization → accepted DRF response → TanStack Query → authorized UI. Route guards are UX only; every protected endpoint authorizes again.",
+    "login": "Login page → GET /auth/csrf/ → CSRF cookie → POST /auth/login/ with Login ID/password and CSRF header → HttpOnly session cookie → GET /auth/me/ → first-password route or safe app route.",
+    "first_password": "Authenticated temporary session → restricted password route → CSRF-protected POST /auth/password/change/ → backend validation/lifecycle/audit/session response → GET /auth/me/ → protected app only when must_change_password is false.",
+    "logout": "User action → CSRF-protected POST /auth/logout/ → server invalidates session → clear auth state, query cache and selected Company/Branch state → login. On timeout, clear local sensitive state but do not claim server success; recheck /me on next load.",
+    "session_expiry": "Protected API returns 401 or bootstrap /me returns 401 → cancel requests and purge user-scoped cache → login/session-expired surface. 403 remains forbidden and must not trigger an auth loop.",
+    "branch_filter": "Fetch accepted Company-scoped Branch list → user selects an authorized Branch UUID → UI filter state → only endpoints that explicitly support the filter receive it → backend reauthorizes Company, Branch, action and object. Selection itself grants nothing.",
+    "forbidden_uuid": "UI/API receives direct Company or Branch UUID → backend scoped queryset/permission denies or hides it → safe forbidden/not-found UI. No client-side name/UUID matching or broad fallback.",
+    "mock_to_real": "Page field → P2-02 mapping → accepted endpoint serializer/source → runtime validation → scoped query → existing UI projection. If source is absent, preserve reference layout but mark/defer data; never infer from labels or local calculations."
+  },
+  "security_rules": [
+    "Django session remains HttpOnly/server-controlled; no long-lived auth token in localStorage/sessionStorage.",
+    "CSRF bootstrap and token header for every unsafe cookie request; use same-origin proxy or explicit allowlisted CORS/CSRF origins, never wildcard credentials.",
+    "Backend authorizes every request; UI routes, roles, Company/Branch selectors and hidden actions are not security controls.",
+    "Company accounts have one Company and no normal switcher; Platform identities remain a separate authorization path.",
+    "Branch choices are backend-filtered; direct UUID, cross-Company, stale membership and Branch assignment attempts are rejected server-side.",
+    "Query keys include authenticated identity and relevant Company/Branch; logout, 401, revocation and account change cancel/purge user-scoped state. Do not persist sensitive queries.",
+    "First-password restriction is enforced by backend and UI; direct route/API bypass fails.",
+    "Safe local redirects only; no open redirect. Distinguish 401 from 403/404.",
+    "Render backend text through React escaping; no unsafe HTML insertion; do not expose stack traces, password data or internal error details.",
+    "Carry request ID for support when available; never include credentials or sensitive bodies in logs/telemetry."
+  ],
+  "testing_strategy": {
+    "unit": [
+      "API helpers and response validators",
+      "auth state transitions",
+      "query key isolation and invalidation",
+      "error/status/retry mapping"
+    ],
+    "component": [
+      "Login and first-password forms",
+      "public/protected/first-password routes",
+      "Branch context",
+      "loading/empty/forbidden/conflict/rate-limit states"
+    ],
+    "integration": [
+      "Real login → Django session cookie → /auth/me/ → Company/Branch context → protected route → logout",
+      "Run Django/PostgreSQL only on disposable isolated target"
+    ],
+    "security_regression": [
+      "invalid CSRF",
+      "expired session",
+      "revoked auth epoch",
+      "inactive user",
+      "unauthorized Branch UUID",
+      "cross-Company UUID",
+      "direct protected API",
+      "stale cached data after logout",
+      "first-password bypass",
+      "open redirect"
+    ],
+    "frontend_quality": [
+      "Vite build/typecheck",
+      "keyboard/focus/labels/live regions/contrast",
+      "browser checks at 320, 390, 768, 1024 and 1440 CSS px",
+      "no redesign/overflow/clipped modal regression"
+    ],
+    "proof_rule": "Frontend mocks do not prove backend authorization. Capture exact command, discovered counts, source SHA and disposable database identity; do not use shared/staging/production data."
+  },
+  "business_decisions": {
+    "phase2_specific": [],
+    "future_v2_decisions_preserved": [
+      "Monthly Interim eligible-principal basis and active-cycle withdrawal constraints.",
+      "Manual Loss financial impact and approval authority.",
+      "Company distributable-Profit basis/period close and exact deal Profit versus period reconciliation.",
+      "Cross-Branch correction authority and minimum settlement actions while modules are OFF."
+    ],
+    "engineering_confirmation_before_code": [
+      "Confirm demo/react as the product shell at P2-01; repository blueprint supports it, but deployment/user acceptance is unverified.",
+      "Select same-origin proxy or explicit allowlisted cross-origin topology from actual target environment."
+    ]
+  },
+  "risks": [
+    {
+      "id": "R2-01",
+      "severity": "A",
+      "risk": "Phase1 code/API candidate is not integrated into staging; implementing against its response without passing P2-00 can encode a false contract.",
+      "mitigation": "Block all implementation on exact source acceptance and contract gate."
+    },
+    {
+      "id": "R2-02",
+      "severity": "A",
+      "risk": "Stale Company/Branch query data could leak across logout or account changes.",
+      "mitigation": "Memory-only query state, identity-scoped keys, cancellation and tested purge."
+    },
+    {
+      "id": "R2-03",
+      "severity": "A",
+      "risk": "Client-side route or role state may be mistaken for authorization.",
+      "mitigation": "Backend direct-UUID and direct API negative tests; UX-only contract."
+    },
+    {
+      "id": "R2-04",
+      "severity": "B",
+      "risk": "Two demo frontends may be merged accidentally or local /api/mock treated as production persistence.",
+      "mitigation": "Choose demo/react as primary candidate; document Next app as reference and prohibit /api/mock in production API client."
+    },
+    {
+      "id": "R2-05",
+      "severity": "B",
+      "risk": "Mock fields and local success messages could misrepresent financial truth.",
+      "mitigation": "Exhaustive route/field inventory, no business API without a later approved domain phase."
+    },
+    {
+      "id": "R2-06",
+      "severity": "B",
+      "risk": "Existing roadmap labels Phase2 as Platform/Back Office and conflicts with requested Frontend Phase2.",
+      "mitigation": "Update only Phase1-3 roadmap sequence and note Phase1 acceptance remains pending."
+    },
+    {
+      "id": "R2-07",
+      "severity": "B",
+      "risk": "Origin/cookie topology is unverified; cross-origin session cookies can fail or require unsafe CORS broadening.",
+      "mitigation": "Prefer same-origin proxy where environment supports it; otherwise explicit allowlists and cookie/CSRF browser tests."
+    },
+    {
+      "id": "R2-08",
+      "severity": "C",
+      "risk": "Full parts inventory surfaces exist in demo but are outside the current V2 baseline.",
+      "mitigation": "Keep as isolated reference only; require later product approval before backend scope."
+    }
+  ],
+  "exit_gate": [
+    "Phase1 acceptance gate passed on the exact target source with required A/B findings closed and a stable tested API contract.",
+    "Real CSRF/session login, /me bootstrap, first-password, logout, expiry/revocation and no-token-storage flows pass against disposable Django/PostgreSQL.",
+    "One Company per business account; Platform identity stays separate; authorized Branch context works and never acts as permission.",
+    "All protected requests remain backend-authorized; direct UUID/cross-Company/Branch, first-password bypass and stale-cache tests pass.",
+    "Typed API client, TanStack Query and error states are integrated with cache clearing and conservative retry behavior.",
+    "Existing approved UI and route keys are preserved; auth surface uses existing visual language; responsive/accessibility gate passes.",
+    "Every page and mock field has a verified mapping or explicit defer; no business module, dashboard backend or false live result was added.",
+    "Full required test/build/migration checks pass on isolated targets; evidence and living docs match verified state.",
+    "Phase2 report marks Phase3 and future modules unplanned/unimplemented and stops without auto-starting Phase3."
+  ],
+  "documentation_updates": {
+    "created": [
+      "architecture/phase-02-frontend-foundation-integration/phase-02-frontend-foundation-integration-implementation-plan.md",
+      "architecture/phase-02-frontend-foundation-integration/phase-02-frontend-foundation-integration-implementation-plan.json",
+      "docs/phase2-execution-progress.md"
+    ],
+    "changed_because_verified_claims_or_sequence_were_stale": [
+      "README.md",
+      "docs/phase1-execution-progress.md",
+      "docs/phase2-execution-progress.md",
+      "architecture/01-DATA-FLOW.md",
+      "architecture/02-API-FLOW.md",
+      "architecture/03-ARCHITECTURE-CONFLICT-MAP.md",
+      "architecture/04-CHANGE-IMPACT-COMPATIBILITY.md",
+      "architecture/phase-02-frontend-foundation-integration/phase-02-frontend-foundation-integration-implementation-plan.md",
+      "architecture/phase-02-frontend-foundation-integration/phase-02-frontend-foundation-integration-implementation-plan.json"
+    ],
+    "not_changed": [
+      "docs-final-v2/*: business rules and permission meaning did not change.",
+      "architecture/05-SYSTEM-STRUCTURE-MAP.md and planning/V2-DEVELOPMENT-ROADMAP.md: referenced paths do not exist in this worktree; no files were created from stale references."
+    ],
+    "status_rule": "The execution_result and docs/phase2-execution-progress.md record current candidate truth; the original observed_repository_state remains the dated planning baseline."
+  },
+  "execution_result": {
+    "status": "PHASE_2_READY_FOR_ACCEPTANCE",
+    "report": "docs/phase2-execution-progress.md",
+    "canonical_frontend": "demo/react (React 19, Vite, TypeScript, Tailwind v4, React Router, TanStack Query)",
+    "completed": [
+      "P2-00",
+      "P2-01",
+      "P2-02",
+      "P2-03",
+      "P2-04",
+      "P2-05",
+      "P2-06",
+      "P2-07",
+      "P2-08",
+      "P2-09",
+      "P2-10",
+      "P2-11",
+      "P2-12",
+      "P2-13",
+      "P2-14",
+      "P2-15",
+      "P2-16",
+      "P2-17",
+      "P2-18",
+      "P2-19",
+      "P2-20",
+      "P2-21",
+      "P2-22"
+    ],
+    "deferred": {
+      "business_branch_filters": "Do not map the synthetic Garage filter to Branch IDs or call the Branch list from current business pages until an approved backend business endpoint accepts Branch scope.",
+      "production_origin": "Production host/proxy/cookie topology has not been selected or verified.",
+      "future_business_data": "Investor, Vehicle, Garage, Inventory, accounting, report and dashboard APIs remain outside Phase 2."
+    },
+    "validation": {
+      "frontend_tests": "31 passed across 6 files; P2-12 focused regression 19/19; the earlier cancellation-fix focused regression passed 24/24",
+      "focused_lint": "Passed for API/auth modules, entrypoint and touched shell components; not a claim of project-wide legacy App.tsx lint cleanliness",
+      "production_build": "Passed; Vite advisory: main chunk 593.99 kB, 155.18 kB gzip",
+      "npm_audit": "0 reported vulnerabilities in full and production dependency audits",
+      "backend_tests": "199 passed on disposable PostgreSQL 15.19",
+      "migrations": "Fresh replay through accounts.0012_scope_end_monotonic; no schema drift",
+      "browser": "Disposable-DB browser run verified CSRF/login/first-password change/Company and Branch context/no token storage/no automatic Branch-list call/no page errors. Production bundle preview made one anonymous /auth/me request; dev StrictMode made two."
+    },
+    "skills_actually_used_for_final_review": [
+      "agent-skills:test-driven-development",
+      "agent-skills:security-and-hardening",
+      "agent-skills:code-review-and-quality"
+    ],
+    "release_actions_not_performed": [
+      "commit",
+      "push",
+      "merge",
+      "staging integration",
+      "deployment",
+      "Phase 3"
+    ],
+    "adversarial_finding_fixed": {
+      "severity": "A — stale sensitive query response risk",
+      "root_cause": "TanStack cancellation did not reach the underlying fetch because query AbortSignals were not forwarded.",
+      "fix": "Propagated AbortSignal through auth and Branch API reads; preserve abort errors rather than normalizing them as retryable network failures.",
+      "proof": "RED: 4 focused assertions failed before the fix. GREEN: 24 focused tests and 30 full frontend tests passed; logout test confirms an in-flight scoped request is aborted before cache purge."
+    },
+    "p2_12_branch_context_contract_fix": {
+      "status": "COMPLETE AND VERIFIED",
+      "root_cause": "The paginated Branch-list parser required roles that the authoritative Branch serializer does not return.",
+      "fix": "Added a separate BranchListItem contract for id, tenant_id and name; retained richer roles only in /auth/me/ Branch summaries.",
+      "proof": "Regression test failed before the parser change; focused P2-12 tests passed 19/19 and the full frontend suite passed 31/31. Truncated Company context and Investor-only context do not activate Branch reads; backend grant and effective-assignment test passed on disposable PostgreSQL.",
+      "boundary": "Branch context remains display-only; business-page filters and synthetic Garage-to-Branch mapping remain deferred until an approved backend business API accepts Branch scope."
+    }
+  }
+}

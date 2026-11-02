@@ -6,7 +6,7 @@ Vehicle Investment, Modification & Resale Management System.
 
 `/docs-final-v2/` is the current approved/target business and architecture direction; items explicitly marked `BUSINESS DECISION REQUIRED` remain unresolved. Current source code describes only what is implemented. `/docs-final/` and `/docs-legacy/` are historical/superseded. The four living maps under `/architecture/01`–`04` distinguish implemented state, V2 target, historical material and unresolved decisions. `/system-design/` and older architecture plans are V1-derived historical proposals unless explicitly reconciled with V2.
 
-This checkout contains the **Phase 1 backend candidate** for accounts, Company/Branch scope, authentication, authorization, Django Admin adapters, and migration/cutover tooling. Candidate verification and the current acceptance status are recorded in `docs/phase1-execution-progress.md`. Investor, Vehicle, finance, media workflows, and the React frontend are not implemented. Do not treat candidate verification as a production release.
+This checkout contains the **Phase 1 backend candidate** for accounts, Company/Branch scope, authentication, authorization, Django Admin adapters, and migration/cutover tooling, plus an uncommitted **Phase 2 React frontend foundation candidate** in `demo/react`. Current evidence is recorded in `docs/phase1-execution-progress.md` and `docs/phase2-execution-progress.md`. The React candidate adds session authentication and bounded Company/Branch context; Investor, Vehicle, finance, media workflows and business APIs are not implemented. Neither candidate is a staging integration or production release.
 
 ## Local backend setup
 

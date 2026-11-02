@@ -1,5 +1,7 @@
 # 04 — Change Impact & Compatibility
 
+> Phase 2 candidate update — 2026-11-02: the `demo/react` candidate now connects authentication and self Company/Branch context to the Phase 1 API while retaining prototype business data. Existing page routes and business UI were not recreated. Production proxy/cookie topology is unverified; this change is not integrated into staging. See [the Phase 2 report](../docs/phase2-execution-progress.md) for changed files, validation and explicit deferrals.
+
 > Phase 1 corrections candidate after `cac26195`: `/auth/me` adds scoped role fields while preserving existing routes and fields. Migration 0012 adds end-time guards to four authorization history tables; it also forbids extending or removing a still-active finite end, so a new interval must use a new row. Supported Phase 1 administrative writes use parent locks for overlap prevention; no database-wide exclusion constraint is claimed. The existing legacy 0007 cutover writer-pause requirement remains. See [the execution report](../docs/phase1-execution-progress.md).
 
 > Earlier candidate snapshot — 2026-11-01: the Phase 1 backend passed 172/172 accounts/tenants tests on disposable PostgreSQL 15.19 and preserved released migration 0007 before the subsequent B1/B2/B3 corrections. Current correction status and the final 199-test result are in [the execution report](../docs/phase1-execution-progress.md). The legacy preflight/write race requires the accepted writer pause and recovery procedure; no shared database or deployment was used.
@@ -12,7 +14,7 @@ Phase 1 account, Company/Branch authorization and migration safeguards are imple
 
 ## 2026-10-31 implementation delta (worktree only)
 
-The 2026-10-19 snapshot below is historical. The current local implementation has passed fresh PostgreSQL migration replay, the full accounts/tenants regression, a supported legacy upgrade, explicit role/login mapping tests, restore rehearsal, audit privilege and Admin bypass tests, and bounded Company/Branch read query checks. The complete current evidence and accepted operational boundaries are in `docs/phase1-execution-progress.md`. Initial migrations were not rewritten. Existing production history, role configuration, cleanup scheduling, staging/production runtime and deployment remain unverified. No V2 finance or Phase 2 behavior was implemented.
+The 2026-10-19 snapshot below is historical. The current local Phase 1 candidate has passed fresh PostgreSQL migration replay, the accounts/tenants regression, a supported legacy upgrade, explicit role/login mapping tests, restore rehearsal, audit privilege and Admin bypass tests, and bounded Company/Branch read query checks. The Phase 2 candidate separately adds React session/authentication and bounded Company/Branch context integration; it does not implement V2 finance or business modules. Evidence is in `docs/phase1-execution-progress.md` and `docs/phase2-execution-progress.md`. Initial migrations were not rewritten. Existing production history, role configuration, cleanup scheduling, staging/production runtime and deployment remain unverified.
 
 ## 0. Verification header
 

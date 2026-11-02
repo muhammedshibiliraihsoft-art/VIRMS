@@ -11,7 +11,7 @@ Protected financial configuration uses Platform Back Office identity plus specif
 - Default login is a system-managed Username/Login ID and Password. Social login, mandatory email verification, public email/OTP recovery, MFA, passkeys and SSO are not current requirements; future adoption must not break identity/history.
 - Authorized administration provisions an account with a temporary credential. The User privately sets a new password on first login before ordinary protected access. Logged-in Users may change their own password after current-password validation using New Password and confirmation.
 - Never store, log, expose, retrieve or display plaintext passwords. Use secure password hashing. Administrators may reset access but cannot learn or retain a User's private permanent password.
-- Accept sufficiently long passphrases and password-manager-generated values; reject very weak/common passwords without predictable composition rules. Permit paste and password-manager autocomplete. Password fields are masked by default with intentional show/hide control.
+- Passwords must contain at least 6 characters. Numeric-only values and values mixing numbers, letters or other characters are accepted; no character-composition rule applies. Continue rejecting common/weak passwords and passwords too similar to User attributes. Permit paste and password-manager autocomplete. Password fields are masked by default with intentional show/hide control.
 
 ## Recovery, session and lifecycle
 

@@ -6,6 +6,8 @@
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
+> Phase 2 candidate — 2026-11-02: `demo/react` calls only the session/CSRF/password endpoints and reads bounded `/auth/me/` Company/Branch context. A typed, authorized Company Branch-list hook is available but no mock Garage filter calls it. No business API or `/api/mock` caller was added. The React app and backend were exercised together on a disposable local PostgreSQL target; production origin/proxy behavior remains unverified. See [the Phase 2 report](../docs/phase2-execution-progress.md).
+
 ## 2026-10-31 verified Phase 1 state
 
 One normal Company User UUID belongs to one Company. Another Company uses a separate account UUID with independent credentials and authorization. Global `login_id` and email uniqueness are locked; login has no Company selector. Provisioning, reset/status, revoke and scoped Company/Branch reads now use Company membership and the applicable scoped policy; cross-Company targets are hidden or denied. These are source and disposable-PostgreSQL test results, not staging/production runtime evidence.
@@ -38,7 +40,7 @@ flowchart LR
   R --> C
 ```
 
-The PostgreSQL schema, migrations and runtime-role checks were exercised on disposable PostgreSQL 15.19; no shared database connection or live API was verified. There is no current React caller, module state, Investor/Vehicle/Job/Accounting handler, public catalog or financial command. A private S3-compatible storage class is not an upload API.
+The PostgreSQL schema, migrations and runtime-role checks were exercised on disposable PostgreSQL 15.19; no shared database connection or deployed API was verified. The local Phase 2 React candidate calls the session/authentication and self-context routes only; there is no module state, Investor/Vehicle/Job/Accounting handler, public catalog or financial command. A private S3-compatible storage class is not an upload API.
 
 ## 3. Current route and action registry
 
@@ -66,7 +68,7 @@ Source: `core/urls.py`, `apps/accounts/urls.py`, `apps/tenants/urls.py`, handler
 
 Provision validates the requested Company/role/Branch and uses the current command/policy service; user UUID, membership and scoped grant are committed atomically. Reset/status/revoke lock the exact account and authorize the actor inside the target Company. A Company account cannot be attached to a second Company; independent accounts cannot be found by matching name/email. Company/Branch list selectors filter before serialization and paginate at 20 rows; 1→25-row fixture growth kept Company reads at 6 queries and Branch reads at 8. Error handling returns safe codes and request IDs while preserving `Retry-After` on throttling. Deployed proxy behavior remains **UNVERIFIED**.
 
-Current successful mutation → transaction-scoped model/security-event write → JSON response; credential-reset responses are no-store and temporary credentials are not logged or audited. There is no React cache, queue/job producer, consumer, dead-letter or async financial event route. Provisioning has a UUID-keyed operation/idempotency guard where supported; password/lifecycle operations are exact-target and transaction-locked. Tests and migration evidence are in `docs/phase1-execution-progress.md`.
+Current successful mutation → transaction-scoped model/security-event write → JSON response; credential-reset responses are no-store and temporary credentials are not logged or audited. The React candidate uses in-memory TanStack Query state; the backend has no queue/job producer, consumer, dead-letter or async financial event route. Provisioning has a UUID-keyed operation/idempotency guard where supported; password/lifecycle operations are exact-target and transaction-locked. Tests and migration evidence are in `docs/phase1-execution-progress.md`; frontend integration evidence is in `docs/phase2-execution-progress.md`.
 
 ## 5. V2 target request/action flow — not current endpoints
 
@@ -89,7 +91,7 @@ No exact URL, serializer field, job name, service class or idempotency key is in
 
 | Contract | Current consumer | Target compatibility concern | Status |
 |---|---|---|---|
-| Session/CSRF and account/Tenant routes | Local test clients; no React client inspected | V2 Company/Branch/module context must be added without treating legacy Tenant membership as complete V2 scope | CURRENT IMPLEMENTED partial; live consumer UNVERIFIED |
+| Session/CSRF and account/Tenant routes | Phase 1 local tests plus Phase 2 candidate browser integration for session, `/auth/me/` and bounded Company/Branch context | V2 Company/Branch/module context must not treat a UI role or Branch selector as authority | CURRENT IMPLEMENTED candidate; deployed consumer UNVERIFIED |
 | Financial, Garage, Company and public routes | None in source | Design from V2 target and explicit permission/BDR; do not copy V1 representative routes as authority | CURRENT APPROVED/TARGET, implementation gap |
 | V1 System Design API examples | No known deployed caller | Historical/superseded target; may conflict with V2 Company/Branch/Accounting model | HISTORICAL / SUPERSEDED for business shape |
 

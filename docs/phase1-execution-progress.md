@@ -2,9 +2,9 @@
 
 ## Corrections after candidate commit `cac26195`
 
-This section records the Phase 1 correction candidate verified before publication. The 172-test result in the historical snapshot below predates these corrections.
+This section describes the current local, uncommitted Phase 1 correction candidate. The 172-test result in the historical snapshot below predates these corrections.
 
-- Verification source: `D:/VIRMS/tmp/phase1-consolidated-20261101` at base `cac26195611432b44b2cc594aad5f2f0e208b69a`. The same Phase 1 code, migration and tests were isolated in `D:/VIRMS/tmp/phase1-corrections-isolated-20261102` on `codex/phase1-corrections-isolated`; the original mixed worktree was preserved separately. The verification results below were obtained before this isolation.
+- Current worktree: `D:/VIRMS/tmp/phase1-consolidated-20261101`, branch `codex/phase1-consolidated`, starting and current HEAD `cac26195611432b44b2cc594aad5f2f0e208b69a`; all correction files below are uncommitted and unstaged.
 
 - `/auth/me` returns a current Investor's own Company context without adding Investor to the Company/Branch business-read policy. Existing role aggregates remain; additive `company_wide_roles` and each Branch's `roles` preserve role-to-scope provenance. Platform Back Office remains a separate top-level role. Clients must not infer a Branch permission from the aggregate role list; backend authorization remains authoritative.
 - Accounts migration 0012 adds PostgreSQL guards for membership, Company grant, Branch assignment and legacy role history. Once `effective_until` is finite it may be shortened but not extended or removed, even while still future. Existing supported administrative commands only end scope or create new rows; no writer extending a finite end was found. Legacy history is preserved and new authority requires a new row.
@@ -16,7 +16,7 @@ This section records the Phase 1 correction candidate verified before publicatio
 - **Static checks — PASS:** isort `--check-only`, Black `--check`, flake8 on all changed Python files, and `git diff --check` passed.
 - **Performance — PASS for the tested synthetic fixture:** `/auth/me` remained bounded at 1, 25, 75 and 250 Branches; the 250-Branch case returned 20 summaries with truncation set. The final test run also measured paginated Branch reads at 6 queries for both 1 and 25 rows (20-row page). This is not production-load evidence.
 - **Final adversarial re-audit — PASS:** the independent reviewer found no A-level or additional material B-level defect after these changes. The accepted legacy 0007 preflight/write race remains a **C operational cutover risk**: pause every legacy identity, membership, Company-role and Branch-scope writer from before preflight until migration success; on failure preserve the database and do not bypass the guard.
-- No staging/production/shared database validation, staging merge or deployment is claimed. Phase 2 frontend files are excluded from the isolated Phase 1 correction set.
+- No staging/production/shared database validation, commit, push, merge or deployment is claimed. A later Phase 2 React foundation candidate is recorded separately in [the Phase 2 report](phase2-execution-progress.md); neither candidate is integrated into staging. Staging was not modified.
 
 ## Current correction-gate file set
 
@@ -78,5 +78,5 @@ This section records the Phase 1 correction candidate verified before publicatio
 ## Documentation and release scope
 
 - README migration guidance and this candidate report describe the required identity cutover writer pause and current acceptance status. /docs-final-v2/ canonical target documents were not changed.
-- At this Phase 1 snapshot, no frontend, finance, Vehicles, Garage, Sales, Collections, Accounting, dashboard or custom Back Office implementation was included.
+- At this Phase 1 snapshot, no frontend, finance, Vehicles, Garage, Sales, Collections, Accounting, dashboard or custom Back Office implementation was included. The subsequent React authentication/context integration is documented separately in `docs/phase2-execution-progress.md`.
 - No staging/production/shared database, push, merge, commit or deployment was touched.

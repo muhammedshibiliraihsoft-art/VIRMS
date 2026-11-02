@@ -1,0 +1,3801 @@
+# VIRMS UI Master Implementation Plan
+
+2026-10-29 · staging · HEAD `ed114b2667a707034b01bc58211d58aa70013314`. Documentation only.
+
+## 1. Executive Summary
+
+45 classified view/key contracts (42 main-demo business views plus 3 incomplete React TopBar keys), 17 report entries, 21 main-demo forms, three existing React modal modes and two data dialogs. Existing React pages are the accepted visual baseline. Preserve components, layout, route identities, interactions and data presentation. Complete only verified gaps; reusable families are primarily for pending content.
+
+Canonical V2 controls approved business meaning. Main demo controls observed behavior. React controls accepted visual baseline. Conflicts remain explicit.
+
+Evidence is source-level: VERIFIED FROM REPOSITORY / VERIFIED FROM CURRENT REACT. Browser execution, layout at every viewport and production behavior remain UNVERIFIED. PROPOSED sections specify future implementation, not current fact.
+
+## 2. Sources Inspected
+
+- `README.md` — SHA256 `9edcf720eaf033d8ffce49e2eee463ad7fe22511fb62efd6e76976f4098046b6`.
+- `AGENTS.md` — SHA256 `a787446b2dbffd178a9ce351d57c9db33bdd28f7b37b574af73d6d028dd12eca`.
+- `demo/react/src/App.tsx` — SHA256 `8f3a216123aa35d3eb76b95f2a885c2e8e0ad742255333df0ff5d75b3934ecc5`.
+- `demo/react/src/index.css` — SHA256 `6245bbedbbe094579f0c52d976ff700aa9daa0bfffa235dc2db671660d2b7e12`.
+- `demo/react/src/main.tsx` — SHA256 `14a10dee4aaa2130d9f57c136db7f16f95f524d60d77146b17776e91c2ab626c`.
+- `demo/react/src/components/AllVehiclesView.tsx` — SHA256 `559fbb39c4cf6290b4c3c8555382248189b3c1eb5ef94047b786810d6eb44e75`.
+- `demo/react/src/components/AppShell.tsx` — SHA256 `10666b862873058b9d4a4c78a3ea7e49a4e3f5e0bc2dadb6559b549c1f798f47`.
+- `demo/react/src/components/DashboardHeader.tsx` — SHA256 `c3a30c04d202e5ae82ea05aae93af28e0bbc6f303a123669b7516433229274f7`.
+- `demo/react/src/components/GarageJobDetailView.tsx` — SHA256 `8247adf9a409eaac9e123d387d8ad691294904ca5e988b22b35812955c390560`.
+- `demo/react/src/components/GarageJobsView.tsx` — SHA256 `cd2455097ef1e2c3a3f162032d4ca3d4e82f46805c7509432ad4730af0976c0e`.
+- `demo/react/src/components/InvestorUtilizationCard.tsx` — SHA256 `2f8e9543884510ff5aa9340559f312f8ee3e60f33cae3c9208b9ce66d4f15b98`.
+- `demo/react/src/components/MetricCard.tsx` — SHA256 `e49714a84aaa13995ad68b52d45687c2d295dbe4f592a6ddc4dc79a88b697535`.
+- `demo/react/src/components/MobileDrawer.tsx` — SHA256 `921683d0559c5815810e735c9c484f9c93e4a6ab432d2c9c30f1aef1fe0889fb`.
+- `demo/react/src/components/PendingViewPlaceholder.tsx` — SHA256 `08b0aab3a929369a1d6d71c9cbe6c748fcb6ca18fe9c06ddcccbc3529f50fe66`.
+- `demo/react/src/components/PerformanceChart.tsx` — SHA256 `65dd9bb7fc996b08f693e5c6dace974855e7bcbe50ebae729d5c399f27b751b6`.
+- `demo/react/src/components/PrimaryBalanceCard.tsx` — SHA256 `49b5b37693b8896f089a5130ff69426265078387f95f56951729ee55153f5141`.
+- `demo/react/src/components/QuickActionModal.tsx` — SHA256 `8e2f6ec0bd247d5792e52c21117fd78476dcbae919523f85c69728d70db74521`.
+- `demo/react/src/components/RecentActivityTable.tsx` — SHA256 `df8397ea2ca456ed1bb760eec78e8f12d735a4375cad2a6f851c0ba9733b7946`.
+- `demo/react/src/components/SidebarDock.tsx` — SHA256 `3ce07d12f4ffc10572a358052954117cfbd773dc0bdd340920f03e1c6ab075ba`.
+- `demo/react/src/components/SidebarFlyout.tsx` — SHA256 `88d5ea96bafd04192d3b07335b68b752df9731d2db36bc2ff2a0e4848f29942a`.
+- `demo/react/src/components/SidebarRail.tsx` — SHA256 `8b38ab46a29b9e52413e30cda5f67bcd5f9a2e90a218e03a4f5a792e269a72de`.
+- `demo/react/src/components/StatusMessageLayer.tsx` — SHA256 `9874e83ae0e5bc806c5553a46ef967cae12f78097ab9f829710c8a2fab8c5497`.
+- `demo/react/src/components/TopBar.tsx` — SHA256 `bef1b4b330e18ac710255984d1cfae403ae0da5fcd85fe16649bd0fece1a78ef`.
+- `demo/react/src/components/VehicleDetailView.tsx` — SHA256 `27456229298480d96e37e26bf201eee3962c1ba41a1f2af35d2e1c6a626bda9d`.
+- `demo/react/src/components/VehicleImageCard.tsx` — SHA256 `d1b01d061e26e011a701f8d57f7ea10b6ea6d095526c7e0ccadfd78e0ce7f3c8`.
+- `demo/react/src/data/mockData.ts` — SHA256 `3eb123674c2f531a4e68d242c8481f70c1fc5cd78c76826d1827da796410b532`.
+- `demo/react/src/data/navigationRegistry.ts` — SHA256 `1cb1ed5c34d64ffbf20ee6e19067bbde7ff309e46c3388bf40b7c081660dd4ca`.
+- `demo/react/src/types/index.ts` — SHA256 `8259867c994da74534782e2badda9ad455d06ab7561300247c685fff3b555440`.
+- `demo/react/src/types/statusMessage.ts` — SHA256 `ddee7066a05df4350fed1082676e8165169e532b5ae4e5b3c51faaffbd7a00ef`.
+- `demo/accountant-ui-demo/README.md` — SHA256 `155253bfcc7649513ab2af536dff616bc0960cb42cec7977c54a8fd5270fa204`.
+- `demo/accountant-ui-demo/DEMO-ROUTE-MAP.md` — SHA256 `4b35a3f2ff7916d512de29490cb7a450d94dc62e11686cc1bd7ab92a0384d281`.
+- `demo/accountant-ui-demo/src/components/workspace-full.tsx` — SHA256 `69a5d7e4709c1381dc611a8d85293b847c3e40cd1115252d838af143dd831e17`.
+- `demo/accountant-ui-demo/src/mock/import-file.ts` — SHA256 `33751138c819245fa8d7d06f8a55f00b7e661b130d2e2954a9ef3899eff9b9a6`.
+- `demo/accountant-ui-demo/src/mock/origin.ts` — SHA256 `6841f184d4b86ea6ad8f5cc1b2c49f30540fc4162ebb9cb144a0389c8a9edc04`.
+- `demo/accountant-ui-demo/src/mock/seed.ts` — SHA256 `82dff41291cc29ee0d18095fcbc5ade24cfb8baafb00b8774d9a85de44e30871`.
+- `demo/accountant-ui-demo/src/mock/store.ts` — SHA256 `c49df2827a1e68a647851984fd5b40b7d0c32b8d19288dc8b91e9d168ca64c6d`.
+- `demo/accountant-ui-demo/src/mock/types.ts` — SHA256 `27f1bd0f5b3e4a707abd226c9f868e01cb6389eb6cfb89192a678b7376c6d927`.
+- `demo/accountant-ui-demo/src/mock/selectors/index.ts` — SHA256 `9dabe178933fd9255fbc1d8e9e6fc8785998c6154835e55d84e589549ceaf06e`.
+- `demo/accountant-ui-demo/src/mock/selectors/inventory.ts` — SHA256 `169e320d0cbaf8041e13094ad924fdd4a4a9ffb6df657d4ead42b19bae0105b5`.
+- `demo/accountant-ui-demo/src/mock/selectors/reports.ts` — SHA256 `bdb98a8ed4f70748317615f8af0723baeeb931d4f8b27d3f1a6720ae66345bb9`.
+- `demo/accountant-ui-demo/src/mock/services/inventory-issue.ts` — SHA256 `43952dd5fa428b2cd052ff79acd5f79136a22092ba7517ac5865737875f5059d`.
+- `demo/accountant-ui-demo/src/mock/services/investor-fund.ts` — SHA256 `37f65948d1a0f0ba5ae19fba478624eee833ca1d9bfd19165b6f921f9f8c7287`.
+- `demo/accountant-ui-demo/src/mock/services/job-status.ts` — SHA256 `031bbe880491b39242c3099079a857a8b0f6752a93497e6bb38f41f4392e44eb`.
+- `demo/accountant-ui-demo/src/mock/services/stock-job-expense.ts` — SHA256 `dbb551a7dcdc7e1c6f3dd41cd11f61401ef3b5b1cfc8d1e0650846de3ae00b15`.
+- `demo/accountant-ui-demo/src/app/api/mock/route.ts` — SHA256 `8a8cd55d3cb513b259368b8c4b7898fcd8b4c5b6a8a9dd8e4870c6d515adc5e1`.
+- `docs-final-v2/01-business-rules.md` — SHA256 `6f661ecdd2b84dd69147ed0c10d6cc893270a5778a8f5162e1e839df852f560b`.
+- `docs-final-v2/02-user-roles-permissions.md` — SHA256 `95687bb3e0e442022e3b5431c5185375d8db7714886440fbeeec6c13ba26995c`.
+- `docs-final-v2/03-system-modules.md` — SHA256 `e974adbd34b1bebefce452e2db9c4bb22e0269199fc35dd796c495dd80e370e2`.
+- `docs-final-v2/04-data-model-relationships.md` — SHA256 `54de65d5d3c27b55c30d11ea48d376dec3b6b727f872bd6ebe987f4dacb3f41f`.
+- `docs-final-v2/05-vehicle-investor-finance-workflow.md` — SHA256 `c3dd67bfbcc0433e1b80c830cb1cbf55e17bfa9ea8d253bee520d800f6bf91fe`.
+- `docs-final-v2/06-technical-architecture-engineering-operations.md` — SHA256 `89fcdb8ab1e4bffbe078e2396d8e555f948420ff7b280c5b1ae22cbb6092f2cf`.
+- `docs-final-v2/07-ui-navigation-structure.md` — SHA256 `5a0daad71289f303dd64714308b3792d68d40960f69ca7c5a57f4e254e1fb7a4`.
+- `docs-final-v2/08-image-file-architecture.md` — SHA256 `c24deaa784fed8f7674f01b654d79d8ce56c980beeefc35a10814719bc2dc28b`.
+- `docs-final-v2/09-company-accounting-owner-distribution.md` — SHA256 `ac00e060ecf4f0c413976d85e6bb1ca6a48e13b06e255e1e8001a2739bb9f137`.
+- `docs-final-v2/10-garage-jobs-workflow.md` — SHA256 `43119de3c7072ffbd5fa81de136124ba73d86d1630ef882a22367e1b0b2af0e5`.
+- `docs-final-v2/supporting/authentication-account-security.md` — SHA256 `e296db8ea1f697c02271c366a1bd5345793975a36d2f5226447baa10f284dfb2`.
+- `docs-final-v2/supporting/production-engineering-standards.md` — SHA256 `0d583518c0aea90333135f1b35d615ff25ce17f9565015fbe45ca942147ca1d7`.
+- `docs-final-v2/supporting/tenant-merge-consolidation.md` — SHA256 `8cfaa470adb94473924e0fc8b1c012adb78aeee7aef67f8798b838bc9c0fb1b9`.
+- `architecture/01-DATA-FLOW.md` — SHA256 `b40c0917be85db4d519387ea720196749bc0fe7f82f4b00afeeb898c4fe195f0`.
+- `architecture/02-API-FLOW.md` — SHA256 `fea06d7220dae89ae59b5f7d280a79a0a49d75feb71b8edc0fbc95eb9fb6e2a8`.
+- `architecture/03-ARCHITECTURE-CONFLICT-MAP.md` — SHA256 `4ad451691a9d5184972319235d49f558b0b09fb84513d4b2483a917d3af15f8d`.
+- `architecture/04-CHANGE-IMPACT-COMPATIBILITY.md` — SHA256 `6b0b2f2b72a75457eaa614e5931cc09dbd472ffa3353b3c201ded977e2ae385e`.
+
+## 3. Verified Current Architecture
+
+Main demo: Next.js with `/` client view dispatcher, one shared Data snapshot and local `/api/mock` GET/PUT. New React: Vite + React 19 + TypeScript + Tailwind v4, local initial* arrays and in-memory activeRoute; no React Router or business API client found. No NestJS backend found in this repository. Current Django account/Tenant foundation is separate and unconnected. Other V2 application surfaces remain target scope; this blueprint does not fabricate their pages.
+
+```mermaid
+flowchart LR
+  Seed[React initial mockData] --> App[App state] --> UI[Preserved React screens]
+  Old[Main demo WorkspaceFull] --> GET[GET snapshot] --> Store[JSON file or seed]
+  Old --> PUT[Confirm PUT revision validation] --> Store
+  V2[Canonical V2] --> Gate[Business decision gate] --> Pending[Future pending UI slices]
+```
+
+## 4. Current React Design System
+
+```json
+{
+  "font": "Plus Jakarta Sans, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif (CSS declared; actual font load unverified)",
+  "backgrounds": [
+    "light #fffdfb → #fff9f5; subtle fixed orange radial warmth",
+    "dark #18181b → #141416",
+    "AppShell transparent, full width, min-height 100dvh; no outer content card"
+  ],
+  "accent": [
+    "#FF551F",
+    "#FF4E18",
+    "#FF3000",
+    "orange-600"
+  ],
+  "surfaceClasses": {
+    "dashboard-card-solid": "#FFFCFA; border #f0eae3; 0 4px 14px rgba(0,0,0,.03); subtle white gradient, no backdrop blur",
+    "dashboard-nested-card": "white; border #ede7e1; 0 2px 6px rgba(0,0,0,.02)",
+    "dashboard-card-orange": "#FF4E18/#FF3000 solid orange with subtle highlight",
+    "dark": "#27272a cards; #2e2e33 nested"
+  },
+  "typography": [
+    "text-[11px] metadata",
+    "text-xs/text-sm content",
+    "text-xl sm:text-2xl headings",
+    "lg:text-[26px] dashboard heading",
+    "medium/semibold/bold/extrabold as existing"
+  ],
+  "radii": [
+    "rounded-xl controls",
+    "rounded-full pill actions",
+    "rounded-[22px] cards",
+    "rounded-[28px] panels/modal"
+  ],
+  "spacing": [
+    "gap-3 sm:gap-3.5",
+    "gap-3.5 sm:gap-4.5",
+    "p-4 sm:p-5",
+    "p-5 sm:p-6",
+    "outer inline clamp(16px,2vw,32px)",
+    "outer block clamp(16px,1.5vw,24px)"
+  ],
+  "buttons": "Reuse orange primary, neutral secondary/text and labelled icon roles from accepted components.",
+  "inputs": "Existing bordered rounded-xl compact fields; future compact height around 36–40px and practical touch target around 44px.",
+  "tables": "Existing Garage views use overflow-x-auto and visible money/status/action columns; no wholesale replacement.",
+  "badges": "Text with emerald/blue/orange/neutral state colors; never color alone.",
+  "tabs": "TopBar quick sections; client view state, not URL routes.",
+  "sidebar": "Narrow fixed rail, reserved spacer, flyouts; Vehicles primary opens All Vehicles without redundant All Vehicles child.",
+  "headers": "Compact eyebrow/title/description and actions, responsive row/stack.",
+  "theme": "React Light/Dark local state only. Main demo has Light/Dark/System with localStorage. Record difference, no silent rewrite.",
+  "dialogs": "QuickActionModal fixed overlay; focus trap/Escape/focus restore not proven. Preserve accepted presentation while targeted accessibility fixes remain allowed.",
+  "statusMessages": "StatusMessageLayer supports success/error/warning/info/loading, dismissal and timed status messages.",
+  "emptyStates": "Vehicle no-results/reset filters; Job detail work/cost/charge empty rows; generic pending content is not completed page functionality."
+}
+```
+
+## 5. Complete Route Inventory
+
+All identities below are client views at `/`. React TopBar additionally emits Inventory, Accounting and Reports; these incomplete section keys are classified individually, not invented business pages. Overview aliases Dashboard; Vehicles aliases All Vehicles. Vehicle/Job details are contextual. Company Result is shared by Accounting and Reports, not two independent routes.
+
+- **Dashboard**: Dashboard
+- **Vehicles**: All Vehicles → Stock / Investor → Customer Vehicles
+- **Garage Operations**: Garage Jobs
+- **Investment Management**: Investor Fund → Vehicle Sales → Collections → Sale Corrections & Refunds → Investor Profit & Interim → Reconciliation & Settlement
+- **Inventory**: Items & Purchases → Stock Issues → Stock Reports
+- **Company Accounting**: Garage Revenue → Company Income → Company Expenses → Running Capital → Company Result → Transactions
+- **Reports**: All Reports
+- **Audit**: Audit & Corrections
+- **Settings**: Garages / Branches → Demo Data
+- Contextual: Vehicle Detail; Garage Job Detail.
+- Reports: Company Consolidated → `Company Consolidated`; Garage-wise → `Garage-wise`; Vehicle Cost → `Vehicle Cost`; Investor → `Investor`; Investor Fund → `Investor Fund Report`; Expense → `Expense`; Garage Jobs → `Garage Jobs Report`; Inventory Current Stock → `Inventory Current Stock`; Inventory Purchases → `Inventory Purchases`; Inventory Issues → `Inventory Issues`; Product Margin → `Product Margin`; Sales → `Sales`; Buyer Receivables → `Buyer Receivables`; Customer Garage Receivables → `Customer Garage Receivables`; Running Capital → `Running Capital Report`; Company Result → `Company Result`; Owner Distribution → `Owner Distribution`
+
+## 6. Current Implementation Status Matrix
+
+| View | Implementation | Preservation classification | Rebuild |
+|---|---|---|---|
+| Dashboard | partial | PARTIAL — COMPLETE MISSING PARTS ONLY | NO |
+| All Vehicles | implemented | EXISTING — PRESERVE | NO |
+| Stock / Investor | implemented | EXISTING — PRESERVE | NO |
+| Customer Vehicles | implemented | EXISTING — PRESERVE | NO |
+| Garage Jobs | partial | PARTIAL — COMPLETE MISSING PARTS ONLY | NO |
+| Investor Fund | pending | PENDING — IMPLEMENT | Pending content only |
+| Vehicle Sales | pending | PENDING — IMPLEMENT | Pending content only |
+| Collections | pending | PENDING — IMPLEMENT | Pending content only |
+| Sale Corrections & Refunds | pending | PENDING — IMPLEMENT | Pending content only |
+| Investor Profit & Interim | notice | READ-ONLY NOTICE — PRESERVE | NO |
+| Reconciliation & Settlement | notice | READ-ONLY NOTICE — PRESERVE | NO |
+| Items & Purchases | pending | PENDING — IMPLEMENT | Pending content only |
+| Stock Issues | pending | PENDING — IMPLEMENT | Pending content only |
+| Stock Reports | pending | PENDING — IMPLEMENT | Pending content only |
+| Garage Revenue | pending | PENDING — IMPLEMENT | Pending content only |
+| Company Income | pending | PENDING — IMPLEMENT | Pending content only |
+| Company Expenses | pending | PENDING — IMPLEMENT | Pending content only |
+| Running Capital | pending | PENDING — IMPLEMENT | Pending content only |
+| Company Result | pending | PENDING — IMPLEMENT | Pending content only |
+| Transactions | pending | PENDING — IMPLEMENT | Pending content only |
+| All Reports | pending | PENDING — IMPLEMENT | Pending content only |
+| Audit & Corrections | pending | PENDING — IMPLEMENT | Pending content only |
+| Garages / Branches | pending | PENDING — IMPLEMENT | Pending content only |
+| Demo Data | pending | PENDING — IMPLEMENT | Pending content only |
+| Vehicle Detail | partial | EXISTING — VERIFIED BUG FIX REQUIRED | NO |
+| Garage Job Detail | partial | EXISTING — VERIFIED BUG FIX REQUIRED | NO |
+| Company Consolidated | pending | PENDING — IMPLEMENT | Pending content only |
+| Garage-wise | pending | PENDING — IMPLEMENT | Pending content only |
+| Vehicle Cost | pending | PENDING — IMPLEMENT | Pending content only |
+| Investor | pending | PENDING — IMPLEMENT | Pending content only |
+| Investor Fund Report | pending | PENDING — IMPLEMENT | Pending content only |
+| Expense | pending | PENDING — IMPLEMENT | Pending content only |
+| Garage Jobs Report | pending | PENDING — IMPLEMENT | Pending content only |
+| Inventory Current Stock | pending | PENDING — IMPLEMENT | Pending content only |
+| Inventory Purchases | pending | PENDING — IMPLEMENT | Pending content only |
+| Inventory Issues | pending | PENDING — IMPLEMENT | Pending content only |
+| Product Margin | pending | PENDING — IMPLEMENT | Pending content only |
+| Sales | pending | PENDING — IMPLEMENT | Pending content only |
+| Buyer Receivables | pending | PENDING — IMPLEMENT | Pending content only |
+| Customer Garage Receivables | pending | PENDING — IMPLEMENT | Pending content only |
+| Running Capital Report | pending | PENDING — IMPLEMENT | Pending content only |
+| Owner Distribution | pending-notice | READ-ONLY NOTICE — PRESERVE | NO |
+| Inventory (TopBar key) | partial-navigation | EXISTING — SHARED-SHELL INTEGRATION ONLY | NO |
+| Accounting (TopBar key) | partial-navigation | EXISTING — SHARED-SHELL INTEGRATION ONLY | NO |
+| Reports (TopBar key) | partial-navigation | EXISTING — SHARED-SHELL INTEGRATION ONLY | NO |
+
+AppShell: **EXISTING — SHARED-SHELL INTEGRATION ONLY**. Runtime remains unverified. Existing page designs are preserved.
+
+## 7. Page-by-Page Functional Contracts
+
+### Dashboard — `Dashboard`
+
+- **group**: Dashboard
+- **urlRoute**: /
+- **aliases**: ["Overview"]
+- **purpose**: Dashboard / dashboard source view
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial
+- **preservationClassification**: PARTIAL — COMPLETE MISSING PARTS ONLY
+- **preservationPolicy**: complete-missing-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Complete listed missing integration only, preserve accepted components/layout"]
+- **modificationReason**: ["CURRENT IMPLEMENTATION: local initial* state; filtered vehicle/job/receivable/batch metrics, global Investor totals. Chart is hard-coded Jan-Aug data.", "MISSING REQUIREMENT: old demo import, job/purchase quick actions and shared financial data integration. MINIMAL ADDITION: preserve current cards/layout, add only explicit controls and data wiring."]
+- **rebuildAllowed**: false
+- **templateFamily**: dashboard
+- **sourceFiles**: ["demo/react/src/App.tsx", "demo/react/src/components/PrimaryBalanceCard.tsx", "demo/react/src/components/MetricCard.tsx", "demo/react/src/components/PerformanceChart.tsx", "demo/react/src/components/InvestorUtilizationCard.tsx", "demo/react/src/components/RecentActivityTable.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 231, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/App.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/PrimaryBalanceCard.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/MetricCard.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/PerformanceChart.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/InvestorUtilizationCard.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/RecentActivityTable.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: ["investors"]
+- **fields**: ["Vehicles", "Open garage jobs", "Buyer receivable", "Current stock value"]
+- **summaryMetrics**: ["Stock Vehicles", "Open Garage Jobs", "Buyer Receivable", "Inventory Stock Value", "Total Investor Principal/Used", "Receivable balance"]
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["vehicle", "job", "purchase", "sale", "collection", "import"]
+- **primaryCTA**: vehicle
+- **dialogs**: ["vehicle", "sale", "collection", "job", "purchase", "import"]
+- **detailRoutes**: ["Vehicle Detail"]
+- **conditionalSections**: ["Vehicles", "Investor Fund", "Quick actions"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["CURRENT IMPLEMENTATION: local initial* state; filtered vehicle/job/receivable/batch metrics, global Investor totals. Chart is hard-coded Jan-Aug data.", "MISSING REQUIREMENT: old demo import, job/purchase quick actions and shared financial data integration. MINIMAL ADDITION: preserve current cards/layout, add only explicit controls and data wiring.", "Runtime/keyboard/responsive browser behavior UNVERIFIED in this task.", "Preserve PrimaryBalanceCard, MetricGrid, static PerformanceChart, InvestorUtilizationCard and RecentActivityTable. Static chart must not be advertised as ledger-derived income."]
+- **currentReactContract**: [{"file": "demo/react/src/App.tsx", "tableColumns": [], "headings": ["Good morning, Code XR"], "callbacks": ["onToggleTheme", "onSelectRoute", "onSelectTab", "onSelectGarage", "onRefresh", "onDismissStatus", "onOpenSearch", "onOpenHelp", "onLogout", "onRecordReceipt", "onNewSale", "onSelectActivity", "onBack", "onCreateJob", "onAddExpense", "onViewJobDetail", "onAddWork", "onAddCostOrCharge", "onReceive", "onToggleJobStatus", "onSelectJob", "onNewJob", "onToggleStatus", "onRegisterVehicle", "onViewVehicleDetail", "onReturnToDashboard", "onClose", "onSubmitSuccess"], "emptyStateText": []}, {"file": "demo/react/src/components/PrimaryBalanceCard.tsx", "tableColumns": [], "headings": [], "callbacks": ["onRecordReceipt", "onNewSale", "onClick"], "emptyStateText": []}, {"file": "demo/react/src/components/MetricCard.tsx", "tableColumns": [], "headings": [], "callbacks": [], "emptyStateText": []}, {"file": "demo/react/src/components/PerformanceChart.tsx", "tableColumns": [], "headings": ["Total Income"], "callbacks": [], "emptyStateText": []}, {"file": "demo/react/src/components/InvestorUtilizationCard.tsx", "tableColumns": [], "headings": ["Monthly Spending Limit"], "callbacks": [], "emptyStateText": []}, {"file": "demo/react/src/components/RecentActivityTable.tsx", "tableColumns": ["Order ID", "Activity", "Price", "Status", "Date"], "headings": ["Recent Activities"], "callbacks": ["onSelectActivity", "onChange", "onClick"], "emptyStateText": []}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### All Vehicles — `All Vehicles`
+
+- **group**: Vehicles
+- **urlRoute**: /
+- **aliases**: ["Vehicles"]
+- **purpose**: Vehicles / vehicle-listing source view
+- **status**: IMPLEMENTED IN NEW REACT
+- **implementationStatus**: implemented
+- **preservationClassification**: EXISTING — PRESERVE
+- **preservationPolicy**: preserve
+- **futureModificationAllowed**: false
+- **allowedFutureChanges**: []
+- **modificationReason**: []
+- **rebuildAllowed**: false
+- **templateFamily**: vehicle-listing
+- **sourceFiles**: ["demo/react/src/components/AllVehiclesView.tsx", "demo/react/src/components/VehicleImageCard.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 239, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/AllVehiclesView.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/VehicleImageCard.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: []
+- **fields**: ["Vehicle", "Type / Owner", "Garage", "Status", "Total Cost"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Vehicle", "Type / Owner", "Garage", "Status", "Total Cost"]]
+- **filters**: ["Global Garage selector; scope below", "Search"]
+- **searchFields**: ["registration", "model", "person"]
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["vehicle"]
+- **primaryCTA**: vehicle
+- **dialogs**: ["vehicle"]
+- **detailRoutes**: ["Vehicle Detail"]
+- **conditionalSections**: ["Vehicle register"]
+- **emptyStates**: ["No vehicles match this view."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Runtime/keyboard/responsive browser behavior UNVERIFIED in this task.", "React listing uses cards with image, registration/model, status, person and cost; local type/status/search and Garage filtering plus summary controls. Old source table columns are behavioral-field reference, not a requirement to replace cards. Register modal integration is incomplete outside the preserved listing content.", "No vehicles found supports resetting local filters. No sort control found."]
+- **currentReactContract**: [{"file": "demo/react/src/components/AllVehiclesView.tsx", "tableColumns": [], "headings": ["No vehicles found"], "callbacks": ["onRegisterVehicle", "onViewVehicleDetail", "onSelectRoute", "onClick", "onChange"], "emptyStateText": ["No vehicles matched your search or selected filter. Try adjusting your query or filter criteria."]}, {"file": "demo/react/src/components/VehicleImageCard.tsx", "tableColumns": [], "headings": [], "callbacks": ["onError"], "emptyStateText": ["No vehicle image"]}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Stock / Investor — `Stock / Investor`
+
+- **group**: Vehicles
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Vehicles / vehicle-listing source view
+- **status**: IMPLEMENTED IN NEW REACT
+- **implementationStatus**: implemented
+- **preservationClassification**: EXISTING — PRESERVE
+- **preservationPolicy**: preserve
+- **futureModificationAllowed**: false
+- **allowedFutureChanges**: []
+- **modificationReason**: []
+- **rebuildAllowed**: false
+- **templateFamily**: vehicle-listing
+- **sourceFiles**: ["demo/react/src/components/AllVehiclesView.tsx", "demo/react/src/components/VehicleImageCard.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 239, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/AllVehiclesView.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/VehicleImageCard.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: []
+- **fields**: ["Vehicle", "Type / Owner", "Garage", "Status", "Total Cost"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Vehicle", "Type / Owner", "Garage", "Status", "Total Cost"]]
+- **filters**: ["Global Garage selector; scope below", "Search"]
+- **searchFields**: ["registration", "model", "person"]
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["vehicle"]
+- **primaryCTA**: vehicle
+- **dialogs**: ["vehicle"]
+- **detailRoutes**: ["Vehicle Detail"]
+- **conditionalSections**: ["Vehicle register"]
+- **emptyStates**: ["No vehicles match this view."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Runtime/keyboard/responsive browser behavior UNVERIFIED in this task.", "React listing uses cards with image, registration/model, status, person and cost; local type/status/search and Garage filtering plus summary controls. Old source table columns are behavioral-field reference, not a requirement to replace cards. Register modal integration is incomplete outside the preserved listing content.", "No vehicles found supports resetting local filters. No sort control found."]
+- **currentReactContract**: [{"file": "demo/react/src/components/AllVehiclesView.tsx", "tableColumns": [], "headings": ["No vehicles found"], "callbacks": ["onRegisterVehicle", "onViewVehicleDetail", "onSelectRoute", "onClick", "onChange"], "emptyStateText": ["No vehicles matched your search or selected filter. Try adjusting your query or filter criteria."]}, {"file": "demo/react/src/components/VehicleImageCard.tsx", "tableColumns": [], "headings": [], "callbacks": ["onError"], "emptyStateText": ["No vehicle image"]}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Customer Vehicles — `Customer Vehicles`
+
+- **group**: Vehicles
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Vehicles / vehicle-listing source view
+- **status**: IMPLEMENTED IN NEW REACT
+- **implementationStatus**: implemented
+- **preservationClassification**: EXISTING — PRESERVE
+- **preservationPolicy**: preserve
+- **futureModificationAllowed**: false
+- **allowedFutureChanges**: []
+- **modificationReason**: []
+- **rebuildAllowed**: false
+- **templateFamily**: vehicle-listing
+- **sourceFiles**: ["demo/react/src/components/AllVehiclesView.tsx", "demo/react/src/components/VehicleImageCard.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 239, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/AllVehiclesView.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/VehicleImageCard.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: []
+- **fields**: ["Vehicle", "Type / Owner", "Garage", "Status", "Total Cost"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Vehicle", "Type / Owner", "Garage", "Status", "Total Cost"]]
+- **filters**: ["Global Garage selector; scope below", "Search"]
+- **searchFields**: ["registration", "model", "person"]
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["vehicle"]
+- **primaryCTA**: vehicle
+- **dialogs**: ["vehicle"]
+- **detailRoutes**: ["Vehicle Detail"]
+- **conditionalSections**: ["Vehicle register"]
+- **emptyStates**: ["No vehicles match this view."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Runtime/keyboard/responsive browser behavior UNVERIFIED in this task.", "React listing uses cards with image, registration/model, status, person and cost; local type/status/search and Garage filtering plus summary controls. Old source table columns are behavioral-field reference, not a requirement to replace cards. Register modal integration is incomplete outside the preserved listing content.", "No vehicles found supports resetting local filters. No sort control found."]
+- **currentReactContract**: [{"file": "demo/react/src/components/AllVehiclesView.tsx", "tableColumns": [], "headings": ["No vehicles found"], "callbacks": ["onRegisterVehicle", "onViewVehicleDetail", "onSelectRoute", "onClick", "onChange"], "emptyStateText": ["No vehicles matched your search or selected filter. Try adjusting your query or filter criteria."]}, {"file": "demo/react/src/components/VehicleImageCard.tsx", "tableColumns": [], "headings": [], "callbacks": ["onError"], "emptyStateText": ["No vehicle image"]}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Garage Jobs — `Garage Jobs`
+
+- **group**: Garage Operations
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Garage Operations / operational-queue source view
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial
+- **preservationClassification**: PARTIAL — COMPLETE MISSING PARTS ONLY
+- **preservationPolicy**: complete-missing-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Complete listed missing integration only, preserve accepted components/layout"]
+- **modificationReason**: ["CURRENT IMPLEMENTATION: scoped searchable queue, detail navigation and local status-history toggle. New job/work/cost/charge/Receive callbacks show messages only. MISSING REQUIREMENT: forms and linked updates. MINIMAL ADDITION: callback integration, retain queue design."]
+- **rebuildAllowed**: false
+- **templateFamily**: operational-queue
+- **sourceFiles**: ["demo/react/src/components/GarageJobsView.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 240, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/GarageJobsView.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: []
+- **fields**: ["Job / Vehicle", "Garage", "Customer / Investor", "Status", "Charges / Outstanding", "Actions"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Job / Vehicle", "Garage", "Customer / Investor", "Status", "Charges / Outstanding", "Actions"]]
+- **filters**: ["Global Garage selector; scope below", "Search"]
+- **searchFields**: ["job number", "description", "vehicle registration", "vehicle model (React)", "person"]
+- **sortControls**: []
+- **statuses**: ["Open", "Completed"]
+- **actions**: ["customerCharge", "customerReceipt", "job", "jobWork", "jobExpense"]
+- **primaryCTA**: job
+- **dialogs**: ["job", "jobWork", "jobExpense", "customerCharge", "customerReceipt"]
+- **detailRoutes**: ["Garage Job Detail"]
+- **conditionalSections**: ["Garage work queue"]
+- **emptyStates**: ["No garage jobs. Create one from an existing vehicle."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["CURRENT IMPLEMENTATION: scoped searchable queue, detail navigation and local status-history toggle. New job/work/cost/charge/Receive callbacks show messages only. MISSING REQUIREMENT: forms and linked updates. MINIMAL ADDITION: callback integration, retain queue design.", "Runtime/keyboard/responsive browser behavior UNVERIFIED in this task."]
+- **currentReactContract**: [{"file": "demo/react/src/components/GarageJobsView.tsx", "tableColumns": ["Job / Vehicle", "Garage", "Customer / Investor", "Status", "Charges / Outstanding", "Actions"], "headings": ["Garage Jobs", "Garage work queue"], "callbacks": ["onSelectJob", "onNewJob", "onAddWork", "onAddCostOrCharge", "onReceive", "onToggleStatus", "onClick", "onChange"], "emptyStateText": ["No garage jobs match this filter. Create one from an existing vehicle."]}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Investor Fund — `Investor Fund`
+
+- **group**: Investment Management
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Investment Management / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 241, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["investors"]
+- **fields**: ["Date", "Source event", "Credit", "Debit", "Reserved", "Linked source"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Date", "Source event", "Credit", "Debit", "Reserved", "Linked source"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["investor", "capital"]
+- **primaryCTA**: investor
+- **dialogs**: ["investor", "capital"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Investor Fund history"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Vehicle Sales — `Vehicle Sales`
+
+- **group**: Investment Management
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Investment Management / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 243, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["sales", "buyerRefunds"]
+- **fields**: ["Vehicle / Buyer", "Agreed sale", "Collected", "Collection status", "Remaining", "Actions"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Vehicle / Buyer", "Agreed sale", "Collected", "Collection status", "Remaining", "Actions"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: ["Pending", "Partially received", "Fully received"]
+- **actions**: ["sale", "collection", "recovery"]
+- **primaryCTA**: sale
+- **dialogs**: ["sale", "collection", "recovery"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Stock Vehicle sales"]
+- **emptyStates**: ["No Stock Vehicle sales recorded."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Old page maps all sales without Garage filtering, unlike Sales report. Do not silently change scope."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Collections — `Collections`
+
+- **group**: Investment Management
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Investment Management / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 244, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["payments", "sales"]
+- **fields**: ["Date", "Type", "Reference", "Method", "Amount", "Receipt date", "Opening collected"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Date", "Type", "Reference", "Method", "Amount"], ["Type", "Reference", "Receipt date", "Method", "Opening collected"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["collection"]
+- **primaryCTA**: collection
+- **dialogs**: ["collection"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Actual receipt history", "Seeded opening collected balances"]
+- **emptyStates**: ["No individual receipt transactions recorded."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Opening collected totals have no date/method; separate from actual transaction history."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Sale Corrections & Refunds — `Sale Corrections & Refunds`
+
+- **group**: Investment Management
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Investment Management / correction-audit source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: correction-audit
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 245, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["sales", "buyerRefunds"]
+- **fields**: ["Buyer / Vehicle", "Current sale price", "Refund payable", "Correction history", "Refund history"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Buyer / Vehicle", "Current sale price", "Refund payable", "Correction history", "Refund history"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["saleCorrection", "refund"]
+- **primaryCTA**: saleCorrection
+- **dialogs**: ["saleCorrection", "refund"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Corrections and refunds"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Investor Profit & Interim — `Investor Profit & Interim`
+
+- **group**: Investment Management
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Investment Management / notice source view
+- **status**: READ-ONLY NOTICE
+- **implementationStatus**: notice
+- **preservationClassification**: READ-ONLY NOTICE — PRESERVE
+- **preservationPolicy**: preserve-read-only
+- **futureModificationAllowed**: false
+- **allowedFutureChanges**: []
+- **modificationReason**: []
+- **rebuildAllowed**: false
+- **templateFamily**: notice
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 242, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Business decision required"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: ["BDR-01", "BDR-02", "BDR-03", "BDR-04"]
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Reconciliation & Settlement — `Reconciliation & Settlement`
+
+- **group**: Investment Management
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Investment Management / notice source view
+- **status**: READ-ONLY NOTICE
+- **implementationStatus**: notice
+- **preservationClassification**: READ-ONLY NOTICE — PRESERVE
+- **preservationPolicy**: preserve-read-only
+- **futureModificationAllowed**: false
+- **allowedFutureChanges**: []
+- **modificationReason**: []
+- **rebuildAllowed**: false
+- **templateFamily**: notice
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 242, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Business decision required"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: ["BDR-01", "BDR-02", "BDR-03", "BDR-04"]
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Items & Purchases — `Items & Purchases`
+
+- **group**: Inventory
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Inventory / inventory-workspace source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: inventory-workspace
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 246, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["items", "batches"]
+- **fields**: ["Item", "Batch / Location", "Purchased", "Unit cost", "Batch total", "Available", "Items", "Purchase batches", "Current quantity", "Purchase cost"]
+- **summaryMetrics**: ["Items", "Purchase batches", "Current quantity", "Purchase cost"]
+- **tableColumns**: [["Item", "Batch / Location", "Purchased", "Unit cost", "Batch total", "Available"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["purchase"]
+- **primaryCTA**: purchase
+- **dialogs**: ["purchase"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Stock items and purchase batches"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Stock Issues — `Stock Issues`
+
+- **group**: Inventory
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Inventory / inventory-workspace source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: inventory-workspace
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 247, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["issues", "batches", "items"]
+- **fields**: ["Date / Item", "Batch purchase cost", "Vehicle / Job", "Quantity", "Issue price", "Issue total", "Cost basis", "Margin"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Date / Item", "Batch purchase cost", "Vehicle / Job", "Quantity", "Issue price", "Issue total", "Cost basis", "Margin"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["issue"]
+- **primaryCTA**: issue
+- **dialogs**: ["issue"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Inventory issues"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Stock Reports — `Stock Reports`
+
+- **group**: Inventory
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Inventory / inventory-workspace source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: inventory-workspace
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 248, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Purchased quantity", "Purchase total", "Issue total", "Margin"]
+- **summaryMetrics**: ["Purchased quantity", "Purchase total", "Issue total", "Margin"]
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Source renders summary metrics only; no detail table branch. Do not invent a current batch table."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Garage Revenue — `Garage Revenue`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Company Accounting / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 249, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Job / Customer vehicle", "Garage", "Charges", "Actual receipts", "Outstanding"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Job / Customer vehicle", "Garage", "Charges", "Actual receipts", "Outstanding"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Customer Garage charges and receipts"]
+- **emptyStates**: ["No Customer Garage activity has been recorded."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Company Income — `Company Income`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Company Accounting / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 250, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["otherIncomeReceipts"]
+- **fields**: ["Timestamp", "Source / Description", "Garage", "Method", "Amount"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Timestamp", "Source / Description", "Garage", "Method", "Amount"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["companyIncome"]
+- **primaryCTA**: companyIncome
+- **dialogs**: ["companyIncome"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Other Company Income"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Company Expenses — `Company Expenses`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Company Accounting / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 251, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["expenses"]
+- **fields**: ["Date", "Description", "Garage", "Amount"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Date", "Description", "Garage", "Amount"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["companyExpense"]
+- **primaryCTA**: companyExpense
+- **dialogs**: ["companyExpense"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Company direct expenses"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Old route map claims correction form, but current page has Add expense only and no expense-correction FormKey/submit handler."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Running Capital — `Running Capital`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Company Accounting / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 252, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Vehicle", "Contribution", "Recovered", "Open", "Company contributions", "Actual recoveries", "Open / unrecovered"]
+- **summaryMetrics**: ["Company contributions", "Actual recoveries", "Open / unrecovered"]
+- **tableColumns**: [["Vehicle", "Contribution", "Recovered", "Open"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["capitalRecovery"]
+- **primaryCTA**: capitalRecovery
+- **dialogs**: ["capitalRecovery"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Company Running Capital by Vehicle"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Company Result — `Company Result`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Company Accounting / result-summary source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: result-summary
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 253, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Report line", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Report line", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Company result view"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: ["BDR-01", "BDR-02", "BDR-03", "BDR-04"]
+- **notes**: ["Accounting and report directory use the same view identity; provisional components only. Exact distributable basis is BDR."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Transactions — `Transactions`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Company Accounting / financial-overview-ledger source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: financial-overview-ledger
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 260, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Date", "Event", "Linked record", "Amount", "Method"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Date", "Event", "Linked record", "Amount", "Method"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Recorded financial events"]
+- **emptyStates**: ["No recorded events in the shared demo data."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Company-wide source register; capital recovery is allocation, not new receipt. Refunds negative; date descending then ID. No inferred cash balance."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### All Reports — `All Reports`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-directory source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-directory
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 256, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Report", "Current derived value", "Vehicles", "Garage revenue collected", "Customer outstanding", "Company expenses"]
+- **summaryMetrics**: ["Vehicles", "Garage revenue collected", "Customer outstanding", "Company expenses"]
+- **tableColumns**: [["Report", "Current derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Report directory"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Audit & Corrections — `Audit & Corrections`
+
+- **group**: Audit
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Audit / correction-audit source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: correction-audit
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 261, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["audit"]
+- **fields**: ["Date", "Source", "Change", "Reason", "Action", "Detail"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Date", "Source", "Change", "Reason"], ["Date", "Action", "Detail"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Linked correction history", "Demo action log"]
+- **emptyStates**: ["No linked corrections recorded.", "No demo actions recorded."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Garages / Branches — `Garages / Branches`
+
+- **group**: Settings
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Settings / settings-admin source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: settings-admin
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 254, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: ["garages"]
+- **fields**: ["Garage", "Location", "Status", "Actions"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Garage", "Location", "Status", "Actions"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["garage", "garageEdit"]
+- **primaryCTA**: garage
+- **dialogs**: ["garage", "garageEdit"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Garage settings"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Demo Data — `Demo Data`
+
+- **group**: Settings
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Settings / settings-admin source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: settings-admin
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 255, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["import", "reset"]
+- **primaryCTA**: import
+- **dialogs**: ["import", "reset"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Shared Demo Data"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Import replaces validated snapshot; reset needs confirmation. No import/reset was executed during inspection."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Vehicle Detail — `Vehicle Detail`
+
+- **group**: Contextual Detail
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Contextual Detail / operational-detail source view
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial
+- **preservationClassification**: EXISTING — VERIFIED BUG FIX REQUIRED
+- **preservationPolicy**: verified-bug-fix-and-complete-missing-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Complete listed missing integration only, preserve accepted components/layout", "Replace constant Stock Running Capital zero with actual linked contribution or explicit unavailable; retain card design"]
+- **modificationReason**: ["CURRENT IMPLEMENTATION: image, identity, totals and linked Job navigation. Create Job/Add Expense callbacks show messages only. MISSING REQUIREMENT: working forms. MINIMAL ADDITION: wire callbacks without rebuilding.", "VehicleDetailView.tsx:126 always renders Stock capital as 0; it is not a source-derived contribution."]
+- **rebuildAllowed**: false
+- **templateFamily**: operational-detail
+- **sourceFiles**: ["demo/react/src/components/VehicleDetailView.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 235, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/VehicleDetailView.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: []
+- **fields**: ["Vehicle cost", "Company Running Capital", "Customer outstanding", "Garage jobs", "Status", "registration", "model", "type", "person", "current Garage", "status", "vehicle image"]
+- **summaryMetrics**: ["Vehicle cost", "Company Running Capital or Customer outstanding", "Garage jobs", "Status"]
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["job", "vehicleExpense"]
+- **primaryCTA**: job
+- **dialogs**: ["job", "vehicleExpense"]
+- **detailRoutes**: ["Garage Job Detail"]
+- **conditionalSections**: ["Garage history"]
+- **emptyStates**: ["No garage jobs yet."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["CURRENT IMPLEMENTATION: image, identity, totals and linked Job navigation. Create Job/Add Expense callbacks show messages only. MISSING REQUIREMENT: working forms. MINIMAL ADDITION: wire callbacks without rebuilding.", "Runtime/keyboard/responsive browser behavior UNVERIFIED in this task.", "VERIFIED BUG: Stock Running Capital card is hard-coded to zero. Correct only value mapping/unavailable feedback; retain accepted card/layout."]
+- **currentReactContract**: [{"file": "demo/react/src/components/VehicleDetailView.tsx", "tableColumns": [], "headings": ["Garage history"], "callbacks": ["onBack", "onCreateJob", "onAddExpense", "onViewJobDetail", "onClick"], "emptyStateText": ["/* Exact empty-state message from IMAGE 2: \"No garage jobs yet.\" */", "No garage jobs yet."]}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Garage Job Detail — `Garage Job Detail`
+
+- **group**: Contextual Detail
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Contextual Detail / operational-detail source view
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial
+- **preservationClassification**: EXISTING — VERIFIED BUG FIX REQUIRED
+- **preservationPolicy**: verified-bug-fix-and-complete-missing-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Correct invented capital display only", "Complete missing verified callbacks/forms/data integration"]
+- **modificationReason**: ["CURRENT IMPLEMENTATION: accepted work/cost/charge/history tables and origin-aware back link. Add/Receive callbacks show messages only.", "VERIFIED BUG: runningCapital=max(0,vehicle.purchase-150000) invents a contribution. MINIMAL CORRECTION: actual linked contribution selector or unavailable; preserve cards/layout.", "MISSING REQUIREMENT: actual work/receipt/cost/charge forms and state updates."]
+- **rebuildAllowed**: false
+- **templateFamily**: operational-detail
+- **sourceFiles**: ["demo/react/src/components/GarageJobDetailView.tsx", "demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 221, "level": "VERIFIED FROM REPOSITORY"}, {"file": "demo/react/src/components/GarageJobDetailView.tsx", "line": 1, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["React App local initial* state"]
+- **entities**: ["expenses", "payments"]
+- **fields**: ["Date", "Type", "Work details", "Type / date", "Description", "Amount", "Cost", "Time", "Change", "Actor", "Note", "Status", "Work entries", "Charges", "Outstanding", "Job costs", "Company Running Capital", "Job number", "description", "vehicle registration/model", "customer/investor", "Garage", "date"]
+- **summaryMetrics**: ["Status", "Work entries", "Charges/Outstanding for Customer", "Job costs/Company Running Capital for Stock"]
+- **tableColumns**: [["Date", "Type", "Work details"], ["Type / date", "Description", "Amount"], ["Date", "Description", "Cost"], ["Time", "Change", "Actor", "Note"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: ["Open", "Completed"]
+- **actions**: ["jobWork", "jobExpense", "customerCharge", "customerReceipt"]
+- **primaryCTA**: jobWork
+- **dialogs**: ["jobWork", "jobExpense", "customerCharge", "customerReceipt"]
+- **detailRoutes**: []
+- **conditionalSections**: ["Work log", "Customer charges and receipts", "Stock vehicle costs", "Status history"]
+- **emptyStates**: ["No work entries recorded.", "No charges or actual receipts yet.", "No costs recorded."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors", "verified dialog integration"]
+- **responsiveRules**: ["Preserve accepted responsive composition; validate requested viewports."]
+- **businessDecisionsRequired**: []
+- **notes**: ["CURRENT IMPLEMENTATION: accepted work/cost/charge/history tables and origin-aware back link. Add/Receive callbacks show messages only.", "VERIFIED BUG: runningCapital=max(0,vehicle.purchase-150000) invents a contribution. MINIMAL CORRECTION: actual linked contribution selector or unavailable; preserve cards/layout.", "MISSING REQUIREMENT: actual work/receipt/cost/charge forms and state updates.", "Runtime/keyboard/responsive browser behavior UNVERIFIED in this task."]
+- **currentReactContract**: [{"file": "demo/react/src/components/GarageJobDetailView.tsx", "tableColumns": ["Date", "Type / Category", "Work Details", "Type / Date", "Description", "Amount", "Date", "Description", "Cost", "Time", "Change", "Actor", "Note"], "headings": ["Work Log", "Status History"], "callbacks": ["onSelectGarage", "onBack", "onAddWork", "onAddCostOrCharge", "onReceive", "onToggleJobStatus", "onClick"], "emptyStateText": ["No work entries recorded. Use \"+ Add work\" to record labor and maintenance.", "No charges or actual receipts recorded yet.", "No stock vehicle costs recorded for this job."]}]
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Company Consolidated — `Company Consolidated`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 47, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Garage-wise — `Garage-wise`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 55, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Vehicle Cost — `Vehicle Cost`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 61, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Investor — `Investor`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 259, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: ["Old view renders BOTH generic Investor report and Investor register. Preserve both sections or explicitly review duplicate presentation."]
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Investor Fund Report — `Investor Fund Report`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 62, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Expense — `Expense`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 63, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Garage Jobs Report — `Garage Jobs Report`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 64, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: ["Open", "Completed"]
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Inventory Current Stock — `Inventory Current Stock`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 65, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Inventory Purchases — `Inventory Purchases`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 66, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Inventory Issues — `Inventory Issues`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 67, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Product Margin — `Product Margin`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 68, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Sales — `Sales`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 69, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Buyer Receivables — `Buyer Receivables`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 70, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Customer Garage Receivables — `Customer Garage Receivables`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 71, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Running Capital Report — `Running Capital Report`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / report-viewer source view
+- **status**: PENDING
+- **implementationStatus**: pending
+- **preservationClassification**: PENDING — IMPLEMENT
+- **preservationPolicy**: implement-pending-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Implement pending content using verified family contracts"]
+- **modificationReason**: []
+- **rebuildAllowed**: true
+- **templateFamily**: report-viewer
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 72, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: ["Record", "Derived value"]
+- **summaryMetrics**: []
+- **tableColumns**: [["Record", "Derived value"]]
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["No matching source records for this report."]
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: []
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Owner Distribution — `Owner Distribution`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Reports / notice source view
+- **status**: READ-ONLY NOTICE
+- **implementationStatus**: pending-notice
+- **preservationClassification**: READ-ONLY NOTICE — PRESERVE
+- **preservationPolicy**: preserve-read-only
+- **futureModificationAllowed**: false
+- **allowedFutureChanges**: []
+- **modificationReason**: []
+- **rebuildAllowed**: false
+- **templateFamily**: notice
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/types.ts"]
+- **evidence**: [{"file": "demo/accountant-ui-demo/src/components/workspace-full.tsx", "line": 258, "level": "VERIFIED FROM REPOSITORY"}]
+- **dataSources**: ["Main demo Data snapshot + repository.load/save"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: ["Global Garage selector; scope below"]
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: []
+- **primaryCTA**: None — read-only
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: ["Owner Distribution report"]
+- **emptyStates**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **dependencies**: ["AppShell", "stable IDs", "source selectors"]
+- **responsiveRules**: ["Use family layout at full available width; keep money/status/actions accessible."]
+- **businessDecisionsRequired**: ["BDR-01", "BDR-02", "BDR-03", "BDR-04"]
+- **notes**: []
+- **currentReactContract**: []
+- **minimalWorkRule**: CURRENT IMPLEMENTATION → MISSING REQUIREMENT → MINIMAL ADDITION. Existing accepted layout/components/route/interactions remain. Never replace page for a reusable template.
+
+### Inventory (TopBar key) — `Inventory`
+
+- **group**: Inventory
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Shared TopBar section key; current incomplete landing integration
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial-navigation
+- **preservationClassification**: EXISTING — SHARED-SHELL INTEGRATION ONLY
+- **preservationPolicy**: shared-shell-integration-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Map existing TopBar key to registry primary Items & Purchases through existing route dispatch; preserve TopBar design and target-page policy"]
+- **modificationReason**: ["TopBar passes Inventory directly. Registry has no matching child; PendingViewPlaceholder defaults to Dashboard metadata."]
+- **rebuildAllowed**: false
+- **templateFamily**: shared-navigation-alias
+- **sourceFiles**: ["demo/react/src/App.tsx", "demo/react/src/components/TopBar.tsx", "demo/react/src/data/navigationRegistry.ts", "demo/react/src/components/PendingViewPlaceholder.tsx"]
+- **evidence**: [{"file": "demo/react/src/components/TopBar.tsx", "line": 43, "level": "VERIFIED FROM CURRENT REACT"}]
+- **dataSources**: ["activeRoute/activeTab only"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: []
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["Select existing section key"]
+- **primaryCTA**: Existing TopBar section button
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["Currently falls back to Dashboard placeholder metadata, not a completed Inventory landing screen."]
+- **garageFilteringBehavior**: No independent data scope; use mapped target contract.
+- **dependencies**: ["App dispatcher", "navigationRegistry primaryRouteKey"]
+- **responsiveRules**: ["Preserve current TopBar composition"]
+- **businessDecisionsRequired**: []
+- **notes**: ["This is a technical navigation key, not a new business page. Intended registry-primary mapping is proposed integration based on existing navigation configuration."]
+- **currentReactContract**: []
+- **minimalWorkRule**: Change only key normalization/navigation integration; preserve existing TopBar and target content.
+
+### Accounting (TopBar key) — `Accounting`
+
+- **group**: Company Accounting
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Shared TopBar section key; current incomplete landing integration
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial-navigation
+- **preservationClassification**: EXISTING — SHARED-SHELL INTEGRATION ONLY
+- **preservationPolicy**: shared-shell-integration-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Map existing TopBar key to registry primary Garage Revenue through existing route dispatch; preserve TopBar design and target-page policy"]
+- **modificationReason**: ["TopBar passes Accounting directly. Registry has no matching child; PendingViewPlaceholder defaults to Dashboard metadata."]
+- **rebuildAllowed**: false
+- **templateFamily**: shared-navigation-alias
+- **sourceFiles**: ["demo/react/src/App.tsx", "demo/react/src/components/TopBar.tsx", "demo/react/src/data/navigationRegistry.ts", "demo/react/src/components/PendingViewPlaceholder.tsx"]
+- **evidence**: [{"file": "demo/react/src/components/TopBar.tsx", "line": 43, "level": "VERIFIED FROM CURRENT REACT"}]
+- **dataSources**: ["activeRoute/activeTab only"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: []
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["Select existing section key"]
+- **primaryCTA**: Existing TopBar section button
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["Currently falls back to Dashboard placeholder metadata, not a completed Accounting landing screen."]
+- **garageFilteringBehavior**: No independent data scope; use mapped target contract.
+- **dependencies**: ["App dispatcher", "navigationRegistry primaryRouteKey"]
+- **responsiveRules**: ["Preserve current TopBar composition"]
+- **businessDecisionsRequired**: []
+- **notes**: ["This is a technical navigation key, not a new business page. Intended registry-primary mapping is proposed integration based on existing navigation configuration."]
+- **currentReactContract**: []
+- **minimalWorkRule**: Change only key normalization/navigation integration; preserve existing TopBar and target content.
+
+### Reports (TopBar key) — `Reports`
+
+- **group**: Reports
+- **urlRoute**: /
+- **aliases**: []
+- **purpose**: Shared TopBar section key; current incomplete landing integration
+- **status**: PARTIALLY IMPLEMENTED
+- **implementationStatus**: partial-navigation
+- **preservationClassification**: EXISTING — SHARED-SHELL INTEGRATION ONLY
+- **preservationPolicy**: shared-shell-integration-only
+- **futureModificationAllowed**: true
+- **allowedFutureChanges**: ["Map existing TopBar key to registry primary All Reports through existing route dispatch; preserve TopBar design and target-page policy"]
+- **modificationReason**: ["TopBar passes Reports directly. Registry has no matching child; PendingViewPlaceholder defaults to Dashboard metadata."]
+- **rebuildAllowed**: false
+- **templateFamily**: shared-navigation-alias
+- **sourceFiles**: ["demo/react/src/App.tsx", "demo/react/src/components/TopBar.tsx", "demo/react/src/data/navigationRegistry.ts", "demo/react/src/components/PendingViewPlaceholder.tsx"]
+- **evidence**: [{"file": "demo/react/src/components/TopBar.tsx", "line": 43, "level": "VERIFIED FROM CURRENT REACT"}]
+- **dataSources**: ["activeRoute/activeTab only"]
+- **entities**: []
+- **fields**: []
+- **summaryMetrics**: []
+- **tableColumns**: []
+- **filters**: []
+- **searchFields**: []
+- **sortControls**: []
+- **statuses**: []
+- **actions**: ["Select existing section key"]
+- **primaryCTA**: Existing TopBar section button
+- **dialogs**: []
+- **detailRoutes**: []
+- **conditionalSections**: []
+- **emptyStates**: ["Currently falls back to Dashboard placeholder metadata, not a completed Reports landing screen."]
+- **garageFilteringBehavior**: No independent data scope; use mapped target contract.
+- **dependencies**: ["App dispatcher", "navigationRegistry primaryRouteKey"]
+- **responsiveRules**: ["Preserve current TopBar composition"]
+- **businessDecisionsRequired**: []
+- **notes**: ["This is a technical navigation key, not a new business page. Intended registry-primary mapping is proposed integration based on existing navigation configuration."]
+- **currentReactContract**: []
+- **minimalWorkRule**: Change only key normalization/navigation integration; preserve existing TopBar and target content.
+
+### Detailed report contracts
+
+No existing export actions or date/investor selectors were found; do not advertise them as existing. Source derivations below preserve current report scope.
+
+#### Company Consolidated → `Company Consolidated`
+
+- **name**: Company Consolidated
+- **route**: Company Consolidated
+- **pageId**: company-consolidated
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:47`
+```tsx
+if(page==='Company Consolidated'){const values=companyReportValues(data,garageId==='all'?undefined:garageId);return [
+  {key:'Customer Garage receipts',value:cash(values.customerReceipts)},
+  {key:'Other Company income',value:cash(values.otherIncome)},
+  {key:'Company direct expenses',value:cash(values.companyExpenses)},
+  {key:'Inventory margin',value:cash(values.inventoryMargin)},
+  {key:'Vehicle Company Share',value:'Not posted · BUSINESS DECISION REQUIRED'},
+  {key:'Running Capital open · all Garages',value:cash(values.runningCapitalOpen)},
+ ];}
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Garage-wise → `Garage-wise`
+
+- **name**: Garage-wise
+- **route**: Garage-wise
+- **pageId**: garage-wise
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:55`
+```tsx
+if(page==='Garage-wise')return garageReportValues(data,garageId==='all'?undefined:garageId).flatMap(g=>[
+  {key:`${g.name} · Customer receipts`,value:cash(g.customerReceipts)},
+  {key:`${g.name} · Other income`,value:cash(g.otherIncome)},
+  {key:`${g.name} · Company expenses`,value:cash(g.companyExpenses)},
+  {key:`${g.name} · Inventory margin`,value:cash(g.inventoryMargin)},
+ ]);
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Vehicle Cost → `Vehicle Cost`
+
+- **name**: Vehicle Cost
+- **route**: Vehicle Cost
+- **pageId**: vehicle-cost
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:61`
+```tsx
+if(page==='Vehicle Cost')return data.vehicles.filter(v=>garageId==='all'||v.garageId===garageId).map(v=>({key:`${v.number} · ${v.model}`,value:cash(totalVehicleCost(data,v.id))}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Investor → `Investor`
+
+- **name**: Investor
+- **route**: Investor
+- **pageId**: investor
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: ["No matching source records for this report."]
+- **templateOverrides**: ["Investor has generic report plus register; Company Result shares accounting identity; Owner Distribution notice only"]
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:62`
+```tsx
+if(page==='Investor'||page==='Investor Fund'||page==='Investor Fund Report')return data.investors.flatMap(i=>{const p=fundPosition(data,i.id);return[{key:`${i.name} · Principal`,value:cash(p.principal)},{key:`${i.name} · Available Fund`,value:cash(p.available)},{key:`${i.name} · Used / locked`,value:cash(p.used)},{key:`${i.name} · Recovered`,value:cash(p.recovered)}]});
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Investor Fund → `Investor Fund Report`
+
+- **name**: Investor Fund
+- **route**: Investor Fund Report
+- **pageId**: investor-fund-report
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Main source tables map Company-wide records; Garage selector visibility does not imply these tables are scoped.
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Expense → `Expense`
+
+- **name**: Expense
+- **route**: Expense
+- **pageId**: expense
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:63`
+```tsx
+if(page==='Expense')return data.expenses.filter(e=>garages.has(e.garageId)).map(e=>({key:`${e.date} · ${e.description}`,value:cash(effectiveExpense(e).amount)}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Garage Jobs → `Garage Jobs Report`
+
+- **name**: Garage Jobs
+- **route**: Garage Jobs Report
+- **pageId**: garage-jobs-report
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:64`
+```tsx
+if(page==='Garage Jobs'||page==='Garage Jobs Report')return data.jobs.filter(j=>garages.has(j.garageId)).map(j=>({key:`${j.number} · ${data.vehicles.find(v=>v.id===j.vehicleId)?.number??''} · ${j.description}`,value:j.status,rowKey:j.id}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Inventory Current Stock → `Inventory Current Stock`
+
+- **name**: Inventory Current Stock
+- **route**: Inventory Current Stock
+- **pageId**: inventory-current-stock
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:65`
+```tsx
+if(page==='Inventory Current Stock')return data.items.map(item=>({key:item.name,value:`${data.batches.filter(b=>b.itemId===item.id&&garages.has(b.garageId)).reduce((n,b)=>n+remaining(data,b),0)} units`}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Inventory Purchases → `Inventory Purchases`
+
+- **name**: Inventory Purchases
+- **route**: Inventory Purchases
+- **pageId**: inventory-purchases
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:66`
+```tsx
+if(page==='Inventory Purchases')return data.batches.filter(b=>garages.has(b.garageId)).map(b=>({key:`${data.items.find(i=>i.id===b.itemId)?.name??'Item'} · ${b.date} · ${cash(b.cost)}/unit`,value:cash(b.quantity*b.cost),rowKey:b.id}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Inventory Issues → `Inventory Issues`
+
+- **name**: Inventory Issues
+- **route**: Inventory Issues
+- **pageId**: inventory-issues
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:67`
+```tsx
+if(page==='Inventory Issues')return data.issues.filter(i=>garages.has(data.jobs.find(j=>j.id===i.jobId)?.garageId??data.batches.find(b=>b.id===i.batchId)?.garageId??'')).map(issue=>({key:`${data.items.find(i=>i.id===data.batches.find(b=>b.id===issue.batchId)?.itemId)?.name??'Item'} · ${issue.date}`,value:cash(issue.quantity*issue.price)}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Product Margin → `Product Margin`
+
+- **name**: Product Margin
+- **route**: Product Margin
+- **pageId**: product-margin
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:68`
+```tsx
+if(page==='Product Margin')return data.items.map(item=>({key:item.name,value:cash(data.issues.filter(i=>data.batches.find(b=>b.id===i.batchId)?.itemId===item.id&&garages.has(issueGarage(data,i)??'')).reduce((n,i)=>n+i.quantity*(i.price-(data.batches.find(b=>b.id===i.batchId)?.cost??0)),0))}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Sales → `Sales`
+
+- **name**: Sales
+- **route**: Sales
+- **pageId**: sales
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:69`
+```tsx
+if(page==='Sales')return data.sales.filter(s=>garages.has(data.vehicles.find(v=>v.id===s.vehicleId)?.garageId??'')).map(s=>({key:`${data.vehicles.find(v=>v.id===s.vehicleId)?.number} · ${s.buyer}`,value:`${cash(salePrice(s))} · ${cash(buyerReceivable(data,s))} receivable`}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Buyer Receivables → `Buyer Receivables`
+
+- **name**: Buyer Receivables
+- **route**: Buyer Receivables
+- **pageId**: buyer-receivables
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:70`
+```tsx
+if(page==='Buyer Receivables')return data.sales.filter(s=>garages.has(data.vehicles.find(v=>v.id===s.vehicleId)?.garageId??'')).map(s=>({key:`${s.buyer} · ${data.vehicles.find(v=>v.id===s.vehicleId)?.number}`,value:cash(buyerReceivable(data,s))}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Customer Garage Receivables → `Customer Garage Receivables`
+
+- **name**: Customer Garage Receivables
+- **route**: Customer Garage Receivables
+- **pageId**: customer-garage-receivables
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:71`
+```tsx
+if(page==='Customer Garage Receivables')return data.jobs.filter(j=>garages.has(j.garageId)&&data.vehicles.find(v=>v.id===j.vehicleId)?.type==='Customer').map(j=>({key:`${j.number} · ${data.vehicles.find(v=>v.id===j.vehicleId)?.number}`,value:cash(Math.max(0,j.charge-j.received-paid(data,'customer',j.id)))}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Running Capital → `Running Capital Report`
+
+- **name**: Running Capital
+- **route**: Running Capital Report
+- **pageId**: running-capital-report
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: []
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: No matching source records for this report.
+- **templateOverrides**: []
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:72`
+```tsx
+if(page==='Running Capital'||page==='Running Capital Report')return capitalReport(data,garageIds).rows.map(r=>({key:data.vehicles.find(v=>v.id===r.vehicleId)?.number??r.vehicleId,value:r.incomplete?'Unavailable':cash(r.open),rowKey:r.vehicleId}));
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Company Result → `Company Result`
+
+- **name**: Company Result
+- **route**: Company Result
+- **pageId**: company-result
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Report line", "Derived value"]]
+- **sections**: ["Company result view"]
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **templateOverrides**: ["Investor has generic report plus register; Company Result shares accounting identity; Owner Distribution notice only"]
+- **garageFilteringBehavior**: Use capitalReport semantics; Vehicle-linked recoveries have no individual Garage allocation. Company Consolidated uses all-Garage Running Capital open.
+Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx:39`
+```tsx
+if(page==='Company Result')return [
+  {key:'Customer Garage receipts',value:cash(data.jobs.filter(j=>garages.has(j.garageId)).reduce((n,j)=>n+j.received+paid(data,'customer',j.id),0))},
+  {key:'Other Company income',value:cash((data.otherIncomeReceipts??[]).filter(r=>garages.has(r.garageId)).reduce((n,r)=>n+r.amount,0))},
+  {key:'Company direct expenses',value:cash(data.expenses.filter(e=>e.category==='Company'&&garages.has(e.garageId)).reduce((n,e)=>n+effectiveExpense(e).amount,0))},
+  {key:'Inventory margin',value:cash(inventory.issueValue-inventory.costBasis)},
+  {key:'Vehicle Company Share',value:'Not posted · BUSINESS DECISION REQUIRED'},
+  {key:'Running Capital open · all Garages',value:cash(capitalReport(data,garageIds).companyOpen)},
+ ];
+```
+- **preservationClassification**: PENDING — IMPLEMENT
+
+#### Owner Distribution → `Owner Distribution`
+
+- **name**: Owner Distribution
+- **route**: Owner Distribution
+- **pageId**: owner-distribution
+- **filters**: ["Global Garage selector, source-specific attribution"]
+- **columns**: [["Record", "Derived value"]]
+- **sections**: ["Owner Distribution report"]
+- **dataSource**: reportRowsFor(Data,page,garageId,scopedGarages) and referenced selectors
+- **summaryValues**: []
+- **exportActions**: []
+- **emptyState**: ["No explicit page-specific empty state found in main source; React listing/job-detail states described in notes."]
+- **templateOverrides**: ["Investor has generic report plus register; Company Result shares accounting identity; Owner Distribution notice only"]
+- **garageFilteringBehavior**: Use actual job/vehicle/receipt attribution for Garage-filtered source records.
+- **preservationClassification**: READ-ONLY NOTICE — PRESERVE
+
+## 8. Data Flow Matrix
+
+| Family | Current data path | Integration constraint |
+|---|---|---|
+| dashboard | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| vehicle-listing | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| operational-queue | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| financial-overview-ledger | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| correction-audit | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| notice | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| inventory-workspace | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| result-summary | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| report-directory | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| settings-admin | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| operational-detail | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+| report-viewer | Main Data snapshot → selectors/filter → view; existing React screens use App initial* local state | Explicit source/ID mapping before connection; no page rewrite |
+
+React refresh resets initial arrays; main refresh reloads file snapshot. React receipt/sale callbacks only add messages/activity; vehicle registration adds local Vehicle; Job toggle updates local statusHistory. Preserve stable UUID relationships and opening-balance semantics when mapping schemas. No shared state or API bridge is currently implemented.
+
+## 9. API/Action Flow Matrix
+
+- **React local initial* state / REQUIRED**: Current React data path; no business fetch/axios client found. Refresh resets source arrays, not backend sync.
+- **GET /api/mock / REQUIRED**: Main demo initial load; CONDITIONAL explicit refresh. Seed or shared JSON snapshot.
+- **PUT /api/mock / CONDITIONAL**: Main demo confirmed action/import/reset; origin guard, revision conflict, parse validation, serialized queue, atomic rename. 400/403/409/500 handled as source failures.
+
+Main save flow: frontend validation → next Data + demo audit action → PUT revision snapshot → origin guard → queue → conflict check → parseDemoFile → atomic file rename → new snapshot/revision → UI success/close. Failed validation/conflict leaves explicit failure; 409 needs latest snapshot. No call is evidenced REDUNDANT or DUPLICATE. No new backend endpoints are proposed.
+
+## 10. Shared Layout Contract
+
+```json
+{
+  "sourceFiles": [
+    "demo/react/src/components/AppShell.tsx",
+    "demo/react/src/components/SidebarRail.tsx",
+    "demo/react/src/components/SidebarFlyout.tsx",
+    "demo/react/src/components/MobileDrawer.tsx",
+    "demo/react/src/components/TopBar.tsx",
+    "demo/react/src/components/StatusMessageLayer.tsx"
+  ],
+  "implementationStatus": "implemented",
+  "preservationClassification": "EXISTING — SHARED-SHELL INTEGRATION ONLY",
+  "preservationPolicy": "preserve",
+  "allowedFutureChanges": [
+    "Necessary pending-route navigation integration",
+    "Verified shared responsive/accessibility fixes only"
+  ],
+  "rebuildAllowed": false,
+  "footer": "AppShell flex column min-h-[100dvh]; main flex-1; footer mt-auto follows long content and reaches bottom on short pages; not fixed.",
+  "runtime": "UNVERIFIED; source responsive classes and layout flow inspected."
+}
+```
+
+Search/help/logout currently produce messages, not completed workflows. React theme supports Light/Dark only; System persistence exists in main demo. Accepted current layouts retain their own components when pending families are introduced.
+
+## 11. Reusable UI Template Families
+
+- **dashboard**: Dashboard. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **vehicle-listing**: All Vehicles, Stock / Investor, Customer Vehicles. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **operational-queue**: Garage Jobs. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **financial-overview-ledger**: Investor Fund, Vehicle Sales, Collections, Garage Revenue, Company Income, Company Expenses, Running Capital, Transactions. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **correction-audit**: Sale Corrections & Refunds, Audit & Corrections. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **notice**: Investor Profit & Interim, Reconciliation & Settlement, Owner Distribution. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **inventory-workspace**: Items & Purchases, Stock Issues, Stock Reports. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **result-summary**: Company Result. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **report-directory**: All Reports. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **settings-admin**: Garages / Branches, Demo Data. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **operational-detail**: Vehicle Detail, Garage Job Detail. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+- **report-viewer**: Company Consolidated, Garage-wise, Vehicle Cost, Investor, Investor Fund Report, Expense, Garage Jobs Report, Inventory Current Stock, Inventory Purchases, Inventory Issues, Product Margin, Sales, Buyer Receivables, Customer Garage Receivables, Running Capital Report. Pending pages primarily. Existing accepted components keep their implementation; no automatic migration.
+
+Shared-navigation-alias family: Inventory → Items & Purchases; Accounting → Garage Revenue; Reports → All Reports. PROPOSED minimal normalization based on registry primary routes; preserve accepted TopBar design.
+
+## 12. Shared Component Strategy
+
+- **AppShell** (existing — preserve): Shell/navigation/footer integration only
+- **AllVehiclesView + VehicleImageCard** (existing — preserve): Mode-based all/stock/customer card system
+- **StatusMessageLayer** (existing — preserve): Feedback after actual state outcome
+- **PageHeader / MetricGroup / DataTable / EmptyState** (PROPOSED): Pending screen read primitives; do not migrate accepted pages
+- **FormDialog / FormSection / FieldRow / ValidationMessage / DialogFooter** (PROPOSED): Missing form UI with accepted dialog language
+- **ConfirmDialog / ImportDialog** (PROPOSED): Dataset replacement and destructive reset confirmation
+- **ReportShell** (PROPOSED): One configurable read-only report family with source-specific sections and exceptions
+
+## 13. Shared Forms/Dialog Architecture
+
+PROPOSED: FormDialog, FormSection, FieldRow, ValidationMessage and DialogFooter for missing forms. Reuse accepted modal presentation, not 21 unrelated modal implementations. Current required/select/default quirks are captured, not silently strengthened. SourceDeclaration includes complete options/dynamic defaults; submitSource includes current guard/dependency behavior. Service validation and import parsing remain part of each source contract.
+
+### Existing React modal modes
+```json
+[
+  {
+    "id": "receipt",
+    "sourceFile": "demo/react/src/components/QuickActionModal.tsx",
+    "fields": [
+      "Buyer Name (required)",
+      "Amount (number, required)",
+      "Payment Method (Bank transfer, UPI, Cheque, Cash)"
+    ],
+    "submit": "Message/activity only; no receipt or Sale update",
+    "defaults": [
+      "Rohan Das",
+      "50000",
+      "Bank transfer"
+    ],
+    "preservationPolicy": "complete-missing-only",
+    "rebuildAllowed": false
+  },
+  {
+    "id": "sale",
+    "sourceFile": "demo/react/src/components/QuickActionModal.tsx",
+    "fields": [
+      "Stock Vehicle (two hard-coded options)",
+      "Buyer Name (required)",
+      "Agreed Sale Price (number, required)"
+    ],
+    "submit": "Message/activity only; no Sale update",
+    "defaults": [
+      "KL 11 AB 4821",
+      "Rohan Das",
+      "650000"
+    ],
+    "preservationPolicy": "complete-missing-only",
+    "rebuildAllowed": false
+  },
+  {
+    "id": "vehicle",
+    "sourceFile": "demo/react/src/components/QuickActionModal.tsx",
+    "fields": [
+      "Registration Number (required)",
+      "Make & Model (required)",
+      "Assigned Investor",
+      "Garage Location"
+    ],
+    "submit": "Adds local Stock Vehicle + activity; hard-coded purchase/totalCost 650000; missing Customer branch",
+    "defaults": [
+      "KL 11 AB 4821",
+      "Jeep Compass Longitude",
+      "first investor",
+      "first garage"
+    ],
+    "preservationPolicy": "complete-missing-only",
+    "rebuildAllowed": false
+  }
+]
+```
+
+### vehicle
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| type | Vehicle type | select | renderer-default | None | None |
+| number | Registration number | text | renderer-default | None | None |
+| model | Make / model | text | renderer-default | None | None |
+| garageId | Current garage | select | renderer-default | None | None |
+| person | Investor or customer name | text | renderer-default | None | None |
+| investorId | Funding investor | select | false | None | None |
+| purchase | Purchase amount | number | false | 0 | 0.01 |
+- **id**: vehicle
+- **triggeredFrom**: ["Dashboard", "All Vehicles", "Stock / Investor", "Customer Vehicles"]
+- **validation**: ["Complete vehicle identity and select a valid garage.", "Select an Investor and enter a valid purchase amount.", "Insufficient available Investor Fund for this vehicle purchase."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+ const openVehicleForm=()=>startForm({key:'vehicle',title:'Register vehicle',fields:[{name:'type',label:'Vehicle type',type:'select',options:[{value:'Stock / Investor',label:'Stock / Investor'},{value:'Customer',label:'Customer'}]},{name:'number',label:'Registration number'},{name:'model',label:'Make / model'},{name:'garageId',label:'Current garage',type:'select',options:garageOptions},{name:'person',label:'Investor or customer name'},{name:'investorId',label:'Funding investor',type:'select',options:investorOptions,required:false,hint:'Required for Stock / Investor vehicles.'},{name:'purchase',label:'Purchase amount',type:'number',min:'0',step:'0.01',required:false,hint:'Funded from the selected Investor Fund.'}]});
+```
+
+submitSource:
+```tsx
+if(form.key==='vehicle'){
+   const type=v('type') as Vehicle['type'], investorId=type==='Stock / Investor'?v('investorId'):undefined, investor=data.investors.find(i=>i.id===investorId), purchase=n('purchase');if(!v('number')||!v('model')||!v('person')||!garages.some(g=>g.id===v('garageId')))throw Error('Complete vehicle identity and select a valid garage.');if(type==='Stock / Investor'&&(!investor||!Number.isFinite(purchase)||purchase<0))throw Error('Select an Investor and enter a valid purchase amount.');if(type==='Stock / Investor'&&purchase>fundPosition(data,investorId!).available)throw Error('Insufficient available Investor Fund for this vehicle purchase.');const vehicle:Vehicle={id:id(),number:v('number'),model:v('model'),type,garageId:v('garageId'),person:v('person'),investorId,status:type==='Customer'?'Customer Vehicle':'Purchased',purchase:type==='Customer'?0:purchase};await save({...next,vehicles:[vehicle,...data.vehicles]},'Vehicle registered');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### job
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| vehicleNumber | Find existing vehicle by registration | text | true | None | None |
+| garageId | Garage | select | renderer-default | None | None |
+| description | Work summary | text | renderer-default | None | None |
+| date | Job date | date | renderer-default | None | None |
+- **id**: job
+- **triggeredFrom**: ["Dashboard", "Garage Jobs", "Vehicle Detail"]
+- **validation**: ["No registered vehicle matches that registration. Add it from Vehicles, then create its Garage Job."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+ const openJobForm=(vehicle?:Vehicle)=>startForm({key:'job',title:'Create garage job',fields:[{name:'vehicleNumber',label:'Find existing vehicle by registration',type:'text',required:true,hint:vehicle?`Selected context: ${vehicle.number} · ${vehicle.model} · ${vehicle.person}`:'Enter a registered number; Garage cannot create Vehicles.'},{name:'garageId',label:'Garage',type:'select',options:garageOptions},{name:'description',label:'Work summary'},{name:'date',label:'Job date',type:'date'}]});
+```
+
+submitSource:
+```tsx
+if(form.key==='job'){
+   const vehicle=data.vehicles.find(x=>x.number.toLowerCase()===v('vehicleNumber').toLowerCase());if(!vehicle||!garages.some(g=>g.id===v('garageId'))||!v('description'))throw Error('No registered vehicle matches that registration. Add it from Vehicles, then create its Garage Job.');const job={id:id(),vehicleId:vehicle.id,garageId:v('garageId'),number:`JOB-${1044+data.jobs.length}`,description:v('description'),status:'Open' as const,date:v('date')||today(),charge:0,received:0,workEntries:[],costs:[],charges:[],statusHistory:[]};await save({...next,jobs:[job,...data.jobs]},'Garage job created');setVehicleId(vehicle.id);setPage('Vehicle Detail');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### jobWork
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| category | Type | select | renderer-default | None | None |
+| description | Work details | text | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: jobWork
+- **triggeredFrom**: ["Garage Jobs", "Garage Job Detail"]
+- **validation**: ["Select a job and describe the work."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'jobWork':startForm({key,title:'Add work entry',fields:[{name:'category',label:'Type',type:'select',options:[{value:'Work',label:'Work'},{value:'Labour',label:'Labour'}]},{name:'description',label:'Work details'},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='jobWork'){
+   const job=data.jobs.find(x=>x.id===jobId);if(!job||!v('description'))throw Error('Select a job and describe the work.');const work={id:id(),date:v('date')||today(),category:v('category') as 'Work'|'Labour',description:v('description')};await save({...next,jobs:data.jobs.map(x=>x.id===job.id?{...x,workEntries:[...(x.workEntries??[]),work]}:x)},'Job work entry added');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### jobExpense
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| vehicleId | Vehicle | select | renderer-default | None | None |
+| jobId | Garage job | select | renderer-default | None | None |
+| description | Description | text | renderer-default | None | None |
+| costType | Expense type | select | renderer-default | None | None |
+| date | Date | date | renderer-default | None | None |
+| amount | Expense amount | number | renderer-default | 0.01 | 0.01 |
+| investor | Investor Fund | number | renderer-default | 0 | 0.01 |
+| capital | Company Running Capital | number | renderer-default | 0 | 0.01 |
+- **id**: jobExpense
+- **triggeredFrom**: ["Garage Jobs", "Garage Job Detail"]
+- **validation**: []
+- **validatorDependencies**: ["createStockJobExpense", "requireFund"]
+
+sourceDeclaration:
+```tsx
+ const openExpenseForm=(vehicle?:Vehicle,job?:typeof jobs[number])=>startForm({key:job?'jobExpense':vehicle?'vehicleExpense':'companyExpense',title:job?'Add approved stock-vehicle job expense':vehicle?'Add direct Stock Vehicle expense':'Record company expense',fields:[...(job?[{name:'vehicleId',label:'Vehicle',type:'select' as const,options:vehicleOptions(['Stock / Investor'])},{name:'jobId',label:'Garage job',type:'select' as const,options:jobOptions(job.vehicleId)}]:vehicle?[{name:'vehicleId',label:'Vehicle',type:'select' as const,options:[{value:vehicle.id,label:`${vehicle.number} · ${vehicle.model}`}]},{name:'garageId',label:'Garage attribution',type:'select' as const,options:garageOptions}]:[{name:'garageId',label:'Garage attribution',type:'select' as const,options:garageOptions}]),{name:'description',label:'Description'},{name:'costType',label:'Expense type',type:'select',options:[{value:'Labour',label:'Labour'},{value:'Direct purchase',label:'Direct purchase'},{value:'Other',label:'Other'}]},{name:'date',label:'Date',type:'date'},{name:'amount',label:'Expense amount',type:'number',min:'0.01',step:'0.01'},...(job||vehicle?[{name:'investor',label:'Investor Fund',type:'number' as const,min:'0',step:'0.01'},{name:'capital',label:'Company Running Capital',type:'number' as const,min:'0',step:'0.01'}]:[])]});
+```
+
+submitSource:
+```tsx
+if(form.key==='jobExpense'){
+   const expense=createStockJobExpense(data,{id:id(),jobId:v('jobId'),vehicleId:v('vehicleId'),date:v('date')||today(),description:v('description'),costType:v('costType') as 'Labour'|'Direct purchase'|'Other',amount:n('amount'),investor:n('investor'),capital:n('capital')});if(expense.investor>0)requireFund(data,expense.vehicleId,expense.investor);await save({...next,expenses:[expense,...data.expenses]},'Stock vehicle job expense added');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### vehicleExpense
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| vehicleId | Vehicle | select | renderer-default | None | None |
+| garageId | Garage attribution | select | renderer-default | None | None |
+| description | Description | text | renderer-default | None | None |
+| costType | Expense type | select | renderer-default | None | None |
+| date | Date | date | renderer-default | None | None |
+| amount | Expense amount | number | renderer-default | 0.01 | 0.01 |
+| investor | Investor Fund | number | renderer-default | 0 | 0.01 |
+| capital | Company Running Capital | number | renderer-default | 0 | 0.01 |
+- **id**: vehicleExpense
+- **triggeredFrom**: ["Vehicle Detail"]
+- **validation**: ["Enter a positive expense and funding allocations that equal its total."]
+- **validatorDependencies**: ["requireFund"]
+
+sourceDeclaration:
+```tsx
+ const openExpenseForm=(vehicle?:Vehicle,job?:typeof jobs[number])=>startForm({key:job?'jobExpense':vehicle?'vehicleExpense':'companyExpense',title:job?'Add approved stock-vehicle job expense':vehicle?'Add direct Stock Vehicle expense':'Record company expense',fields:[...(job?[{name:'vehicleId',label:'Vehicle',type:'select' as const,options:vehicleOptions(['Stock / Investor'])},{name:'jobId',label:'Garage job',type:'select' as const,options:jobOptions(job.vehicleId)}]:vehicle?[{name:'vehicleId',label:'Vehicle',type:'select' as const,options:[{value:vehicle.id,label:`${vehicle.number} · ${vehicle.model}`}]},{name:'garageId',label:'Garage attribution',type:'select' as const,options:garageOptions}]:[{name:'garageId',label:'Garage attribution',type:'select' as const,options:garageOptions}]),{name:'description',label:'Description'},{name:'costType',label:'Expense type',type:'select',options:[{value:'Labour',label:'Labour'},{value:'Direct purchase',label:'Direct purchase'},{value:'Other',label:'Other'}]},{name:'date',label:'Date',type:'date'},{name:'amount',label:'Expense amount',type:'number',min:'0.01',step:'0.01'},...(job||vehicle?[{name:'investor',label:'Investor Fund',type:'number' as const,min:'0',step:'0.01'},{name:'capital',label:'Company Running Capital',type:'number' as const,min:'0',step:'0.01'}]:[])]});
+```
+
+submitSource:
+```tsx
+if(form.key==='vehicleExpense'){
+   const vehicle=data.vehicles.find(x=>x.id===v('vehicleId'));const amount=n('amount'),investor=n('investor'),capital=n('capital');if(!vehicle||vehicle.type!=='Stock / Investor'||!v('description')||amount<=0||Math.round(investor*100)+Math.round(capital*100)!==Math.round(amount*100))throw Error('Enter a positive expense and funding allocations that equal its total.');if(investor>0)requireFund(data,vehicle.id,investor);const expense:Expense={id:id(),vehicleId:vehicle.id,garageId:v('garageId'),description:v('description'),amount,investor,capital,date:v('date')||today(),category:'Vehicle',costType:v('costType') as Expense['costType']};await save({...next,expenses:[expense,...data.expenses]},'Stock vehicle expense added');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### customerCharge
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| category | Charge type | select | renderer-default | None | None |
+| description | Charge details | text | renderer-default | None | None |
+| amount | Amount | number | renderer-default | 0.01 | 0.01 |
+| date | Date | date | False |  |  |
+- **id**: customerCharge
+- **triggeredFrom**: ["Garage Jobs", "Garage Job Detail"]
+- **validation**: ["Enter a valid charge for the selected customer job."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'customerCharge':startForm({key,title:'Add customer charge',fields:[{name:'category',label:'Charge type',type:'select',options:['Work','Labour','Material','Other'].map(x=>({value:x,label:x}))},{name:'description',label:'Charge details'},{name:'amount',label:'Amount',type:'number',min:'0.01',step:'0.01'},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='customerCharge'){
+   const job=data.jobs.find(x=>x.id===jobId);if(!job||!v('description')||n('amount')<=0)throw Error('Enter a valid charge for the selected customer job.');const charge={id:id(),date:v('date')||today(),category:v('category') as 'Work'|'Labour'|'Material'|'Other',description:v('description'),amount:n('amount')};await save({...next,jobs:data.jobs.map(x=>x.id===job.id?{...x,charges:[...(x.charges??[]),charge],charge:round(x.charge+charge.amount)}:x)},'Customer job charge added');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### customerReceipt
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| jobId | Customer Garage Job | select | renderer-default | None | None |
+| amount | Receipt amount | number | renderer-default | 0.01 | 0.01 |
+| method | Method | select | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: customerReceipt
+- **triggeredFrom**: ["Garage Jobs", "Garage Job Detail"]
+- **validation**: ["Receipt must be positive and within the remaining customer balance."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'customerReceipt':{
+    const options=customerDueJobs.map(j=>({value:j.id,label:j.number+' · '+(vehicles.find(v=>v.id===j.vehicleId)?.number??'')+' · due '+cash(j.charge-j.received-paid(data,'customer',j.id))}));
+    const target=options.some(o=>o.value===contextId)?contextId:options[0]?.value;
+    startForm({key,title:'Record customer receipt',defaults:{jobId:target??''},fields:[{name:'jobId',label:'Customer Garage Job',type:'select',options},{name:'amount',label:'Receipt amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},baseDate]});break;
+   }
+
+```
+
+submitSource:
+```tsx
+if(form.key==='customerReceipt'){
+   const job=data.jobs.find(x=>x.id===v('jobId'));if(!job||n('amount')<=0||n('amount')>job.charge-job.received-paid(data,'customer',job.id))throw Error('Receipt must be positive and within the remaining customer balance.');await save({...next,payments:[{id:id(),kind:'customer',targetId:job.id,amount:n('amount'),date:v('date')||today(),method:v('method')},...data.payments]},'Customer receipt recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### purchase
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| itemId | Existing item | select | false | None | None |
+| newItem | New item name | text | renderer-default | None | None |
+| category | Category | text | renderer-default | None | None |
+| garageId | Stock location | select | renderer-default | None | None |
+| quantity | Quantity purchased | number | renderer-default | 1 | 1 |
+| cost | Purchase cost per unit | number | renderer-default | 0.01 | 0.01 |
+| date | Date | date | False |  |  |
+- **id**: purchase
+- **triggeredFrom**: ["Dashboard", "Items & Purchases"]
+- **validation**: ["Select an item or enter a new item name.", "An item with that name already exists; select it instead.", "Enter a positive whole quantity, unit purchase cost and valid garage."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'purchase':startForm({key,title:'Record purchase batch',fields:[{name:'itemId',label:'Existing item',type:'select',required:false,options:[{value:'',label:'Create new item below'},...itemOptions]},{name:'newItem',label:'New item name'},{name:'category',label:'Category'},{name:'garageId',label:'Stock location',type:'select',options:garageOptions},{name:'quantity',label:'Quantity purchased',type:'number',min:'1',step:'1'},{name:'cost',label:'Purchase cost per unit',type:'number',min:'0.01',step:'0.01'},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='purchase'){
+   let item=data.items.find(i=>i.id===v('itemId'));const existing=!!item,name=v('newItem')||item?.name;if(!name)throw Error('Select an item or enter a new item name.');if(!existing&&data.items.some(i=>i.name.toLowerCase()===name.toLowerCase()))throw Error('An item with that name already exists; select it instead.');if(!item){item={id:id(),name,category:v('category')||'General',active:true};}const quantity=n('quantity'),cost=n('cost');if(!Number.isInteger(quantity)||quantity<=0||cost<=0||!garages.some(g=>g.id===v('garageId')))throw Error('Enter a positive whole quantity, unit purchase cost and valid garage.');const batch={id:id(),itemId:item.id,garageId:v('garageId'),date:v('date')||today(),quantity,cost};await save({...next,items:existing?data.items:[item,...data.items],batches:[batch,...data.batches]},'Inventory purchase batch recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### issue
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| batchId | Purchase batch | select | renderer-default | None | None |
+| vehicleId | Existing vehicle | select | renderer-default | None | None |
+| jobId | Garage job (required for Customer Vehicle) | select | renderer-default | None | None |
+| quantity | Quantity | number | renderer-default | 1 | 1 |
+| price | Issue price per unit | number | renderer-default | 0.01 | 0.01 |
+| investor | Investor Fund allocation (Stock only) | number | renderer-default | 0 | 0.01 |
+| capital | Company Running Capital allocation (Stock only) | number | renderer-default | 0 | 0.01 |
+- **id**: issue
+- **triggeredFrom**: ["Stock Issues"]
+- **validation**: []
+- **validatorDependencies**: ["createInventoryIssue"]
+
+sourceDeclaration:
+```tsx
+ const openIssueForm=()=>{const firstVehicle=vehicleOptions(['Stock / Investor'])[0]?.value??vehicleOptions()[0]?.value??'';startForm({key:'issue',title:'Issue stock',defaults:{vehicleId:firstVehicle},fields:[{name:'batchId',label:'Purchase batch',type:'select',options:batchOptions},{name:'vehicleId',label:'Existing vehicle',type:'select',options:vehicleOptions()},{name:'jobId',label:'Garage job (required for Customer Vehicle)',type:'select',options:jobOptions(firstVehicle)},{name:'quantity',label:'Quantity',type:'number',min:'1',step:'1'},{name:'price',label:'Issue price per unit',type:'number',min:'0.01',step:'0.01'},{name:'investor',label:'Investor Fund allocation (Stock only)',type:'number',min:'0',step:'0.01'},{name:'capital',label:'Company Running Capital allocation (Stock only)',type:'number',min:'0',step:'0.01'}]})};
+```
+
+submitSource:
+```tsx
+if(form.key==='issue'){
+   const quantity=n('quantity'),price=n('price'),total=round(quantity*price),vehicle=data.vehicles.find(x=>x.id===v('vehicleId')),investor=n('investor'),capital=n('capital'),result=createInventoryIssue(data,{issueId:id(),expenseId:id(),costId:id(),chargeId:id(),batchId:v('batchId'),vehicleId:v('vehicleId'),jobId:v('jobId'),quantity,price,date:today(),investor:Number.isFinite(investor)?investor:0,capital:Number.isFinite(capital)?capital:0});if(vehicle?.type==='Stock / Investor'&&Math.abs(investor+capital-total)>0.01)throw Error(`Funding allocations must total ${cash(total)}.`);await save({...next,issues:[result.issue,...data.issues],expenses:result.expense?[result.expense,...data.expenses]:data.expenses,jobs:result.jobUpdate?data.jobs.map(j=>j.id===result.jobUpdate!.id?result.jobUpdate!:j):data.jobs},'Inventory issue recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### sale
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| vehicleId | Unsold Stock Vehicle | select | renderer-default | None | None |
+| buyer | Buyer name | text | renderer-default | None | None |
+| price | Agreed sale price | number | renderer-default | 0.01 | 0.01 |
+- **id**: sale
+- **triggeredFrom**: ["Dashboard", "Vehicle Sales"]
+- **validation**: ["Select an unsold Stock Vehicle and enter Buyer and agreed price."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'sale':startForm({key,title:'Record Stock Vehicle sale',fields:[{name:'vehicleId',label:'Unsold Stock Vehicle',type:'select',options:vehicleOptions(['Stock / Investor']).filter(o=>!data.sales.some(s=>s.vehicleId===o.value))},{name:'buyer',label:'Buyer name'},{name:'price',label:'Agreed sale price',type:'number',min:'0.01',step:'0.01'}]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='sale'){
+   const vehicle=data.vehicles.find(x=>x.id===v('vehicleId'));if(!vehicle||vehicle.type!=='Stock / Investor'||data.sales.some(s=>s.vehicleId===vehicle.id)||!v('buyer')||n('price')<=0)throw Error('Select an unsold Stock Vehicle and enter Buyer and agreed price.');const sale={id:id(),vehicleId:vehicle.id,buyer:v('buyer'),price:n('price'),received:0};await save({...next,vehicles:data.vehicles.map(x=>x.id===vehicle.id?{...x,status:'Sold'}:x),sales:[sale,...data.sales]},'Vehicle sale recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### collection
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| kind | Receipt type | select | renderer-default | None | None |
+| targetId | Sale / customer job | select | renderer-default | None | None |
+| amount | Receipt amount | number | renderer-default | 0.01 | 0.01 |
+| method | Method | select | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: collection
+- **triggeredFrom**: ["Dashboard", "Vehicle Sales", "Collections"]
+- **validation**: ["Receipt must be positive and within the remaining amount."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'collection':{
+    const buyerOptions=buyerDueSales.map(s=>({value:s.id,label:'Buyer · '+s.buyer+' · due '+cash(buyerReceivable(data,s))}));
+    const customerOptions=customerDueJobs.map(j=>({value:j.id,label:'Customer · '+j.number+' · due '+cash(j.charge-j.received-paid(data,'customer',j.id))}));
+    const contextualBuyer=buyerOptions.some(o=>o.value===contextId),contextualCustomer=customerOptions.some(o=>o.value===contextId);
+    const kind=contextualCustomer?'customer':'buyer',options=kind==='buyer'?buyerOptions:customerOptions,target=contextId&&(contextualBuyer||contextualCustomer)?contextId:options[0]?.value;
+    startForm({key,title:'Record actual receipt',defaults:{kind,targetId:target??''},fields:[{name:'kind',label:'Receipt type',type:'select',options:[{value:'buyer',label:'Buyer payment'},{value:'customer',label:'Customer receipt'}]},{name:'targetId',label:'Sale / customer job',type:'select',options:[...buyerOptions,...customerOptions]},{name:'amount',label:'Receipt amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},baseDate]});break;
+   }
+
+```
+
+submitSource:
+```tsx
+if(form.key==='collection'){
+   const kind=v('kind') as 'buyer'|'customer',target=v('targetId'),amount=n('amount'),due=kind==='buyer'?data.sales.find(s=>s.id===target)?buyerReceivable(data,data.sales.find(s=>s.id===target)!):0:data.jobs.find(j=>j.id===target)?Math.max(0,data.jobs.find(j=>j.id===target)!.charge-data.jobs.find(j=>j.id===target)!.received-paid(data,'customer',target)):0;if(amount<=0||amount>due||!v('method'))throw Error('Receipt must be positive and within the remaining amount.');await save({...next,payments:[{id:id(),kind,targetId:target,amount,date:v('date')||today(),method:v('method')},...data.payments]},kind==='buyer'?'Buyer payment recorded':'Customer receipt recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### saleCorrection
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| saleId | Sale | select | renderer-default | None | None |
+| price | Corrected price | number | renderer-default | 0.01 | 0.01 |
+| reason | Correction reason | text | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: saleCorrection
+- **triggeredFrom**: ["Sale Corrections & Refunds"]
+- **validation**: ["Select an existing sale."]
+- **validatorDependencies**: ["validateSaleCorrection"]
+
+sourceDeclaration:
+```tsx
+case'saleCorrection':startForm({key,title:'Correct agreed sale price',fields:[{name:'saleId',label:'Sale',type:'select',options:data.sales.map(s=>({value:s.id,label:s.buyer+' · '+(vehicles.find(v=>v.id===s.vehicleId)?.number??'')+' · '+cash(salePrice(s))}))},{name:'price',label:'Corrected price',type:'number',min:'0.01',step:'0.01'},{name:'reason',label:'Correction reason'},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='saleCorrection'){
+   const sale=data.sales.find(s=>s.id===v('saleId'));if(!sale)throw Error('Select an existing sale.');const result=validateSaleCorrection(data,sale.id,n('price'),v('reason'));const correction={id:id(),date:v('date')||today(),actor:'Demo Accountant',reason:v('reason'),oldPrice:result.oldPrice,price:n('price')};await save({...next,sales:data.sales.map(s=>s.id===sale.id?{...s,corrections:[...(s.corrections??[]),correction]}:s)},'Sale correction recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### refund
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| saleId | Sale with refund payable | select | renderer-default | None | None |
+| amount | Refund amount | number | renderer-default | 0.01 | 0.01 |
+| method | Method | select | renderer-default | None | None |
+| reason | Refund reason | text | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: refund
+- **triggeredFrom**: ["Sale Corrections & Refunds"]
+- **validation**: ["Select a sale."]
+- **validatorDependencies**: ["validateBuyerRefund"]
+
+sourceDeclaration:
+```tsx
+case'refund':startForm({key,title:'Record actual buyer refund',fields:[{name:'saleId',label:'Sale with refund payable',type:'select',options:data.sales.filter(s=>buyerRefundPayable(data,s)>0).map(s=>({value:s.id,label:s.buyer+' · payable '+cash(buyerRefundPayable(data,s))}))},{name:'amount',label:'Refund amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},{name:'reason',label:'Refund reason'},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='refund'){
+   const sale=data.sales.find(s=>s.id===v('saleId'));if(!sale)throw Error('Select a sale.');const checked=validateBuyerRefund(data,sale.id,n('amount'));const refund={id:id(),saleId:sale.id,amount:n('amount'),principalBacked:checked.principalBacked,date:v('date')||today(),method:v('method'),reason:v('reason')};await save({...next,buyerRefunds:[refund,...(data.buyerRefunds??[])]},'Buyer refund recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### capital
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| investorId | Investor | select | renderer-default | None | None |
+| amount | Amount | number | renderer-default | 0.01 | 0.01 |
+| note | Note | text | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: capital
+- **triggeredFrom**: ["Investor Fund"]
+- **validation**: ["Enter a positive amount and select an Investor."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'capital':startForm({key,title:'Add Investor Fund capital',fields:[{name:'investorId',label:'Investor',type:'select',options:investorOptions},{name:'amount',label:'Amount',type:'number',min:'0.01',step:'0.01'},{name:'note',label:'Note'},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='capital'){
+   if(n('amount')<=0||!v('investorId'))throw Error('Enter a positive amount and select an Investor.');await save({...next,fundCredits:[{id:id(),investorId:v('investorId'),amount:n('amount'),date:v('date')||today(),note:v('note')},...(data.fundCredits??[])]},'Additional Investor Fund capital recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### investor
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| name | Investor name | text | renderer-default | None | None |
+| principal | Initial capital | number | renderer-default | 0.01 | 0.01 |
+- **id**: investor
+- **triggeredFrom**: ["Investor Fund"]
+- **validation**: ["Enter an Investor name and positive initial capital."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'investor':startForm({key,title:'Add Investor with initial capital',fields:[{name:'name',label:'Investor name'},{name:'principal',label:'Initial capital',type:'number',min:'0.01',step:'0.01'}]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='investor'){
+   const principal=n('principal');if(!v('name')||principal<=0)throw Error('Enter an Investor name and positive initial capital.');const investor={id:id(),name:v('name'),principal};await save({...next,investors:[investor,...data.investors]},'Investor and initial Fund capital recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### companyExpense
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| garageId | Garage attribution | select | renderer-default | None | None |
+| description | Description | text | renderer-default | None | None |
+| costType | Expense type | select | renderer-default | None | None |
+| date | Date | date | renderer-default | None | None |
+| amount | Expense amount | number | renderer-default | 0.01 | 0.01 |
+- **id**: companyExpense
+- **triggeredFrom**: ["Company Expenses"]
+- **validation**: ["Enter an expense description and positive amount."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+ const openExpenseForm=(vehicle?:Vehicle,job?:typeof jobs[number])=>startForm({key:job?'jobExpense':vehicle?'vehicleExpense':'companyExpense',title:job?'Add approved stock-vehicle job expense':vehicle?'Add direct Stock Vehicle expense':'Record company expense',fields:[...(job?[{name:'vehicleId',label:'Vehicle',type:'select' as const,options:vehicleOptions(['Stock / Investor'])},{name:'jobId',label:'Garage job',type:'select' as const,options:jobOptions(job.vehicleId)}]:vehicle?[{name:'vehicleId',label:'Vehicle',type:'select' as const,options:[{value:vehicle.id,label:`${vehicle.number} · ${vehicle.model}`}]},{name:'garageId',label:'Garage attribution',type:'select' as const,options:garageOptions}]:[{name:'garageId',label:'Garage attribution',type:'select' as const,options:garageOptions}]),{name:'description',label:'Description'},{name:'costType',label:'Expense type',type:'select',options:[{value:'Labour',label:'Labour'},{value:'Direct purchase',label:'Direct purchase'},{value:'Other',label:'Other'}]},{name:'date',label:'Date',type:'date'},{name:'amount',label:'Expense amount',type:'number',min:'0.01',step:'0.01'},...(job||vehicle?[{name:'investor',label:'Investor Fund',type:'number' as const,min:'0',step:'0.01'},{name:'capital',label:'Company Running Capital',type:'number' as const,min:'0',step:'0.01'}]:[])]});
+```
+
+submitSource:
+```tsx
+if(form.key==='companyExpense'){
+   if(n('amount')<=0||!v('description'))throw Error('Enter an expense description and positive amount.');const expense:Expense={id:id(),vehicleId:'',garageId:v('garageId'),description:v('description'),amount:n('amount'),investor:0,capital:0,date:v('date')||today(),category:'Company'};await save({...next,expenses:[expense,...data.expenses]},'Company expense recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### companyIncome
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| garageId | Garage attribution | select | renderer-default | None | None |
+| source | Source | text | renderer-default | None | None |
+| description | Description | text | renderer-default | None | None |
+| amount | Actual receipt amount | number | renderer-default | 0.01 | 0.01 |
+| method | Method | select | renderer-default | None | None |
+- **id**: companyIncome
+- **triggeredFrom**: ["Company Income"]
+- **validation**: ["Enter source, description and positive amount."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'companyIncome':startForm({key,title:'Record other Company Income',fields:[{name:'garageId',label:'Garage attribution',type:'select',options:garageOptions},{name:'source',label:'Source'},{name:'description',label:'Description'},{name:'amount',label:'Actual receipt amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))}]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='companyIncome'){
+   if(n('amount')<=0||!v('description')||!v('source'))throw Error('Enter source, description and positive amount.');const receipt={id:id(),garageId:v('garageId'),description:v('description'),source:v('source'),amount:n('amount'),method:v('method') as 'Cash'|'Bank transfer'|'UPI',timestamp:new Date().toISOString(),actor:'Demo Accountant'};await save({...next,otherIncomeReceipts:[receipt,...(data.otherIncomeReceipts??[])]},'Other Company Income receipt recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### recovery
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| saleId | Collected Stock Vehicle sale | select | renderer-default | None | None |
+| amount | Principal recovered | number | renderer-default | 0.01 | 0.01 |
+| date | Date | date | False |  |  |
+- **id**: recovery
+- **triggeredFrom**: ["Vehicle Sales"]
+- **validation**: ["Select a sale."]
+- **validatorDependencies**: ["validateRecovery"]
+
+sourceDeclaration:
+```tsx
+case'recovery':{
+    const saleOptions=data.sales.map(s=>({value:s.id,label:s.buyer+' · '+(vehicles.find(v=>v.id===s.vehicleId)?.number??'')}));
+    const target=saleOptions.some(o=>o.value===contextId)?contextId:saleOptions[0]?.value;
+    startForm({key,title:'Record actual Investor principal recovery',defaults:{saleId:target??''},fields:[{name:'saleId',label:'Collected Stock Vehicle sale',type:'select',options:saleOptions},{name:'amount',label:'Principal recovered',type:'number',min:'0.01',step:'0.01'},baseDate]});break;
+   }
+
+```
+
+submitSource:
+```tsx
+if(form.key==='recovery'){
+   const sale=data.sales.find(s=>s.id===v('saleId'));if(!sale)throw Error('Select a sale.');validateRecovery(data,sale.vehicleId,n('amount'));await save({...next,principalRecoveries:[{id:id(),vehicleId:sale.vehicleId,saleId:sale.id,amount:n('amount'),date:v('date')||today()},...(data.principalRecoveries??[])]},'Investor principal recovery recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### capitalRecovery
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| vehicleId | Vehicle | select | renderer-default | None | None |
+| amount | Actual recovery | number | renderer-default | 0.01 | 0.01 |
+| method | Method | select | renderer-default | None | None |
+| date | Date | date | False |  |  |
+- **id**: capitalRecovery
+- **triggeredFrom**: ["Running Capital"]
+- **validation**: ["Select a vehicle."]
+- **validatorDependencies**: ["validateCapitalRecovery"]
+
+sourceDeclaration:
+```tsx
+case'capitalRecovery':startForm({key,title:'Record Running Capital recovery',fields:[{name:'vehicleId',label:'Vehicle',type:'select',options:vehicleOptions(['Stock / Investor'])},{name:'amount',label:'Actual recovery',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},baseDate]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='capitalRecovery'){
+   const vehicle=data.vehicles.find(x=>x.id===v('vehicleId'));if(!vehicle)throw Error('Select a vehicle.');validateCapitalRecovery(data,vehicle.id,n('amount'));await save({...next,payments:[{id:id(),kind:'capital',targetId:vehicle.id,amount:n('amount'),date:v('date')||today(),method:v('method')},...data.payments]},'Company Running Capital recovery recorded');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### garage
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| name | Garage name | text | renderer-default | None | None |
+| location | Location | text | renderer-default | None | None |
+- **id**: garage
+- **triggeredFrom**: ["Garages / Branches"]
+- **validation**: ["Enter garage name and location."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+case'garage':startForm({key,title:'Add Garage / Branch',fields:[{name:'name',label:'Garage name'},{name:'location',label:'Location'}]});break;
+
+```
+
+submitSource:
+```tsx
+if(form.key==='garage'){
+   const garage:Garage={id:id(),name:v('name'),location:v('location'),active:true};if(!garage.name||!garage.location)throw Error('Enter garage name and location.');await save({...next,garages:[garage,...data.garages]},'Garage added');return;
+  }
+
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### garageEdit
+
+| Field | Label | Type | Required | Min | Step |
+|---|---|---|---|---|
+| garageId | Garage | select | renderer-default | None | None |
+| name | Garage name | text | renderer-default | None | None |
+| location | Location | text | renderer-default | None | None |
+- **id**: garageEdit
+- **triggeredFrom**: ["Garages / Branches"]
+- **validation**: ["Enter garage name and location."]
+- **validatorDependencies**: []
+
+sourceDeclaration:
+```tsx
+     {page==='Garages / Branches'&&<Panel title="Garage settings" action={<button className="primary" onClick={()=>quick('garage')}>+ Add garage</button>}><Table headers={['Garage','Location','Status','Actions']}>{garages.map(g=><tr key={g.id}><td>{g.name}</td><td>{g.location}</td><td><Badge text={g.active?'Active':'Inactive'}/></td><td><button className="textbutton" onClick={()=>startForm({key:'garageEdit',title:'Edit garage',defaults:{garageId:g.id,name:g.name,location:g.location},fields:[{name:'garageId',label:'Garage',type:'select',options:[{value:g.id,label:g.name}]},{name:'name',label:'Garage name'},{name:'location',label:'Location'}]})}>Edit</button><button className="textbutton" onClick={()=>void save({...data,garages:data.garages.map(x=>x.id===g.id?{...x,active:!x.active}:x)},`Garage ${g.active?'deactivated':'activated'}`)}>{g.active?'Deactivate':'Activate'}</button></td></tr>)}</Table></Panel>}
+```
+
+submitSource:
+```tsx
+if(form.key==='garageEdit'){
+   const current=data.garages.find(g=>g.id===v('garageId'));if(!current||!v('name')||!v('location'))throw Error('Enter garage name and location.');await save({...next,garages:data.garages.map(g=>g.id===current.id?{...g,name:v('name'),location:v('location')}:g)},'Garage updated');return;
+  }
+ }catch(e){setFailure(e instanceof Error?e.message:'Unable to complete this action.')}};
+ const handleImport=async(file?:File)=>{if(!file)return;setImporting(true);setFailure('');try{const parsed=parseDemoFile(JSON.parse(await file.text()));if(await save(parsed,`Imported ${file.name}`))setImportName(file.name)}catch(e){setFailure(e instanceof Error?e.message:'Invalid demo data file.')}finally{setImporting(false)}};
+ const quick=(key:FormKey,contextId?:string)=>{
+  const baseDate:Field={name:'date',label:'Date',type:'date'};
+  const customerDueJobs=jobs.filter(j=>vehicles.find(v=>v.id===j.vehicleId)?.type==='Customer'&&j.charge-j.received-paid(data,'customer',j.id)>0);
+  const buyerDueSales=data.sales.filter(s=>buyerReceivable(data,s)>0);
+  switch(key){
+   case'vehicle':openVehicleForm();break;
+   case'job':openJobForm(selected);break;
+   case'jobWork':startForm({key,title:'Add work entry',fields:[{name:'category',label:'Type',type:'select',options:[{value:'Work',label:'Work'},{value:'Labour',label:'Labour'}]},{name:'description',label:'Work details'},baseDate]});break;
+   case'jobExpense':openExpenseForm(selected,selectedJob);break;
+   case'customerCharge':startForm({key,title:'Add customer charge',fields:[{name:'category',label:'Charge type',type:'select',options:['Work','Labour','Material','Other'].map(x=>({value:x,label:x}))},{name:'description',label:'Charge details'},{name:'amount',label:'Amount',type:'number',min:'0.01',step:'0.01'},baseDate]});break;
+   case'customerReceipt':{
+    const options=customerDueJobs.map(j=>({value:j.id,label:j.number+' · '+(vehicles.find(v=>v.id===j.vehicleId)?.number??'')+' · due '+cash(j.charge-j.received-paid(data,'customer',j.id))}));
+    const target=options.some(o=>o.value===contextId)?contextId:options[0]?.value;
+    startForm({key,title:'Record customer receipt',defaults:{jobId:target??''},fields:[{name:'jobId',label:'Customer Garage Job',type:'select',options},{name:'amount',label:'Receipt amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},baseDate]});break;
+   }
+   case'purchase':startForm({key,title:'Record purchase batch',fields:[{name:'itemId',label:'Existing item',type:'select',required:false,options:[{value:'',label:'Create new item below'},...itemOptions]},{name:'newItem',label:'New item name'},{name:'category',label:'Category'},{name:'garageId',label:'Stock location',type:'select',options:garageOptions},{name:'quantity',label:'Quantity purchased',type:'number',min:'1',step:'1'},{name:'cost',label:'Purchase cost per unit',type:'number',min:'0.01',step:'0.01'},baseDate]});break;
+   case'issue':openIssueForm();break;
+   case'sale':startForm({key,title:'Record Stock Vehicle sale',fields:[{name:'vehicleId',label:'Unsold Stock Vehicle',type:'select',options:vehicleOptions(['Stock / Investor']).filter(o=>!data.sales.some(s=>s.vehicleId===o.value))},{name:'buyer',label:'Buyer name'},{name:'price',label:'Agreed sale price',type:'number',min:'0.01',step:'0.01'}]});break;
+   case'collection':{
+    const buyerOptions=buyerDueSales.map(s=>({value:s.id,label:'Buyer · '+s.buyer+' · due '+cash(buyerReceivable(data,s))}));
+    const customerOptions=customerDueJobs.map(j=>({value:j.id,label:'Customer · '+j.number+' · due '+cash(j.charge-j.received-paid(data,'customer',j.id))}));
+    const contextualBuyer=buyerOptions.some(o=>o.value===contextId),contextualCustomer=customerOptions.some(o=>o.value===contextId);
+    const kind=contextualCustomer?'customer':'buyer',options=kind==='buyer'?buyerOptions:customerOptions,target=contextId&&(contextualBuyer||contextualCustomer)?contextId:options[0]?.value;
+    startForm({key,title:'Record actual receipt',defaults:{kind,targetId:target??''},fields:[{name:'kind',label:'Receipt type',type:'select',options:[{value:'buyer',label:'Buyer payment'},{value:'customer',label:'Customer receipt'}]},{name:'targetId',label:'Sale / customer job',type:'select',options:[...buyerOptions,...customerOptions]},{name:'amount',label:'Receipt amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},baseDate]});break;
+   }
+   case'saleCorrection':startForm({key,title:'Correct agreed sale price',fields:[{name:'saleId',label:'Sale',type:'select',options:data.sales.map(s=>({value:s.id,label:s.buyer+' · '+(vehicles.find(v=>v.id===s.vehicleId)?.number??'')+' · '+cash(salePrice(s))}))},{name:'price',label:'Corrected price',type:'number',min:'0.01',step:'0.01'},{name:'reason',label:'Correction reason'},baseDate]});break;
+   case'refund':startForm({key,title:'Record actual buyer refund',fields:[{name:'saleId',label:'Sale with refund payable',type:'select',options:data.sales.filter(s=>buyerRefundPayable(data,s)>0).map(s=>({value:s.id,label:s.buyer+' · payable '+cash(buyerRefundPayable(data,s))}))},{name:'amount',label:'Refund amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},{name:'reason',label:'Refund reason'},baseDate]});break;
+   case'capital':startForm({key,title:'Add Investor Fund capital',fields:[{name:'investorId',label:'Investor',type:'select',options:investorOptions},{name:'amount',label:'Amount',type:'number',min:'0.01',step:'0.01'},{name:'note',label:'Note'},baseDate]});break;
+   case'investor':startForm({key,title:'Add Investor with initial capital',fields:[{name:'name',label:'Investor name'},{name:'principal',label:'Initial capital',type:'number',min:'0.01',step:'0.01'}]});break;
+   case'companyExpense':openExpenseForm();break;
+   case'companyIncome':startForm({key,title:'Record other Company Income',fields:[{name:'garageId',label:'Garage attribution',type:'select',options:garageOptions},{name:'source',label:'Source'},{name:'description',label:'Description'},{name:'amount',label:'Actual receipt amount',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))}]});break;
+   case'recovery':{
+    const saleOptions=data.sales.map(s=>({value:s.id,label:s.buyer+' · '+(vehicles.find(v=>v.id===s.vehicleId)?.number??'')}));
+    const target=saleOptions.some(o=>o.value===contextId)?contextId:saleOptions[0]?.value;
+    startForm({key,title:'Record actual Investor principal recovery',defaults:{saleId:target??''},fields:[{name:'saleId',label:'Collected Stock Vehicle sale',type:'select',options:saleOptions},{name:'amount',label:'Principal recovered',type:'number',min:'0.01',step:'0.01'},baseDate]});break;
+   }
+   case'capitalRecovery':startForm({key,title:'Record Running Capital recovery',fields:[{name:'vehicleId',label:'Vehicle',type:'select',options:vehicleOptions(['Stock / Investor'])},{name:'amount',label:'Actual recovery',type:'number',min:'0.01',step:'0.01'},{name:'method',label:'Method',type:'select',options:['Cash','Bank transfer','UPI'].map(x=>({value:x,label:x}))},baseDate]});break;
+   case'garage':startForm({key,title:'Add Garage / Branch',fields:[{name:'name',label:'Garage name'},{name:'location',label:'Location'}]});break;
+   default:break;
+  }
+ };
+
+ const jobDetail=page==='Garage Job Detail'&&selectedJob;
+ const currentTitle=jobDetail?`${selectedJob.number} · ${selectedJob.description}`:selected?`${selected.number} · ${selected.model}`:page;
+ const detail=!!selected&&!['All Vehicles','Stock / Investor','Customer Vehicles','Garage Job Detail'].includes(page);
+ const openSelectedVehicle=(v:Vehicle)=>{setVehicleId(v.id);setPage('Vehicle Detail')};
+ const openJobDetail=(job:Data['jobs'][number],origin:'vehicle'|'list')=>{setJobId(job.id);setVehicleId(job.vehicleId);setJobDetailOrigin(origin);setPage('Garage Job Detail')};
+ const switchPage=(item:string)=>{setPage(item);setVehicleId('');setJobId('');setSearch('');setMobile(false);setMessage('');setFailure('')};
+ const closeForm=()=>{setForm(undefined);setFailure('')};
+ const row=(label:string,value:React.ReactNode)=><div className="finance-row" key={label}><span>{label}</span><strong>{value}</strong></div>;
+ return <div className="app" data-theme={theme}>
+  {mobile&&<button className="backdrop" aria-label="Close navigation" onClick={()=>setMobile(false)}/>}
+  <aside className={`sidebar${mobile?' shown':''}`}><div className="brand"><span className="brandmark"><Car size={18}/></span><span><strong>VIRMS</strong><small>OPERATIONS SUITE</small></span><button className="close-mobile iconbutton" onClick={()=>setMobile(false)} aria-label="Close menu"><X size={18}/></button></div><div className="company"><span className="companyicon"><Building2 size={15}/></span><span><strong>Demo Company</strong><small>Shared local dataset</small></span><ChevronDown size={14}/></div><nav>{pages.map(group=><section key={group.name}><div className="navcaption">{group.name.toUpperCase()}</div>{group.items.map(item=><button key={item} className={`navitem${page===item||page==='Dashboard'&&item==='Overview'?' active':''}`} onClick={()=>switchPage(item==='Overview'?'Dashboard':item)}><group.icon size={15}/><span>{item==='Overview'?'Dashboard':item}</span></button>)}</section>)}</nav><div className="sidebarfoot"><span className="avatar">DA</span><span><strong>Demo Accountant</strong><small>Local demonstration</small></span></div></aside>
+  <main><header className="topbar"><button className="mobile-menu iconbutton" aria-label="Open menu" onClick={()=>setMobile(true)}><Menu size={19}/></button><div className="breadcrumbs">Workspace<span>/</span><strong>{currentTitle}</strong></div><div className="topactions"><label className="garage-select"><Settings size={14}/><select aria-label="Filter by garage" value={garageId} onChange={e=>setGarageId(e.target.value)}><option value="all">All Garages</option>{garages.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label><button className="iconbutton" title="Refresh shared data" onClick={refresh}><RefreshCw size={16}/></button><select className="secondary" aria-label="Theme" value={theme} onChange={e=>setTheme(e.target.value as 'light'|'dark'|'system')}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div></header>
+   <div className="content"><div className="demo-note"><span className="dot"/> LOCAL SYNTHETIC DEMO <span>· Shared file-backed mock service</span></div>
+    {(failure||message)&&<div className={failure?'error':'import-success'} role={failure?'alert':'status'}>{failure||message}</div>}
+    {detail&&selected&&<><button className="textbutton back" onClick={()=>{setVehicleId('');setPage(selected.type==='Customer'?'Customer Vehicles':'Stock / Investor')}}><ArrowLeft size={14}/> Back to Vehicles</button><div className="heading"><div><div className="eyebrow">VEHICLE WORKSPACE</div><h1>{selected.model} <span>·</span> {selected.number}</h1><p>{selected.type==='Customer'?'Customer':'Investor'} · {selected.person} · Current garage: {garages.find(g=>g.id===selected.garageId)?.name??'—'}</p></div><div className="buttonrow"><button className="secondary" onClick={()=>openJobForm(selected)}>Create Garage Job</button>{selected.type==='Stock / Investor'&&<button className="primary" onClick={()=>openExpenseForm(selected)}>Add Expense</button>}</div></div><div className="summary-grid"><Metric label="Vehicle cost" value={cash(totalVehicleCost(data,selected.id))}/>{selected.type==='Stock / Investor'?<Metric label="Company Running Capital" value={cash(capitalContribution(data,selected.id))}/>:<Metric label="Customer outstanding" value={cash(jobs.filter(j=>j.vehicleId===selected.id).reduce((n,j)=>n+Math.max(0,j.charge-j.received-paid(data,'customer',j.id)),0))}/>}<Metric label="Garage jobs" value={String(jobs.filter(j=>j.vehicleId===selected.id).length)}/><Metric label="Status" value={selected.status}/></div><Panel title="Garage history" action={<button className="secondary" onClick={()=>openJobForm(selected)}>Add job</button>}>{jobs.filter(j=>j.vehicleId===selected.id).length?jobs.filter(j=>j.vehicleId===selected.id).map(j=><div className="list" key={j.id}><div><span><strong>{j.number} · {j.description}</strong><small>{garages.find(g=>g.id===j.garageId)?.name} · {j.date} · {j.workEntries?.length??0} work entries · {j.costs?.length??0} costs</small></span><span className="buttonrow"><Badge text={j.status}/><button className="secondary" onClick={()=>openJobDetail(j,'vehicle')}>Details</button></span></div></div>):<Empty>No garage jobs yet.</Empty>}</Panel></>}
+    {jobDetail&&selectedJob&&selected&&<><button className="textbutton back" onClick={()=>setPage(jobDetailOrigin==='vehicle'?'Vehicle Detail':'Garage Jobs')}><ArrowLeft size={14}/> Back to {jobDetailOrigin==='vehicle'?'Vehicle Workspace':'Garage Jobs'}</button><div className="heading"><div><div className="eyebrow">GARAGE JOB</div><h1>{selectedJob.number} <span>·</span> {selectedJob.description}</h1><p>{selected.number} · {selected.model} · {selected.person} · {garages.find(g=>g.id===selectedJob.garageId)?.name??'—'} · {selectedJob.date}</p></div><div className="buttonrow"><button className="secondary" onClick={()=>{setJobId(selectedJob.id);setVehicleId(selected.id);quick('jobWork')}}>Add work</button>{selected.type==='Stock / Investor'?<button className="primary" onClick={()=>{setJobId(selectedJob.id);setVehicleId(selected.id);quick('jobExpense')}}>Add cost</button>:<><button className="secondary" onClick={()=>{setJobId(selectedJob.id);setVehicleId(selected.id);quick('customerCharge')}}>Add charge</button>{Math.max(0,selectedJob.charge-selectedJob.received-paid(data,'customer',selectedJob.id))>0&&<button className="primary" onClick={()=>quick('customerReceipt',selectedJob.id)}>Receive</button>}</>}<button className="secondary" onClick={()=>void save(changeJobStatus(data,selectedJob.id,selectedJob.status==='Open'?'Completed':'Open',{id:id(),timestamp:new Date().toISOString(),actor:'Demo Accountant',note:'Updated in demo'}),'Job status changed')}>{selectedJob.status==='Open'?'Mark completed':'Reopen'}</button></div></div><div className="summary-grid"><Metric label="Status" value={selectedJob.status}/><Metric label="Work entries" value={String(selectedJob.workEntries?.length??0)}/>{selected.type==='Customer'?<><Metric label="Charges" value={cash(selectedJob.charge)}/><Metric label="Outstanding" value={cash(Math.max(0,selectedJob.charge-selectedJob.received-paid(data,'customer',selectedJob.id)))}/></>:<><Metric label="Job costs" value={cash(data.expenses.filter(e=>e.jobId===selectedJob.id).reduce((n,e)=>n+effectiveExpense(e).amount,0)+(selectedJob.costs??[]).reduce((n,c)=>n+c.amount,0))}/><Metric label="Company Running Capital" value={cash(capitalContribution(data,selected.id))}/></>}</div><div className="dashboard-grid"><Panel title="Work log"><Table headers={['Date','Type','Work details']}>{(selectedJob.workEntries??[]).map(w=><tr key={w.id}><td>{w.date}</td><td>{w.category}</td><td>{w.description}</td></tr>)}</Table>{!selectedJob.workEntries?.length&&<Empty>No work entries recorded.</Empty>}</Panel>{selected.type==='Customer'?<Panel title="Customer charges and receipts"><Table headers={['Type / date','Description','Amount']}>{(selectedJob.charges??[]).map(c=><tr key={c.id}><td>{c.category}<small>{c.date}</small></td><td>{c.description}</td><td>{cash(c.amount)}</td></tr>)}{selectedJob.received>0&&<tr key="opening"><td>Opening balance</td><td>Seeded total; individual receipt details not provided</td><td>{cash(selectedJob.received)}</td></tr>}{data.payments.filter(p=>p.kind==='customer'&&p.targetId===selectedJob.id).map(p=><tr key={p.id}><td>Actual receipt · {p.date}<small>{p.method}</small></td><td>Customer payment</td><td>{cash(p.amount)}</td></tr>)}</Table>{!selectedJob.charges?.length&&!data.payments.some(p=>p.kind==='customer'&&p.targetId===selectedJob.id)&&<Empty>No charges or actual receipts yet.</Empty>}</Panel>:<Panel title="Stock vehicle costs"><Table headers={['Date','Description','Cost']}>{data.expenses.filter(e=>e.jobId===selectedJob.id).map(e=><tr key={e.id}><td>{e.date}</td><td>{e.description}</td><td>{cash(effectiveExpense(e).amount)}</td></tr>)}{(selectedJob.costs??[]).map(c=><tr key={c.id}><td>{c.date}</td><td>{c.description}</td><td>{cash(c.amount)}</td></tr>)}</Table>{!data.expenses.some(e=>e.jobId===selectedJob.id)&&!selectedJob.costs?.length&&<Empty>No costs recorded.</Empty>}</Panel>}</div>{!!selectedJob.statusHistory?.length&&<Panel title="Status history"><Table headers={['Time','Change','Actor','Note']}>{selectedJob.statusHistory.map(h=><tr key={h.id}><td>{h.timestamp}</td><td>{h.from} to {h.to}</td><td>{h.actor}</td><td>{h.note}</td></tr>)}</Table></Panel>}</>}
+    {!detail&&!jobDetail&&<><div className="heading"><div><div className="eyebrow">ACCOUNTANT / OPERATIONS</div><h1>{page}</h1><p>{selectedGarage?`Showing ${selectedGarage.name} activity.`:'Shared synthetic data across vehicles, jobs, inventory and accounting.'}</p></div>{page==='Dashboard'&&<label className="primary import-button"><FileUp size={15}/> Add / Import Data<input type="file" accept="application/json,.json" onChange={e=>void handleImport(e.target.files?.[0])}/></label>}</div>
+     {page==='Dashboard'&&<><div className="summary-grid"><Metric label="Vehicles" value={String(dashboardSummary?.vehicles??0)}/><Metric label="Open garage jobs" value={String(dashboardSummary?.jobs??0)}/><Metric label="Buyer receivable" value={cash(dashboardSummary?.receivable??0)}/><Metric label="Current stock value" value={cash(dashboardSummary?.stock??0)}/></div><div className="dashboard-grid"><Panel title="Vehicles" subtitle="One record across all Garage work" action={<button className="textbutton" onClick={()=>switchPage('All Vehicles')}>View all <ArrowRight size={13}/></button>}>{scopedVehicles.slice(0,6).map(v=><div className="list" key={v.id}><div onClick={()=>openSelectedVehicle(v)}><span><strong>{v.number} · {v.model}</strong><small>{v.type==='Customer'?'Customer':'Stock / Investor'} · {v.person}</small></span><Badge text={v.status}/></div></div>)}</Panel><Panel title="Investor Fund" subtitle="Company-wide Fund position across all garages"><div>{data.investors.map(i=><div key={i.id}>{row(`${i.name} · Available`,cash(fundPosition(data,i.id).available))}{row('Used / locked',cash(fundPosition(data,i.id).used))}</div>)}</div><Notice title="Synthetic data only">The demo service is local and is not an accounting database.</Notice></Panel><Panel title="Quick actions"><div className="quick"><button onClick={()=>quick('vehicle')}><Car size={16}/> Register vehicle <ArrowRight size={14}/></button><button onClick={()=>quick('job')}><Settings size={16}/> Create garage job <ArrowRight size={14}/></button><button onClick={()=>quick('purchase')}><Package size={16}/> Record inventory purchase <ArrowRight size={14}/></button><button onClick={()=>switchPage('Demo Data')}><FileUp size={16}/> Import options & reset <ArrowRight size={14}/></button></div></Panel></div></>}
+     {['All Vehicles','Stock / Investor','Customer Vehicles'].includes(page)&&<Panel title="Vehicle register" subtitle={`${filteredVehicles.length} vehicles`} action={<button className="primary" onClick={openVehicleForm}>+ Register vehicle</button>}><Toolbar value={search} onChange={setSearch} placeholder="Search registration, model or customer"/><Table headers={['Vehicle','Type / Owner','Garage','Status','Total Cost']}>{filteredVehicles.map(v=><tr key={v.id} onClick={()=>openSelectedVehicle(v)}><td><strong>{v.number}</strong><small>{v.model}</small></td><td>{v.type==='Customer'?'Customer Vehicle':'Stock / Investor'}<small>{v.person}</small></td><td>{garages.find(g=>g.id===v.garageId)?.name??'—'}</td><td><Badge text={v.status}/></td><td>{cash(totalVehicleCost(data,v.id))}</td></tr>)}</Table>{!filteredVehicles.length&&<Empty>No vehicles match this view.</Empty>}</Panel>}
+     {page==='Garage Jobs'&&<Panel title="Garage work queue" subtitle="Search an existing vehicle. Garage Jobs never register a Vehicle." action={<button className="primary" onClick={()=>openJobForm()}>+ New job</button>}><Toolbar value={search} onChange={setSearch} placeholder="Search job, vehicle or customer"/><Table headers={['Job / Vehicle','Garage','Customer / Investor','Status','Charges / Outstanding','Actions']}>{jobs.filter(j=>(garageId==='all'||j.garageId===garageId)&&`${j.number} ${j.description} ${vehicles.find(v=>v.id===j.vehicleId)?.number??''} ${vehicles.find(v=>v.id===j.vehicleId)?.person??''}`.toLowerCase().includes(search.toLowerCase())).map(j=>{const vehicle=vehicles.find(v=>v.id===j.vehicleId)!;const due=Math.max(0,j.charge-j.received-paid(data,'customer',j.id));return <tr key={j.id}><td><strong>{j.number} · {j.description}</strong><small onClick={()=>openSelectedVehicle(vehicle)}>{vehicle.number} · {vehicle.model}</small></td><td>{garages.find(g=>g.id===j.garageId)?.name}</td><td>{vehicle.type==='Customer'?vehicle.person:'Stock / Investor'}</td><td><button className="secondary" onClick={()=>void save(changeJobStatus(data,j.id,j.status==='Open'?'Completed':'Open',{id:id(),timestamp:new Date().toISOString(),actor:'Demo Accountant',note:'Updated in demo'}),'Job status changed')}>{j.status==='Open'?'Mark completed':'Reopen'}</button></td><td>{cash(j.charge)}<small>{vehicle.type==='Customer'?`${cash(due)} outstanding`:'Costs '+cash(j.costs?.reduce((n,c)=>n+c.amount,0)??0)}</small></td><td><button className="textbutton" onClick={()=>openJobDetail(j,'list')}>Details</button><button className="textbutton" onClick={()=>{setJobId(j.id);setVehicleId(vehicle.id);setForm({key:'jobWork',title:`Work · ${j.number}`,fields:[{name:'category',label:'Work type',type:'select',options:[{value:'Work',label:'Work'},{value:'Labour',label:'Labour'}]},{name:'description',label:'Work details'},{name:'date',label:'Date',type:'date'}]})}}>Add work</button>{vehicle.type==='Stock / Investor'?<button className="textbutton" onClick={()=>{setJobId(j.id);setVehicleId(vehicle.id);openExpenseForm(vehicle,j)}}>Add cost</button>:<><button className="textbutton" onClick={()=>{setJobId(j.id);setVehicleId(vehicle.id);quick('customerCharge')}}>Add charge</button>{due>0&&<button className="textbutton" onClick={()=>quick('customerReceipt',j.id)}>Receive</button>}</>}</td></tr>})}</Table>{!jobs.length&&<Empty>No garage jobs. Create one from an existing vehicle.</Empty>}</Panel>}
+     {page==='Investor Fund'&&<><div className="summary-grid">{data.investors.map(i=>{const p=fundPosition(data,i.id);return <Metric key={i.id} label={`${i.name} · Available / principal`} value={`${cash(p.available)} / ${cash(p.principal)}`} note={`${cash(p.used)} used · ${cash(p.recovered)} recovered${p.reserve?` · ${cash(p.reserve)} refund reserve`:''}`}/>})}</div><Panel title="Investor Fund history" subtitle="Each row points to its source event; reserves are shown separately from cash debits." action={<div className="buttonrow"><button className="secondary" onClick={()=>quick('investor')}>+ Add Investor</button><button className="primary" onClick={()=>quick('capital')}>+ Add capital</button></div>}>{data.investors.map(i=><div key={i.id}><h3 className="section-title">{i.name} · {cash(fundPosition(data,i.id).available)} available</h3><Table headers={['Date','Source event','Credit','Debit','Reserved','Linked source']}>{fundHistory(data,i.id).map(x=><tr key={x.id}><td>{x.date||'Opening'}</td><td>{x.description}</td><td>{x.credit?cash(x.credit):'—'}</td><td>{x.debit?cash(x.debit):'—'}</td><td>{x.reserved?cash(x.reserved):'—'}</td><td>{x.sourceId.slice(0,8)}…</td></tr>)}</Table></div>)}</Panel></>}
+     {page==='Investor Profit & Interim'||page==='Reconciliation & Settlement'?<Panel title="Business decision required" subtitle="This action cannot be confirmed in this demo without inventing a financial rule."><Notice title="No transaction has been created">V2 leaves monthly interim eligible-principal rules, reconciliation overlap, distributable profit basis and settlement authority unresolved. This screen is read-only; it preserves actual receipt and Fund history.</Notice></Panel>:null}
+     {page==='Vehicle Sales'&&<Panel title="Stock Vehicle sales" subtitle="Sale agreement and actual Buyer collection are separate." action={<button className="primary" onClick={()=>quick('sale')}>+ Record sale</button>}><Table headers={['Vehicle / Buyer','Agreed sale','Collected','Collection status','Remaining','Actions']}>{data.sales.map(s=>{const r=buyerReceivable(data,s);return <tr key={s.id}><td><strong>{vehicles.find(v=>v.id===s.vehicleId)?.number}</strong><small>{s.buyer}</small></td><td>{cash(salePrice(s))}</td><td>{cash(Math.max(0,s.received+paid(data,'buyer',s.id)-(data.buyerRefunds??[]).filter(x=>x.saleId===s.id).reduce((n,x)=>n+x.amount,0)))}</td><td><Badge text={r===0?'Fully received':r<salePrice(s)?'Partially received':'Pending'}/></td><td>{cash(r)}</td><td>{r>0&&<button className="textbutton" onClick={()=>quick('collection',s.id)}>Collect</button>}<button className="textbutton" onClick={()=>quick('recovery',s.id)}>Principal</button></td></tr>})}</Table>{!data.sales.length&&<Empty>No Stock Vehicle sales recorded.</Empty>}</Panel>}
+      {page==='Collections'&&<><Panel title="Actual receipt history" action={<button className="primary" onClick={()=>quick('collection')}>+ Record receipt</button>}><Table headers={['Date','Type','Reference','Method','Amount']}>{data.payments.filter(p=>p.kind!=='capital').map(p=><tr key={p.id}><td>{p.date}</td><td>{p.kind==='buyer'?'Buyer payment':'Customer receipt'}</td><td>{p.kind==='buyer'?data.sales.find(s=>s.id===p.targetId)?.buyer:jobs.find(j=>j.id===p.targetId)?.number}</td><td>{p.method}</td><td>{cash(p.amount)}</td></tr>)}</Table>{!data.payments.some(p=>p.kind!=='capital')&&<Empty>No individual receipt transactions recorded.</Empty>}</Panel>{(data.sales.some(s=>s.received>0)||jobs.some(j=>j.received>0))&&<Panel title="Seeded opening collected balances" subtitle="Opening totals have no individual receipt date or method and are excluded from the transaction history above."><Table headers={['Type','Reference','Receipt date','Method','Opening collected']}>{data.sales.filter(s=>s.received>0).map(s=><tr key={'sale-'+s.id}><td>Buyer opening balance</td><td>{s.buyer} · {vehicles.find(v=>v.id===s.vehicleId)?.number}</td><td>Not provided</td><td>Not provided</td><td>{cash(s.received)}</td></tr>)}{jobs.filter(j=>j.received>0).map(j=><tr key={'job-'+j.id}><td>Customer opening balance</td><td>{j.number} · {vehicles.find(v=>v.id===j.vehicleId)?.number}</td><td>Not provided</td><td>Not provided</td><td>{cash(j.received)}</td></tr>)}</Table></Panel>}</>}
+     {page==='Sale Corrections & Refunds'&&<><div className="buttonrow"><button className="secondary" onClick={()=>quick('saleCorrection')}>Correct sale price</button><button className="primary" onClick={()=>quick('refund')}>Record actual refund</button></div><Panel title="Corrections and refunds" subtitle="Original Sale and Buyer receipts remain preserved."><Table headers={['Buyer / Vehicle','Current sale price','Refund payable','Correction history','Refund history']}>{data.sales.map(s=><tr key={s.id}><td><strong>{s.buyer}</strong><small>{vehicles.find(v=>v.id===s.vehicleId)?.number}</small></td><td>{cash(salePrice(s))}</td><td>{cash(buyerRefundPayable(data,s))}</td><td>{(s.corrections??[]).map(c=><small key={c.id}>{c.date} · {cash(c.oldPrice)} → {cash(c.price)} · {c.reason}</small>)}</td><td>{(data.buyerRefunds??[]).filter(r=>r.saleId===s.id).map(r=><small key={r.id}>{r.date} · {cash(r.amount)} ({cash(r.principalBacked)} principal)</small>)}</td></tr>)}</Table></Panel></>}
+     {page==='Items & Purchases'&&<><div className="summary-grid"><Metric label="Items" value={String(data.items.length)}/><Metric label="Purchase batches" value={String(data.batches.length)}/><Metric label="Current quantity" value={`${inventory?.remaining??0} units`}/><Metric label="Purchase cost" value={cash(inventory?.purchaseCost??0)}/></div><Panel title="Stock items and purchase batches" action={<button className="primary" onClick={()=>quick('purchase')}>+ Record purchase</button>}><Table headers={['Item','Batch / Location','Purchased','Unit cost','Batch total','Available']}>{data.batches.map(b=><tr key={b.id}><td>{data.items.find(i=>i.id===b.itemId)?.name}</td><td>{b.date}<small>{garages.find(g=>g.id===b.garageId)?.name}</small></td><td>{b.quantity}</td><td>{cash(b.cost)}</td><td>{cash(b.quantity*b.cost)}</td><td>{remaining(data,b)}</td></tr>)}</Table></Panel></>}
+     {page==='Stock Issues'&&<Panel title="Inventory issues" subtitle="Choose a specific purchase batch. Cost basis and margin derive from that batch." action={<button className="primary" onClick={()=>quick('issue')}>+ Issue stock</button>}><Table headers={['Date / Item','Batch purchase cost','Vehicle / Job','Quantity','Issue price','Issue total','Cost basis','Margin']}>{data.issues.map(i=>{const batch=data.batches.find(b=>b.id===i.batchId)!,vehicle=vehicles.find(v=>v.id===i.vehicleId)!,job=jobs.find(j=>j.id===i.jobId);return <tr key={i.id}><td>{data.items.find(x=>x.id===batch.itemId)?.name}<small>{i.date}</small></td><td>{cash(batch.cost)}</td><td>{vehicle.number}<small>{job?.number??(vehicle.type==='Customer'?'Customer vehicle':'Direct')}</small></td><td>{i.quantity}</td><td>{cash(i.price)}</td><td>{cash(i.quantity*i.price)}</td><td>{cash(i.quantity*batch.cost)}</td><td>{cash(i.quantity*(i.price-batch.cost))}</td></tr>})}</Table></Panel>}
+     {page==='Stock Reports'&&<div className="summary-grid"><Metric label="Purchased quantity" value={`${inventory?.purchased??0} units`}/><Metric label="Purchase total" value={cash(inventory?.purchaseCost??0)}/><Metric label="Issue total" value={cash(inventory?.issueValue??0)}/><Metric label="Margin" value={cash((inventory?.issueValue??0)-(inventory?.costBasis??0))}/></div>}
+     {page==='Garage Revenue'&&<Panel title="Customer Garage charges and receipts" subtitle="Customer charges and actual receipts remain distinct source records."><Table headers={['Job / Customer vehicle','Garage','Charges','Actual receipts','Outstanding']}>{jobs.filter(j=>vehicles.find(v=>v.id===j.vehicleId)?.type==='Customer'&&(garageId==='all'||j.garageId===garageId)).map(j=>{const vehicle=vehicles.find(v=>v.id===j.vehicleId)!;return <tr key={j.id}><td><strong>{j.number} · {vehicle.number}</strong><small>{vehicle.person} · {j.description}</small></td><td>{garages.find(g=>g.id===j.garageId)?.name}</td><td>{cash(j.charge)}</td><td>{cash(j.received+paid(data,'customer',j.id))}</td><td>{cash(Math.max(0,j.charge-j.received-paid(data,'customer',j.id)))}<small>{(j.charges??[]).map(c=>`${c.category}: ${cash(c.amount)}`).join(' · ')}</small></td></tr>})}</Table>{!jobs.some(j=>vehicles.find(v=>v.id===j.vehicleId)?.type==='Customer')&&<Empty>No Customer Garage activity has been recorded.</Empty>}</Panel>}
+     {page==='Company Income'&&<Panel title="Other Company Income" subtitle="Actual receipt, distinct from Buyer and Customer receipts." action={<button className="primary" onClick={()=>quick('companyIncome')}>+ Record income</button>}><Table headers={['Timestamp','Source / Description','Garage','Method','Amount']}>{(data.otherIncomeReceipts??[]).filter(r=>garageId==='all'||r.garageId===garageId).map(r=><tr key={r.id}><td>{new Date(r.timestamp).toLocaleString()}</td><td><strong>{r.source}</strong><small>{r.description}</small></td><td>{garages.find(g=>g.id===r.garageId)?.name}</td><td>{r.method}</td><td>{cash(r.amount)}</td></tr>)}</Table></Panel>}
+     {page==='Company Expenses'&&<Panel title="Company direct expenses" subtitle="Company Accounting owns these records; Garage is attribution." action={<button className="primary" onClick={()=>quick('companyExpense')}>+ Add expense</button>}><Table headers={['Date','Description','Garage','Amount']}>{data.expenses.filter(e=>e.category==='Company'&&(garageId==='all'||e.garageId===garageId)).map(e=><tr key={e.id}><td>{e.date}</td><td>{e.description}</td><td>{garages.find(g=>g.id===e.garageId)?.name}</td><td>{cash(effectiveExpense(e).amount)}</td></tr>)}</Table></Panel>}
+     {page==='Running Capital'&&<><div className="summary-grid"><Metric label="Company contributions" value={cash(capitalReport(data,scopedGarages).companyContribution)}/><Metric label="Actual recoveries" value={cash(capitalReport(data,scopedGarages).companyRecovery)}/><Metric label="Open / unrecovered" value={cash(capitalReport(data,scopedGarages).companyOpen)} note="Vehicle-linked; not Investor Fund"/></div><Panel title="Company Running Capital by Vehicle" action={<button className="secondary" onClick={()=>quick('capitalRecovery')}>Record recovery</button>}><Table headers={['Vehicle','Contribution','Recovered','Open']}>{capitalReport(data,scopedGarages).rows.map(r=><tr key={r.vehicleId}><td>{vehicles.find(v=>v.id===r.vehicleId)?.number}</td><td>{cash(r.contribution)}</td><td>{cash(r.recovery)}</td><td>{r.incomplete?'Unavailable':cash(r.open)}</td></tr>)}</Table></Panel></>}
+     {page==='Company Result'&&<Panel title="Company result view" subtitle="Consolidated from the shared records; not an approved distributable-profit calculation."><Table headers={['Report line','Derived value']}>{reportRows.map(x=><tr key={x.key}><td>{x.key}</td><td>{x.value}</td></tr>)}</Table><Notice title="Distributable profit is not calculated">V2 requires a business decision on basis, period close and recognition. Vehicle Company Share is not posted until a confirmed settlement rule exists.</Notice></Panel>}
+     {page==='Garages / Branches'&&<Panel title="Garage settings" action={<button className="primary" onClick={()=>quick('garage')}>+ Add garage</button>}><Table headers={['Garage','Location','Status','Actions']}>{garages.map(g=><tr key={g.id}><td>{g.name}</td><td>{g.location}</td><td><Badge text={g.active?'Active':'Inactive'}/></td><td><button className="textbutton" onClick={()=>startForm({key:'garageEdit',title:'Edit garage',defaults:{garageId:g.id,name:g.name,location:g.location},fields:[{name:'garageId',label:'Garage',type:'select',options:[{value:g.id,label:g.name}]},{name:'name',label:'Garage name'},{name:'location',label:'Location'}]})}>Edit</button><button className="textbutton" onClick={()=>void save({...data,garages:data.garages.map(x=>x.id===g.id?{...x,active:!x.active}:x)},`Garage ${g.active?'deactivated':'activated'}`)}>{g.active?'Deactivate':'Activate'}</button></td></tr>)}</Table></Panel>}
+     {page==='Demo Data'&&<Panel title="Shared Demo Data" subtitle="All changes apply to the one local mock service file."><Notice title="Import replaces the current dataset">Choose a VIRMS demo JSON file. The import is validated before saving; invalid files leave current data intact.</Notice><div className="buttonrow"><label className={`primary import-button${importing?' disabled':''}`}><FileUp size={15}/>{importing?'Importing…':'Add / Import Data'}<input type="file" accept="application/json,.json" disabled={importing} onChange={e=>void handleImport(e.target.files?.[0])}/></label><button className="secondary" onClick={()=>void refresh()}>Refresh</button><button className="secondary" onClick={()=>{if(window.confirm('Reset all shared demo data to the Jeep seed?'))repository.reset(revision).then(s=>{setData(s.data);setRevision(s.revision);setMessage('Demo data reset to the supplied Jeep seed.')}).catch(e=>setFailure(e.message))}}>Reset to Jeep seed</button></div>{importName&&<p className="import-hint">Last imported: {importName}</p>}<p className="import-hint">The single shared store persists during the local Node server session and on its local filesystem. Do not import real data.</p></Panel>}
+     {page==='All Reports'&&<><div className="summary-grid"><Metric label="Vehicles" value={String(dashboardSummary?.vehicles??0)}/><Metric label="Garage revenue collected" value={cash(dashboardSummary?.revenue??0)}/><Metric label="Customer outstanding" value={cash(dashboardSummary?.outstanding??0)}/><Metric label="Company expenses" value={cash(dashboardSummary?.expenses??0)}/></div><Panel title="Report directory" subtitle={garageId==='all'?'Consolidated across all garages':`Filtered to ${selectedGarage?.name}`}><Table headers={['Report','Current derived value']}>{['Company Consolidated','Garage-wise','Vehicle Cost','Investor','Investor Fund','Expense','Garage Jobs','Inventory Current Stock','Inventory Purchases','Inventory Issues','Product Margin','Sales','Buyer Receivables','Customer Garage Receivables','Running Capital','Company Result','Owner Distribution'].map(name=><tr key={name}><td>{name}</td><td><button className="textbutton" onClick={()=>switchPage(name==='Garage Jobs'?'Garage Jobs Report':name==='Investor Fund'?'Investor Fund Report':name==='Running Capital'?'Running Capital Report':name)}>Open report <ArrowRight size={12}/></button></td></tr>)}</Table></Panel></>}
+     {['Company Consolidated','Garage-wise','Vehicle Cost','Investor','Investor Fund Report','Expense','Garage Jobs Report','Inventory Current Stock','Inventory Purchases','Inventory Issues','Product Margin','Sales','Buyer Receivables','Customer Garage Receivables','Running Capital Report'].includes(page)&&<Panel title={`${page.replace(/ Report$/,'')} report`} subtitle={garageId==='all'?'All Garages consolidated':`Filtered to ${selectedGarage?.name}`}><Table headers={['Record','Derived value']}>{reportRows.map(row=><tr key={row.rowKey??row.key}><td>{row.key}</td><td>{row.value}</td></tr>)}</Table>{!reportRows.length&&<Empty>No matching source records for this report.</Empty>}</Panel>}
+     {page==='Owner Distribution'&&<Panel title="Owner Distribution report" subtitle="No payout amount or owner balance is fabricated."><Notice title="Business decision required">V2 requires the approved Company distributable-profit basis, period close and effective owner allocation before this report can produce payable amounts. No Owner payment or distribution is recorded here.</Notice></Panel>}
+     {page==='Investor'&&<Panel title="Investor register"><Table headers={['Investor','Principal Fund','Available','Used / locked','Recovered']}>{data.investors.map(i=>{const p=fundPosition(data,i.id);return <tr key={i.id}><td>{i.name}</td><td>{cash(p.principal)}</td><td>{cash(p.available)}</td><td>{cash(p.used)}</td><td>{cash(p.recovered)}</td></tr>})}</Table></Panel>}
+      {page==='Transactions'&&<Panel title="Recorded financial events" subtitle="Company-wide source events; no inferred Cash / Bank balance"><Notice title="Source records, not a cash ledger">Buyer and Customer receipts, other income, Fund credits and actual refunds are shown once. Running Capital recovery is an allocation of collected money, not a second receipt. Opening balances and approved costs without payment details are excluded.</Notice><Table headers={['Date','Event','Linked record','Amount','Method']}>{transactionRows.map(r=><tr key={`${r.source}-${r.id}`}><td>{r.date}</td><td>{r.source}</td><td>{r.context}</td><td>{cash(r.amount)}</td><td>{r.method}</td></tr>)}</Table>{!transactionRows.length&&<Empty>No recorded events in the shared demo data.</Empty>}</Panel>}
+      {page==='Audit & Corrections'&&<><Panel title="Linked correction history" subtitle="Original records remain in the shared dataset"><Table headers={['Date','Source','Change','Reason']}>{correctionRows.map(r=><tr key={r.id}><td>{r.date}</td><td>{r.source}</td><td>{r.context}</td><td>{r.reason}</td></tr>)}</Table>{!correctionRows.length&&<Empty>No linked corrections recorded.</Empty>}</Panel><Panel title="Demo action log" subtitle="Recorded actions are informational; this demo has no authenticated actor trail"><Table headers={['Date','Action','Detail']}>{data.audit.map(a=><tr key={a.id}><td>{a.date}</td><td>{a.action}</td><td>{a.detail}</td></tr>)}</Table>{!data.audit.length&&<Empty>No demo actions recorded.</Empty>}</Panel></>}
+     </>}
+    </div>
+  </main>
+  {form&&<div className="modaloverlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)closeForm()}}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="form-title"><div className="modalhead"><div><h2 id="form-title">{form.title}</h2><p>Saved to the shared demo service after confirmation.</p></div><button className="iconbutton" aria-label="Close" onClick={closeForm}><X size={18}/></button></div><form key={form.key+form.title} onSubmit={e=>void doSubmit(e)}><div className="formgrid">{form.fields.filter(field=>!(form.key==='vehicle'&&vehicleTypeDraft==='Customer'&&['investorId','purchase'].includes(field.name))&&!(form.key==='issue'&&vehicles.find(v=>v.id===issueVehicleIdDraft)?.type==='Customer'&&['investor','capital'].includes(field.name))).map(field=><label key={field.name}>{field.label}{field.type==='select'?<select key={field.name==='jobId'&&form.key==='issue'?issueVehicleIdDraft:field.name==='targetId'&&form.key==='collection'?collectionKind:field.name} name={field.name} onChange={e=>{
+```
+- **submitBehavior**: doSubmit → linked next Data → save(revision,data) → PUT /api/mock; success updates snapshot/revision, logs action and closes modal; failure remains visible.
+- **cancelBehavior**: Cancel, labelled Close or backdrop closes form and clears failure; no save.
+- **destructive**: false
+- **dependencies**: ["Data snapshot", "valid linked IDs", "repository.save"]
+- **defaults**: Date today; garage first option; select first option unless contextual defaults. Text required except newItem/investor/capital/jobId/date/note/category unless explicitly overridden. Select has no implicit required.
+- **conditionalFields**: Customer vehicle hides Investor/purchase; Customer issue hides funding split and requires Job; receipt kind changes eligible targets. Exact conditional source remains authoritative.
+- **sourceFiles**: ["demo/accountant-ui-demo/src/components/workspace-full.tsx", "demo/accountant-ui-demo/src/mock/import-file.ts"]
+- **notes**: ["React QuickActionModal only has vehicle/sale/receipt modes; these full contracts are not already integrated."]
+
+### Import and reset
+```json
+[
+  {
+    "id": "import",
+    "fields": [
+      "File: application/json,.json"
+    ],
+    "validation": "JSON.parse → parseDemoFile → revision-checked save; importing disables file chooser; invalid data leaves snapshot intact",
+    "destructive": true,
+    "actions": [
+      "Add / Import Data",
+      "replace snapshot after valid confirmation"
+    ],
+    "sourceFiles": [
+      "demo/accountant-ui-demo/src/components/workspace-full.tsx",
+      "demo/accountant-ui-demo/src/mock/import-file.ts"
+    ]
+  },
+  {
+    "id": "reset",
+    "fields": [],
+    "validation": "window.confirm then repository.reset(revision); Cancel sends no PUT",
+    "destructive": true,
+    "actions": [
+      "Reset to Jeep seed",
+      "confirm/cancel"
+    ],
+    "sourceFiles": [
+      "demo/accountant-ui-demo/src/components/workspace-full.tsx",
+      "demo/accountant-ui-demo/src/mock/store.ts"
+    ]
+  }
+]
+```
+
+### Form service validation evidence
+
+The following extends each named form contract with the exact referenced service guards. These remain prototype behavior; canonical V2 wins on business conflicts.
+
+- **jobExpense**: [{"function": "createStockJobExpense", "file": "demo/accountant-ui-demo/src/mock/services/stock-job-expense.ts", "line": 4, "guardMessages": ["Select a job belonging to the selected stock vehicle.", "Enter an expense description.", "Select a valid expense type.", "Enter a positive expense and nonnegative funding amounts.", "Investor Fund and Company Running Capital must equal the expense amount."], "source": "export function createStockJobExpense(data:Data,input:StockJobExpenseInput):Expense {\n const job=data.jobs.find(j=>j.id===input.jobId);\n const vehicle=data.vehicles.find(v=>v.id===input.vehicleId);\n if(!job||!vehicle||vehicle.type!=='Stock / Investor'||job.vehicleId!==vehicle.id)throw new Error('Select a job belonging to the selected stock vehicle.');\n if(!input.description.trim())throw new Error('Enter an expense description.');\n if(!['Labour','Direct purchase','Other'].includes(input.costType))throw new Error('Select a valid expense type.');\n if(![input.amount,input.investor,input.capital].every(Number.isFinite)||input.amount<=0||input.investor<0||input.capital<0)throw new Error('Enter a positive expense and nonnegative funding amounts.');\n const paise=(n:number)=>Math.round(n*100);\n if([input.amount,input.investor,input.capital].some(n=>Math.abs(n*100-paise(n))>0.000001)||paise(input.investor)+paise(input.capital)!==paise(input.amount))throw new Error('Investor Fund and Company Running Capital must equal the expense amount.');\n return {id:input.id,vehicleId:vehicle.id,jobId:job.id,garageId:job.garageId,description:input.description.trim(),costType:input.costType,amount:input.amount,investor:input.investor,capital:input.capital,date:input.date,category:'Vehicle'};\n}\n"}, {"function": "requireFund", "file": "demo/accountant-ui-demo/src/mock/services/investor-fund.ts", "line": 58, "guardMessages": ["Investor Fund is unavailable for this vehicle.", "Investor Fund cannot be validated until missing stock issue funding allocations are resolved.", "Insufficient available Investor Fund. Reduce the Investor allocation or use Company Running Capital."], "source": "export function requireFund(data:Data,vehicleId:string,amount:number){\n const v=data.vehicles.find(v=>v.id===vehicleId);\n if(!v||v.type!=='Stock / Investor'||!v.investorId)throw new Error('Investor Fund is unavailable for this vehicle.');\n const position=fundPosition(data,v.investorId);\n if(position.incomplete)throw new Error('Investor Fund cannot be validated until missing stock issue funding allocations are resolved.');\n if(!Number.isFinite(amount)||amount<0||Math.round(amount*100)>Math.round(position.available*100))throw new Error('Insufficient available Investor Fund. Reduce the Investor allocation or use Company Running Capital.');\n}\n\n/** Actual capital recovery is separate from income and follows investor principal recovery. */"}]
+- **vehicleExpense**: [{"function": "requireFund", "file": "demo/accountant-ui-demo/src/mock/services/investor-fund.ts", "line": 58, "guardMessages": ["Investor Fund is unavailable for this vehicle.", "Investor Fund cannot be validated until missing stock issue funding allocations are resolved.", "Insufficient available Investor Fund. Reduce the Investor allocation or use Company Running Capital."], "source": "export function requireFund(data:Data,vehicleId:string,amount:number){\n const v=data.vehicles.find(v=>v.id===vehicleId);\n if(!v||v.type!=='Stock / Investor'||!v.investorId)throw new Error('Investor Fund is unavailable for this vehicle.');\n const position=fundPosition(data,v.investorId);\n if(position.incomplete)throw new Error('Investor Fund cannot be validated until missing stock issue funding allocations are resolved.');\n if(!Number.isFinite(amount)||amount<0||Math.round(amount*100)>Math.round(position.available*100))throw new Error('Insufficient available Investor Fund. Reduce the Investor allocation or use Company Running Capital.');\n}\n\n/** Actual capital recovery is separate from income and follows investor principal recovery. */"}]
+- **issue**: [{"function": "createInventoryIssue", "file": "demo/accountant-ui-demo/src/mock/services/inventory-issue.ts", "line": 8, "guardMessages": ["Select an existing purchase batch and vehicle.", "Select a job belonging to the selected vehicle.", "Enter a valid quantity, issue price and funding split.", "Enter an issue price to two decimal places.", "Investor Fund and Company Running Capital must equal the issue value.", "Customer Vehicle stock issues cannot use Investor Fund or Running Capital.", "Select an existing Garage Job for a customer vehicle stock issue."], "source": "export function createInventoryIssue(data:Data,input:InventoryIssueInput):{issue:Issue;expense?:Expense;jobUpdate?:Data['jobs'][number]}{\n const batch=data.batches.find(row=>row.id===input.batchId),vehicle=data.vehicles.find(row=>row.id===input.vehicleId);\n if(!batch||!vehicle)throw new Error('Select an existing purchase batch and vehicle.');\n const job=input.jobId?data.jobs.find(row=>row.id===input.jobId):undefined;\n if(input.jobId&&(!job||job.vehicleId!==vehicle.id))throw new Error('Select a job belonging to the selected vehicle.');\n if(!Number.isInteger(input.quantity)||input.quantity<=0||input.quantity>remaining(data,batch)||![input.price,input.investor,input.capital].every(Number.isFinite)||input.price<=0||input.investor<0||input.capital<0)throw new Error('Enter a valid quantity, issue price and funding split.');\n const paise=(n:number)=>Math.round(n*100), total=paise(input.quantity*input.price);\n if(Math.abs(input.price*100-paise(input.price))>0.000001)throw new Error('Enter an issue price to two decimal places.');\n if(vehicle.type==='Stock / Investor'){\n  if(paise(input.investor)+paise(input.capital)!==total)throw new Error('Investor Fund and Company Running Capital must equal the issue value.');\n  if(input.investor>0)requireFund(data,vehicle.id,input.investor);\n }else if(input.investor!==0||input.capital!==0){\n  throw new Error('Customer Vehicle stock issues cannot use Investor Fund or Running Capital.');\n }\n const issue:Issue={id:input.issueId,batchId:batch.id,vehicleId:vehicle.id,jobId:job?.id??'',expenseId:vehicle.type==='Stock / Investor'?input.expenseId:undefined,jobCostId:vehicle.type==='Customer'?input.costId:undefined,quantity:input.quantity,price:input.price,date:input.date,investor:input.investor,capital:input.capital};\n if(vehicle.type!=='Stock / Investor'){\n  if(!job)throw new Error('Select an existing Garage Job for a customer vehicle stock issue.');\n  const cost={id:input.costId,date:input.date,category:'Direct purchase' as const,description:`${batch.itemId} · ${input.quantity} units`,amount:input.quantity*batch.cost};\n  const charge={id:input.chargeId,date:input.date,category:'Material' as const,description:`${batch.itemId} · ${input.quantity} units`,amount:input.quantity*input.price};\n  return {issue,jobUpdate:{...job,costs:[...(job.costs??[]),cost],charges:[...(job.charges??[]),charge],charge:job.charge+charge.amount}};\n }\n const expense:Expense={id:input.expenseId,vehicleId:vehicle.id,jobId:job?.id,garageId:job?.garageId??batch.garageId,description:`Inventory issue · ${input.quantity} × ${input.price}`,amount:input.quantity*input.price,investor:input.investor,capital:input.capital,date:input.date,category:'Vehicle',costType:'Direct purchase'};\n return {issue,expense};\n}\n"}]
+- **saleCorrection**: [{"function": "validateSaleCorrection", "file": "demo/accountant-ui-demo/src/mock/services/investor-fund.ts", "line": 79, "guardMessages": ["Select an existing sale.", "Sale correction with mixed Company capital requires manual reconciliation.", "Enter a positive sale price and correction reason.", "A correction cannot create an uncollected price increase."], "source": "export function validateSaleCorrection(data:Data,saleId:string,price:number,reason:string){\n const sale=data.sales.find(s=>s.id===saleId),vehicle=sale&&data.vehicles.find(v=>v.id===sale.vehicleId);\n if(!sale||!vehicle)throw new Error('Select an existing sale.');\n if(vehicle.type!=='Stock / Investor'||capitalContribution(data,vehicle.id)>0||paid(data,'capital',vehicle.id)>0)throw new Error('Sale correction with mixed Company capital requires manual reconciliation.');\n if(!Number.isFinite(price)||price<=0||Math.abs(price*100-Math.round(price*100))>0.000001||!reason.trim())throw new Error('Enter a positive sale price and correction reason.');\n const received=Math.round((sale.received+paid(data,'buyer',sale.id)-(data.buyerRefunds??[]).filter(r=>r.saleId===sale.id).reduce((n,r)=>n+r.amount,0))*100);\n if(Math.round(price*100)>received+Math.round(buyerRefundPayable(data,sale)*100))throw new Error('A correction cannot create an uncollected price increase.');\n return {sale,oldPrice:salePrice(sale),newPrice:price,refundPayable:Math.max(0,(received-Math.round(price*100))/100)};\n}"}]
+- **refund**: [{"function": "validateBuyerRefund", "file": "demo/accountant-ui-demo/src/mock/services/investor-fund.ts", "line": 88, "guardMessages": ["Select an existing sale.", "Refund with mixed Company capital requires manual reconciliation.", "Refund must be positive and cannot exceed the current buyer refund payable.", "Investor Fund cannot support the principal-backed refund."], "source": "export function validateBuyerRefund(data:Data,saleId:string,amount:number){\n const sale=data.sales.find(s=>s.id===saleId),vehicle=sale&&data.vehicles.find(v=>v.id===sale.vehicleId);\n if(!sale||!vehicle)throw new Error('Select an existing sale.');\n if(vehicle.type!=='Stock / Investor'||capitalContribution(data,vehicle.id)>0||paid(data,'capital',vehicle.id)>0)throw new Error('Refund with mixed Company capital requires manual reconciliation.');\n const payable=Math.round(buyerRefundPayable(data,sale)*100),already=(data.buyerRefunds??[]).filter(r=>r.saleId===saleId).reduce((n,r)=>n+Math.round(r.amount*100),0);\n const recovered=(data.principalRecoveries??[]).filter(r=>r.vehicleId===vehicle.id).reduce((n,r)=>n+Math.round(r.amount*100),0);\n const returned=(data.buyerRefunds??[]).filter(r=>r.saleId===saleId).reduce((n,r)=>n+Math.round(r.principalBacked*100),0);\n const backed=Math.min(Math.round(amount*100),Math.max(0,recovered-returned));\n if(!Number.isFinite(amount)||amount<=0||Math.abs(amount*100-Math.round(amount*100))>0.000001||Math.round(amount*100)>payable||already+Math.round(amount*100)>Math.round((sale.received+paid(data,'buyer',saleId))*100))throw new Error('Refund must be positive and cannot exceed the current buyer refund payable.');\n const position=fundPosition(data,vehicle.investorId!);if(backed>Math.round(position.principal*100))throw new Error('Investor Fund cannot support the principal-backed refund.');\n return {principalBacked:backed/100,payable:payable/100};\n}\n"}]
+- **recovery**: [{"function": "validateRecovery", "file": "demo/accountant-ui-demo/src/mock/services/investor-fund.ts", "line": 56, "guardMessages": ["Recovery must be positive and no greater than received cash and outstanding investor principal."], "source": "export function validateRecovery(data:Data,vehicleId:string,amount:number){const result=recoveryLimit(data,vehicleId);if(!Number.isFinite(amount)||amount<=0||Math.abs(amount*100-Math.round(amount*100))>0.000001||Math.round(amount*100)>Math.round(result.limit*100))throw new Error('Recovery must be positive and no greater than received cash and outstanding investor principal.');return result;}"}]
+- **capitalRecovery**: [{"function": "validateCapitalRecovery", "file": "demo/accountant-ui-demo/src/mock/services/investor-fund.ts", "line": 67, "guardMessages": ["Capital recovery requires full buyer collection.", "Capital recovery requires a positive vehicle result; loss requires manual review.", "Recover the outstanding investor principal first.", "Capital recovery must be positive and no greater than the outstanding company contribution."], "source": "export function validateCapitalRecovery(data:Data,vehicleId:string,amount:number){\n const position=recoveryLimit(data,vehicleId);\n const vehicle=data.vehicles.find(v=>v.id===vehicleId)!;\n const sale=data.sales.find(s=>s.id===position.saleId)!;\n if(Math.round((sale.received+paid(data,'buyer',sale.id)-(data.buyerRefunds??[]).filter(r=>r.saleId===sale.id).reduce((n,r)=>n+r.amount,0))*100)!==Math.round(salePrice(sale)*100))throw new Error('Capital recovery requires full buyer collection.');\n if(Math.round(sale.price*100)<=Math.round(totalVehicleCost(data,vehicle.id)*100))throw new Error('Capital recovery requires a positive vehicle result; loss requires manual review.');\n if(Math.round(position.limit*100)>0)throw new Error('Recover the outstanding investor principal first.');\n const outstanding=Math.round(capitalContribution(data,vehicleId)*100)-Math.round(paid(data,'capital',vehicleId)*100);\n if(!Number.isFinite(amount)||amount<=0||Math.abs(amount*100-Math.round(amount*100))>0.000001||Math.round(amount*100)>outstanding)throw new Error('Capital recovery must be positive and no greater than the outstanding company contribution.');\n return {saleId:sale.id,limit:outstanding/100};\n}\n"}]
+
+## 14. Route → Template Mapping
+
+Each page in sections 6–7 names one primary templateFamily. Vehicle and Job detail share primitives but distinct cost/charge semantics. Financial overview pages share table/metric/dialog primitives, not one universal transaction form. Investor generic report plus register, shared Company Result identity and notice-only Owner Distribution are explicit report overrides.
+
+## 15. Responsive Strategy
+
+```json
+{
+  "zoom": "100%",
+  "viewports": [
+    "1280x800",
+    "1366x768",
+    "1440x900",
+    "1600x900",
+    "1920x1080",
+    "2560x1440",
+    "tablet 768x1024 and 1024x768",
+    "mobile 390x844 and narrow phone 320x568"
+  ],
+  "sourceBreakpoints": [
+    "sm",
+    "md",
+    "lg",
+    "xl where present; no CSS breakpoint override found"
+  ],
+  "rules": [
+    "Use available width; minmax(0,1fr), min-w-0, flex and clamp",
+    "No fixed mockup canvas, transform/zoom hacks",
+    "Desktop fixed rail/flyout and mobile drawer preserved",
+    "Keep money/status/actions usable and contain table overflow",
+    "Verify footer on short/long pages, modal scrolling, fixed-UI overlap and mobile touch areas"
+  ],
+  "runtime": "UNVERIFIED browser layout; source-based specification only"
+}
+```
+
+- **dashboard**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **vehicle-listing**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **operational-queue**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **financial-overview-ledger**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **correction-audit**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **notice**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **inventory-workspace**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **result-summary**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **report-directory**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **settings-admin**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **operational-detail**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+- **report-viewer**: Desktop — Full remaining width, compact grids/metrics and usable tables. Tablet — Wrap header/actions, reduce columns, keep financial/status fields accessible. Mobile — Single-column readable blocks or contained table scrolling, compact touch-safe controls, no page overflow.
+
+## 16. Accessibility/Interaction Rules
+
+PROPOSED future acceptance: labelled inputs/icon buttons, semantic keyboard-operable detail actions, visible focus, modal/drawer focus trap/Escape/restoration as applicable, status/error announcements, error-preserved input, disabled/in-flight protection, text plus color status. Existing labels/roles do not prove complete accessibility; verify touched views and preserve accepted design.
+
+## 17. Implementation Phases
+
+PROPOSED UI groups only. Select the current phase and split each group into small vertical tasks of roughly five files or fewer. No remaining implementation begins from this blueprint.
+
+### UI-01 — Baseline preservation and explicit data mapping
+
+```json
+{
+  "id": "UI-01",
+  "title": "Baseline preservation and explicit data mapping",
+  "dependsOn": [],
+  "routes": [
+    "Shared AppShell",
+    "existing React pages"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-02 — Complete existing Garage missing callbacks
+
+```json
+{
+  "id": "UI-02",
+  "title": "Complete existing Garage missing callbacks",
+  "dependsOn": [
+    "UI-01"
+  ],
+  "routes": [
+    "Garage Jobs",
+    "Garage Job Detail",
+    "Vehicle Detail"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-03 — Pending Inventory slice
+
+```json
+{
+  "id": "UI-03",
+  "title": "Pending Inventory slice",
+  "dependsOn": [
+    "UI-02"
+  ],
+  "routes": [
+    "Items & Purchases",
+    "Stock Issues",
+    "Stock Reports"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-04 — Investor/Sales/receipt slice
+
+```json
+{
+  "id": "UI-04",
+  "title": "Investor/Sales/receipt slice",
+  "dependsOn": [
+    "UI-01"
+  ],
+  "routes": [
+    "Investor Fund",
+    "Vehicle Sales",
+    "Collections"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-05 — Correction/refund and Accounting slice
+
+```json
+{
+  "id": "UI-05",
+  "title": "Correction/refund and Accounting slice",
+  "dependsOn": [
+    "UI-03",
+    "UI-04"
+  ],
+  "routes": [
+    "Sale Corrections & Refunds",
+    "Garage Revenue",
+    "Company Income",
+    "Company Expenses",
+    "Running Capital",
+    "Transactions",
+    "Audit & Corrections"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-06 — Reports and provisional result
+
+```json
+{
+  "id": "UI-06",
+  "title": "Reports and provisional result",
+  "dependsOn": [
+    "UI-05"
+  ],
+  "routes": [
+    "All Reports",
+    "Company Consolidated",
+    "Garage-wise",
+    "Vehicle Cost",
+    "Investor",
+    "Investor Fund Report",
+    "Expense",
+    "Garage Jobs Report",
+    "Inventory Current Stock",
+    "Inventory Purchases",
+    "Inventory Issues",
+    "Product Margin",
+    "Sales",
+    "Buyer Receivables",
+    "Customer Garage Receivables",
+    "Running Capital Report",
+    "Company Result",
+    "Owner Distribution"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-07 — Settings and data utilities
+
+```json
+{
+  "id": "UI-07",
+  "title": "Settings and data utilities",
+  "dependsOn": [
+    "UI-01"
+  ],
+  "routes": [
+    "Garages / Branches",
+    "Demo Data"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+### UI-08 — Retain decision notices and regression gate
+
+```json
+{
+  "id": "UI-08",
+  "title": "Retain decision notices and regression gate",
+  "dependsOn": [
+    "UI-06",
+    "UI-07"
+  ],
+  "routes": [
+    "Investor Profit & Interim",
+    "Reconciliation & Settlement",
+    "Owner Distribution"
+  ],
+  "scope": "PROPOSED UI work group; select only current phase and one small vertical task at a time; not authorization to prewrite backend phase plans.",
+  "acceptance": [
+    "Respect preservation classifications and accepted design",
+    "Carry every source field/column/action or explicit limitation",
+    "No false financial success or duplicate economic effect",
+    "No new business rule or invented backend"
+  ],
+  "verification": [
+    "Focused existing regressions and React type/build when implementation authorized",
+    "Isolated synthetic-state action checks for touched consequential flows",
+    "Read-only browser review at all requested widths"
+  ],
+  "expectedFiles": [
+    "Pending React view/form/primitives as needed",
+    "Minimal App/navigation integration only; never unrelated existing page rewrites"
+  ]
+}
+```
+
+## 18. Regression / Compatibility Risks
+
+Preserve route keys, card/filter interactions, source-ID links, Company Fund scope, Stock/Customer separation, distinct Sale/receipt/correction/refund histories, one stock-issue cost, opening totals, exact actual capital events and Job status history. No fake Cash/Bank balance. Guarded mixed-capital corrections/refunds and post-recovery costs are observed implementation limitations, not newly approved business rules. JS number/cents calculations are prototype evidence, not production decimal authority.
+
+## 19. Audit Findings (A/B/C/D)
+
+- **R-01 / A**: Receive claims Payment received without recording a receipt; React receipt/sale dialogs only create message/activity. Require real state change before financial success. Evidence: `demo/react/src/App.tsx`.
+- **R-02 / A**: Garage Job Detail invents capital as purchase minus 150000. Replace only that derivation with actual source or unavailable. VehicleDetailView.tsx:126 separately hard-codes Stock capital to zero; both require actual-contribution-or-unavailable mapping. Evidence: `demo/react/src/components/GarageJobDetailView.tsx`.
+- **R-03 / A**: Neither demo has production auth, tenant isolation or financial transaction authority. JS numeric helpers must not become canonical money authority. Evidence: `docs-final-v2/supporting/production-engineering-standards.md`.
+- **R-04 / B**: QuickActionModal always creates Stock / Investor with hard-coded 650000 purchase/totalCost despite Stock / Customer title; no Fund validation. Complete shared form without rebuilding listing pages. Evidence: `demo/react/src/components/QuickActionModal.tsx`.
+- **R-05 / B**: React navigation includes only six report links from the 17-report directory. Add missing keys without renaming existing ones. Evidence: `demo/react/src/data/navigationRegistry.ts`.
+- **R-06 / B**: Garage filtering varies among source screens; Fund is Company-wide and capital recoveries are not allocated by Garage. Do not infer scope from selector presence. Evidence: `demo/accountant-ui-demo/src/components/workspace-full.tsx`.
+- **R-07 / B**: Full Parts Inventory is outside canonical baseline while demos contain purchase/issue workflows. Retain observed demo UI contracts; production scope expansion needs a business decision. Evidence: `docs-final-v2/01-business-rules.md`.
+- **R-08 / B**: React local state and main Data snapshot are separate schemas; no API bridge exists. Integration requires explicit mapping and authorization, not page rewrites. Evidence: `demo/react/src/App.tsx`.
+- **R-09 / B**: Root README says no React frontend; map verification headers cite older snapshots. Treat these as stale documentation claims relative to current source. Evidence: `README.md`.
+- **R-10 / C**: Accent values and radii vary across accepted components; do not normalize by rewriting approved pages. Evidence: `demo/react/src/index.css`.
+- **R-11 / C**: Route-map claims expense correction and pending build/reset checks not proven by current source. Later handoff claims are not current runtime verification. Evidence: `demo/accountant-ui-demo/DEMO-ROUTE-MAP.md`.
+- **R-12 / D**: View keys are in-memory identities at one URL; no React Router dependency exists. Evidence: `demo/react/package.json`.
+- **R-13 / B**: Inventory/Accounting/Reports TopBar keys have no current normalized content/registry-child match; placeholder shows Dashboard metadata. Minimal shared-navigation integration only. Evidence: `demo/react/src/components/TopBar.tsx`.
+
+No application bug fixed. Single-model adversarial finding on Vehicle Detail false capital zero reconciled as actionable; targeted fix permission added to both artifacts. Cross-model review explicitly skipped by user.
+
+## 20. BUSINESS DECISION REQUIRED
+
+- **BDR-01**: Monthly Interim eligible-principal base and active-cycle withdrawal limits. Source: `docs-final-v2/01-business-rules.md:73`.
+- **BDR-02**: Deal-level Profit/interim/period reconciliation inclusion and duplicate-payment prevention. Source: `docs-final-v2/01-business-rules.md:75`.
+- **BDR-03**: Manual Loss Investor/Company impacts and exact confirmation authority. Source: `docs-final-v2/01-business-rules.md:74`.
+- **BDR-04**: Company distributable-Profit recognition, period close/carryforward and payout basis. Source: `docs-final-v2/09-company-accounting-owner-distribution.md:31`.
+- **BDR-05**: Company-level cross-Branch correction authority. Source: `docs-final-v2/02-user-roles-permissions.md:43`.
+- **BDR-06**: Back Office private-finance support beyond explicit Company assignment. Source: `docs-final-v2/02-user-roles-permissions.md:44`.
+- **BDR-07**: Minimum settlement actions permitted while module OFF. Source: `docs-final-v2/02-user-roles-permissions.md:44`.
+- **BDR-08**: Whether demo Inventory purchase/issue scope is approved for production; full Parts Inventory is excluded by current baseline. Source: `docs-final-v2/01-business-rules.md:69`.
+
+Do not classify all profit/settlement as undecided. V2 defines normal eligible pre-Exit Profit and principal-first final payments; notice screens preserve specific open decisions and currently missing implementation. Never fill a missing business meaning with V1 percentages or demo arithmetic.
+
+## 21. Validation / Definition of Done
+
+Artifact checks: strict JSON parse; 42 business views plus 3 technical TopBar keys; 17 reports; 21 main forms; 3 current modal modes; import/reset; unique complete route/report/form inventory, every route has preservation/source metadata, only two authorized artifact files changed. Browser/runtime and financial actions were not performed. Future implementation gates: relevant existing regressions, React type/build checks, isolated synthetic-state action verification, responsive/keyboard/console checks for touched screens; no test weakening or production-readiness claim from compilation alone.
+
+## 22. Files Expected to Change During Future Implementation
+
+When individually authorized: pending React view/form/primitives, minimal App/navigation wiring and explicit selected-slice types/data mapping. Existing files only for listed missing integration, verified bugs, necessary shell fixes or user-approved targets. Never automatically migrate accepted pages to new templates.
+
+## 23. Files That Must Not Be Changed
+
+This task permits only the two documents under demo/react/docs. Preserve canonical V2 files, existing accepted React pages/tokens, old demo source, .demo-data/store.json, backend/migrations/database/deployment and all unrelated dirty work. No commit/push authorization.
+
+## 24. Documentation Update Strategy
+
+Keep Markdown and JSON synchronized. Reclassify each route before future work using all six permitted classifications; compare current implementation → missing requirement → minimal addition. Update only verified changed contracts. Keep source hashes as inspected-snapshot evidence, not authority based on recency. Skills applied only within authorized documentation paths; no default tasks/plan.md or tracker files created.
+
+## 25. Final Recommended Execution Order
+
+Freeze preserved baseline → explicit source/data mapping → complete Garage missing callbacks and targeted false-feedback/capital-display fixes → pending Inventory and Investor/Sales slices → corrections/accounting → report family with overrides → settings/data utilities → retained notices → focused cross-view regression. Accepted pages remain in place.
+
+
+Artifact verification: strict JSON, inventory and preservation checks performed on the final files; source/file hashes outside the authorized docs unchanged. No browser mutation, implementation, commit or push.

@@ -1,0 +1,44 @@
+{
+  "name": "virms-react-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint src/api src/auth src/main.tsx src/components/AppShell.tsx src/components/TopBar.tsx src/components/dashboard/DashboardHeader.tsx",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.105.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.1.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "jsdom": "^26.1.0",
+    "puppeteer": "^25.16.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^6.2.0",
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "minimatch": "^11.0.3"
+  }
+}

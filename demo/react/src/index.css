@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  /* Default VIRMS Orange Palette Baseline */
+  --theme-primary: #FF551F;
+  --theme-primary-hover: #e04412;
+  --theme-primary-active: #cc3a0a;
+  --theme-primary-soft: rgba(255, 85, 31, 0.08);
+  --theme-primary-subtle: rgba(255, 85, 31, 0.035);
+  --theme-primary-border: rgba(255, 85, 31, 0.20);
+  --theme-accent-gradient: linear-gradient(135deg, #FF4E18 0%, #FF3000 100%);
+  --theme-accent-shadow: rgba(255, 78, 24, 0.16);
+  --theme-bg-app: #fffdfb;
+  --theme-bg-gradient: radial-gradient(circle at 28% 18%, rgba(255, 92, 45, 0.065), transparent 36%), radial-gradient(circle at 72% 42%, rgba(255, 135, 90, 0.05), transparent 42%), radial-gradient(circle at 50% 88%, rgba(255, 100, 50, 0.035), transparent 45%), linear-gradient(180deg, #fffdfb 0%, #fff9f5 100%);
+  --theme-card-bg: #FFFCFA;
+  --theme-card-border: #f0eae3;
+  --theme-card-nested-bg: #ffffff;
+  --theme-card-nested-border: #ede7e1;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: var(--theme-bg-app);
+    background-image: var(--theme-bg-gradient);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: #18181b;
+  }
+}
+
+:where([data-theme="dark"], [data-theme="dark"] *) body,
+body.dark,
+[data-theme="dark"] {
+  background-color: #18181b;
+  background-image:
+    radial-gradient(
+      circle at 28% 18%,
+      var(--theme-primary-soft),
+      transparent 36%
+    ),
+    linear-gradient(
+      180deg,
+      #18181b 0%,
+      #141416 100%
+    );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #f4f4f5;
+}
+
+/* App Shell container */
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  background: transparent;
+}
+
+/*
+ * Dashboard Surface Architecture:
+ * Solid, formal, modern cards carrying the subtle theme-calibrated surface tint.
+ * Free from glassmorphism, excessive transparency, and heavy backdrop blurs.
+ */
+.dashboard-card-solid {
+  background-color: var(--theme-card-bg, #FFFCFA);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0.04) 22%,
+    transparent 45%
+  );
+  border: 1px solid var(--theme-card-border, #f0eae3);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:where([data-theme="dark"], [data-theme="dark"] *) .dashboard-card-solid {
+  background-color: #27272a;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.01) 22%,
+    transparent 45%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Solid formal nested mini cards (e.g. investor wallets) */
+.dashboard-nested-card {
+  background-color: var(--theme-card-nested-bg, #ffffff);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.06) 24%,
+    transparent 50%
+  );
+  border: 1px solid var(--theme-card-nested-border, #ede7e1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:where([data-theme="dark"], [data-theme="dark"] *) .dashboard-nested-card {
+  background-color: #2e2e33;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 40%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Solid premium theme highlight card (adapts to active brand palette) */
+.dashboard-card-orange,
+.dashboard-card-accent {
+  background-color: var(--theme-primary);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.20) 0%,
+    rgba(255, 255, 255, 0.04) 22%,
+    transparent 45%
+  ), var(--theme-accent-gradient);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px var(--theme-accent-shadow);
+  color: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Centralized Semantic Theme Utilities */
+.text-theme-primary {
+  color: var(--theme-primary);
+}
+
+.bg-theme-primary {
+  background-color: var(--theme-primary);
+}
+
+.border-theme-primary {
+  border-color: var(--theme-primary);
+}
+
+.bg-theme-soft {
+  background-color: var(--theme-primary-soft);
+}
+
+.border-theme-soft {
+  border-color: var(--theme-primary-border);
+}
+
+.theme-chip {
+  background-color: var(--theme-primary-soft);
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary-border);
+}
+
+.focus-ring-theme:focus {
+  outline: none;
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px var(--theme-primary-soft);
+}
