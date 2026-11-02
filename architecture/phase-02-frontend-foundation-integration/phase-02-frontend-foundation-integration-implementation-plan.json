@@ -2,21 +2,31 @@
   "metadata": {
     "title": "VIRMS Architecture Phase 2 — Frontend Foundation + Real Backend Integration",
     "version": "1.0",
-    "mode": "IMPLEMENTED_CANDIDATE",
-    "status": "PHASE_2_READY_FOR_ACCEPTANCE on the isolated candidate; not integrated into staging",
+    "mode": "IMPLEMENTED_LOCAL_INTEGRATION",
+    "status": "PHASE_2_FULLY_COMPLETE_AND_ACCEPTED on local codex/audit; no push or staging integration",
     "risk_level": "HIGH-RISK",
     "observed_at": "2026-11-02 Asia/Calcutta",
     "repository": "muhammedshibiliraihsoft-art/VIRMS",
-    "active_worktree": "D:/VIRMS/tmp/phase1-consolidated-20261101",
-    "branch": "codex/phase1-consolidated",
-    "head": "cac26195611432b44b2cc594aad5f2f0e208b69a",
-    "remote_tracking": "Not checked; no fetch or push was run",
+    "active_worktree": "D:/VIRMS/tmp/phase1-corrections-isolated-20261102",
+    "branch": "codex/phase1-corrections-isolated",
+    "head": "f266803acd5e86caa2286fb8eae41df6cadfcb86",
+    "candidate_state": "Dirty isolated worktree based on f266803acd5e86caa2286fb8eae41df6cadfcb86; final acceptance applies to the local candidate, not the published remote branch.",
+    "current_integration_overlay": {
+      "observed_at": "2026-11-02 Asia/Calcutta",
+      "branch": "codex/audit",
+      "state": "Phase 1 and Phase 2 accepted source, tests, role-navigation and Investor mock-data boundary corrections are consolidated locally; no push or staging update.",
+      "phase1_tests": "210/210 account and tenant tests passed on disposable PostgreSQL; migrations through accounts.0012_scope_end_monotonic; Django check and migration drift check passed.",
+      "phase2_tests": "74/74 React tests passed; configured lint, production build and isolated browser acceptance passed.",
+      "phase3_boundary": "Roadmap Phase 3 Main Operations Foundation is not started. Garage is Phase 6 after Phase 4 Accounting and Phase 5 Vehicle/Investment contracts.",
+      "source_of_truth": "Current repository code and planning/V2-DEVELOPMENT-ROADMAP.md; the remote remains at the published baseline until a separately authorized push."
+    },
+    "remote_tracking": "Verified after publication: origin/codex/audit equals f266803acd5e86caa2286fb8eae41df6cadfcb86",
     "phase1_candidate": {
       "worktree": "D:/VIRMS/tmp/phase1-consolidated-20261101",
       "branch": "codex/phase1-consolidated",
       "head": "cac26195611432b44b2cc594aad5f2f0e208b69a",
       "state": "Phase 1 corrections and Phase 2 frontend are uncommitted and unstaged in this candidate; not integrated into staging",
-      "reported_evidence": "Current execution report records 199/199 accounts/tenants tests on disposable PostgreSQL 15.19, fresh migrations through accounts.0012, Django checks and schema drift check."
+      "reported_evidence": "Current execution report records 199/199 accounts/tenants tests on disposable PostgreSQL 17.11, fresh migrations through accounts.0012, Django checks and schema drift check. No backend file changed in the P2-13-P2-22 completion pass."
     },
     "skills_used": [
       {
@@ -2413,13 +2423,13 @@
       "architecture/phase-02-frontend-foundation-integration/phase-02-frontend-foundation-integration-implementation-plan.json"
     ],
     "not_changed": [
-      "docs-final-v2/*: business rules and permission meaning did not change.",
-      "architecture/05-SYSTEM-STRUCTURE-MAP.md and planning/V2-DEVELOPMENT-ROADMAP.md: referenced paths do not exist in this worktree; no files were created from stale references."
+      "At Phase 2 acceptance, docs-final-v2 business rules were not changed by the Phase 2 implementation; subsequent approved Garage decisions are recorded in docs-final-v2/01-05, 09 and 10.",
+      "architecture/05-SYSTEM-STRUCTURE-MAP.md was absent. The roadmap was later verified from the preserved dirty staging worktree and added at planning/V2-DEVELOPMENT-ROADMAP.md during local consolidation."
     ],
-    "status_rule": "The execution_result and docs/phase2-execution-progress.md record current candidate truth; the original observed_repository_state remains the dated planning baseline."
+    "status_rule": "observed_repository_state and candidate paths preserve the dated Phase 2 planning/execution snapshot. current_integration_overlay records later local consolidation on codex/audit; execution_result records Phase 2 acceptance evidence. No remote push or staging update is claimed."
   },
   "execution_result": {
-    "status": "PHASE_2_READY_FOR_ACCEPTANCE",
+    "status": "PHASE_2_FULLY_COMPLETE_AND_ACCEPTED",
     "report": "docs/phase2-execution-progress.md",
     "canonical_frontend": "demo/react (React 19, Vite, TypeScript, Tailwind v4, React Router, TanStack Query)",
     "completed": [
@@ -2453,22 +2463,21 @@
       "future_business_data": "Investor, Vehicle, Garage, Inventory, accounting, report and dashboard APIs remain outside Phase 2."
     },
     "validation": {
-      "frontend_tests": "31 passed across 6 files; P2-12 focused regression 19/19; the earlier cancellation-fix focused regression passed 24/24",
+      "frontend_tests": "74 passed across 13 files; role/navigation regression 31/31 across 6 files; earlier P2-12 focused regression 19/19 and cancellation-fix regression 24/24",
       "focused_lint": "Passed for API/auth modules, entrypoint and touched shell components; not a claim of project-wide legacy App.tsx lint cleanliness",
-      "production_build": "Passed; Vite advisory: main chunk 593.99 kB, 155.18 kB gzip",
+      "production_build": "Passed; Vite advisory: main chunk 605.33 kB, 158.00 kB gzip; deferred as performance work",
       "npm_audit": "0 reported vulnerabilities in full and production dependency audits",
-      "backend_tests": "199 passed on disposable PostgreSQL 15.19",
-      "migrations": "Fresh replay through accounts.0012_scope_end_monotonic; no schema drift",
-      "browser": "Disposable-DB browser run verified CSRF/login/first-password change/Company and Branch context/no token storage/no automatic Branch-list call/no page errors. Production bundle preview made one anonymous /auth/me request; dev StrictMode made two."
+      "backend_tests": "Re-ran 199/199 accounts/tenants tests on disposable PostgreSQL 17.11 against the current candidate; Django created and dropped its test database.",
+      "migrations": "A separate fresh disposable PostgreSQL 17.11 database replayed all migrations through accounts.0012_scope_end_monotonic; manage.py check passed and makemigrations --check --dry-run reported no changes.",
+      "browser": "Candidate Vite 127.0.0.1:5175 and candidate Django 127.0.0.1:8014 used dedicated disposable DB virms_p2_browser_20261102_a1 with synthetic Owner/Investor accounts. CSRF/session sign-in and authenticated /auth/me/ Company/Branch context passed; Investor Company Accounting, Reports and shared Company metrics were hidden. Owner and Investor views were checked at 320/390/768/1024/1440; no document overflow or console errors. The Owner tab strip scrolls internally at narrow widths. The previous axe label-content mismatch was traced to decorative OP initials and fixed with aria-hidden; live accessibility-tree and keyboard/focus checks passed. No separate post-fix axe-core scan was run because axe-core is not included in the package. The synthetic session was logged out, temporary database dropped and candidate servers stopped; 8002 was untouched."
     },
     "skills_actually_used_for_final_review": [
       "agent-skills:test-driven-development",
       "agent-skills:security-and-hardening",
       "agent-skills:code-review-and-quality"
     ],
+    "publication": { "published_baseline": "f266803acd5e86caa2286fb8eae41df6cadfcb86", "remote_branch": "origin/codex/audit", "parent": "6ee3202f0432f19577f88a24b1d3c97ff2d36eef", "remote_sha_verified": true, "local_candidate_committed": true, "local_candidate_pushed": false, "staging_untouched": true, "phase2_final_acceptance_performed": true, "phase2_final_acceptance_passed": true },
     "release_actions_not_performed": [
-      "commit",
-      "push",
       "merge",
       "staging integration",
       "deployment",
@@ -2481,11 +2490,22 @@
       "proof": "RED: 4 focused assertions failed before the fix. GREEN: 24 focused tests and 30 full frontend tests passed; logout test confirms an in-flight scoped request is aborted before cache purge."
     },
     "p2_12_branch_context_contract_fix": {
-      "status": "COMPLETE AND VERIFIED",
+      "status": "P2-12_COMPLETE_AND_VERIFIED",
       "root_cause": "The paginated Branch-list parser required roles that the authoritative Branch serializer does not return.",
       "fix": "Added a separate BranchListItem contract for id, tenant_id and name; retained richer roles only in /auth/me/ Branch summaries.",
       "proof": "Regression test failed before the parser change; focused P2-12 tests passed 19/19 and the full frontend suite passed 31/31. Truncated Company context and Investor-only context do not activate Branch reads; backend grant and effective-assignment test passed on disposable PostgreSQL.",
       "boundary": "Branch context remains display-only; business-page filters and synthetic Garage-to-Branch mapping remain deferred until an approved backend business API accepts Branch scope."
+    },
+    "p2_13_role_presentation_correction": {
+      "status": "VERIFIED_DONE",
+      "fix": "Added Company-role dashboard view policy, guarded Investor-only direct views/details and stale routes, hid shared Company/Investor mock dashboard/Fund/Vehicle data, corrected Vehicles/Settings aliases, exposed read-only Owner Distribution route to Owner/Accountant and removed Investor report links that target denied routes.",
+      "validation": "Regression tests cover role navigation matrix, query-string direct access, Investor data boundaries, role-change stale-route denial, shortcut aliases and Investor notice links; role/navigation regression 31/31 across 6 files and full frontend suite 74/74 across 13 files.",
+      "security_boundary": "Presentation only; backend policy, APIs, database schema and permissions are unchanged."
+    },
+    "p2_18_responsive_accessibility_regression": {
+      "status": "VERIFIED_DONE",
+      "evidence": "Authenticated Owner and Investor views checked at 320, 390, 768, 1024 and 1440px with no document overflow. Mobile drawer keyboard order, reverse Tab, forward Tab, Escape and focus restoration passed; no browser console errors. The previous TopBar label-content mismatch was traced to decorative OP initials; aria-hidden now removes those initials from the accessibility tree while retaining the visible All Garages name. Login labels and live error announcements are covered by browser/component checks.",
+      "corrected_baseline_findings": "The prior 320/390 tab-strip overflow is fixed with a bounded scroll container; desktop layout is unchanged. The prior TopBar label-content finding was corrected by hiding decorative OP initials. A standalone axe-core rerun was unavailable because axe-core is not a package dependency; the live accessibility tree and keyboard flow were rechecked."
     }
   }
 }

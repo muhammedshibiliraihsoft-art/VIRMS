@@ -5,11 +5,15 @@ import { navigationRegistry } from '../data/navigationRegistry';
 interface PendingViewPlaceholderProps {
   routeKey: string;
   onReturnToDashboard: () => void;
+  descriptionOverride?: string;
+  stateOverride?: string;
 }
 
 export const PendingViewPlaceholder: React.FC<PendingViewPlaceholderProps> = ({
   routeKey,
   onReturnToDashboard,
+  descriptionOverride,
+  stateOverride,
 }) => {
   // Find group and item from registry
   let foundGroup = navigationRegistry[0];
@@ -52,7 +56,7 @@ export const PendingViewPlaceholder: React.FC<PendingViewPlaceholderProps> = ({
         </h2>
 
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 max-w-sm">
-          {foundItem.description || 'This operational module is registered in the VIRMS navigation registry.'}
+          {descriptionOverride || foundItem.description || 'This operational module is registered in the VIRMS navigation registry.'}
         </p>
 
         {/* Info Box */}
@@ -70,7 +74,9 @@ export const PendingViewPlaceholder: React.FC<PendingViewPlaceholderProps> = ({
             <FileText className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">State:</span>{' '}
-              {isReadOnly ? (
+              {stateOverride ? (
+                <span className="text-gray-500 dark:text-gray-400">{stateOverride}</span>
+              ) : isReadOnly ? (
                 <span className="text-amber-600 dark:text-amber-400 font-semibold">
                   Read-only by business decision (V2 canonical requirement)
                 </span>

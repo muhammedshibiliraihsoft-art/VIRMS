@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   ChevronDown,
@@ -14,9 +14,10 @@ import {
   HelpCircle,
   LogOut,
 } from 'lucide-react';
-import { navigationRegistry, NavGroup } from '../data/navigationRegistry';
+import type { NavGroup } from '../data/navigationRegistry';
 
 interface MobileDrawerProps {
+  navigationGroups: NavGroup[];
   isOpen: boolean;
   activeRoute: string;
   onClose: () => void;
@@ -26,6 +27,7 @@ interface MobileDrawerProps {
 }
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({
+  navigationGroups,
   isOpen,
   activeRoute,
   onClose,
@@ -34,6 +36,55 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onLogout,
 }) => {
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['vehicles']);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    drawerRef.current?.querySelector<HTMLElement>('[aria-label="Close mobile navigation menu"]')?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !drawerRef.current?.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !drawerRef.current?.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -71,11 +122,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+        aria-hidden="true"
         onClick={onClose}
       />
 
       {/* Drawer Panel (Image 6 style) */}
-      <div className="relative w-72 max-w-[85vw] bg-white dark:bg-zinc-900 h-full p-5 shadow-2xl flex flex-col justify-between z-10 overflow-y-auto">
+      <div
+        ref={drawerRef}
+        id="mobile-navigation-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile navigation menu"
+        className="relative w-72 max-w-[85vw] bg-white dark:bg-zinc-900 h-full p-5 shadow-2xl flex flex-col justify-between z-10 overflow-y-auto"
+      >
         <div>
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-zinc-800">
@@ -86,7 +145,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </span>
             </div>
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close mobile navigation menu"
               className="p-1 rounded-full text-gray-400 hover:text-black dark:hover:text-white transition"
             >
               <X className="w-5 h-5" />
@@ -95,7 +156,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           {/* Navigation Groups Accordion */}
           <div className="mt-4 flex flex-col gap-1">
-            {navigationRegistry.map((group) => {
+            {navigationGroups.map((group) => {
               const isExpanded = expandedGroups.includes(group.id);
               const isDashboard = group.id === 'dashboard';
 

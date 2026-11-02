@@ -19,6 +19,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { Data } from '../../types';
+import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
 
 interface DashboardOperationsViewProps {
   data: Data;
@@ -33,6 +34,7 @@ export const DashboardOperationsView: React.FC<DashboardOperationsViewProps> = (
   onOpenFormModal,
   onSelectRoute,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeBay, setActiveBay] = useState<'Bay 1' | 'Bay 2'>('Bay 1');
   const [selectedDay, setSelectedDay] = useState('22');
@@ -280,15 +282,17 @@ export const DashboardOperationsView: React.FC<DashboardOperationsViewProps> = (
           </div>
 
           {/* Center: White Pill Button */}
-          <div className="my-auto py-2">
-            <button
-              onClick={() => onOpenFormModal('job')}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-white text-gray-950 font-extrabold text-xs shadow-xs hover:bg-white/95 transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create New</span>
-            </button>
-          </div>
+          {canPresentWriteActions && (
+            <div className="my-auto py-2">
+              <button
+                onClick={() => onOpenFormModal('job')}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-white text-gray-950 font-extrabold text-xs shadow-xs hover:bg-white/95 transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create New</span>
+              </button>
+            </div>
+          )}
 
           {/* Bottom: Massive Bold Number with Subtitle */}
           <div>

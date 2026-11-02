@@ -18,6 +18,7 @@ import {
 interface DashboardHeaderProps {
   userLabel?: string;
   activeView: DashboardViewId;
+  availableViews?: readonly DashboardViewId[];
   onSelectView: (viewId: DashboardViewId) => void;
   lastFetchedAt?: number;
   isRefreshing: boolean;
@@ -29,6 +30,7 @@ interface DashboardHeaderProps {
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userLabel,
   activeView,
+  availableViews,
   onSelectView,
   lastFetchedAt,
   isRefreshing,
@@ -37,6 +39,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onSelectAutoRefresh,
 }) => {
   const [autoRefreshOpen, setAutoRefreshOpen] = useState(false);
+  const canShowView = (view: DashboardViewId) => availableViews?.includes(view) ?? true;
 
   const formatLastUpdated = (timeMs?: number) => {
     if (!timeMs) return 'Updated just now';
@@ -81,10 +84,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <div
           role="tablist"
           aria-label="Dashboard perspective switcher"
-          className="flex items-center p-1 rounded-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10"
+          className="flex min-w-0 max-w-full items-center overflow-x-auto p-1 rounded-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10"
         >
           {/* View 1: Overview (Official Default) */}
-          <button
+          {canShowView('overview') && <button
             role="tab"
             aria-selected={activeView === 'overview'}
             onClick={() => onSelectView('overview')}
@@ -96,10 +99,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           >
             <LayoutDashboard className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Overview</span>
-          </button>
+          </button>}
 
           {/* View 2: Operations */}
-          <button
+          {canShowView('operations') && <button
             role="tab"
             aria-selected={activeView === 'operations'}
             onClick={() => onSelectView('operations')}
@@ -111,10 +114,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           >
             <Wrench className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Operations</span>
-          </button>
+          </button>}
 
           {/* View 3: Analytics */}
-          <button
+          {canShowView('analytics') && <button
             role="tab"
             aria-selected={activeView === 'analytics'}
             onClick={() => onSelectView('analytics')}
@@ -126,10 +129,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           >
             <BarChart3 className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Analytics</span>
-          </button>
+          </button>}
 
           {/* View 4: Financial */}
-          <button
+          {canShowView('financial') && <button
             role="tab"
             aria-selected={activeView === 'financial'}
             onClick={() => onSelectView('financial')}
@@ -141,7 +144,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           >
             <TrendingUp className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Financial</span>
-          </button>
+          </button>}
         </div>
 
         {/* Live Status and Update Button */}

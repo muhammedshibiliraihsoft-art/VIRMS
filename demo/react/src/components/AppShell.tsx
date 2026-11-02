@@ -5,6 +5,8 @@ import { TopBar } from './TopBar';
 import { StatusMessageLayer } from './StatusMessageLayer';
 import { Garage } from '../types';
 import { StatusMessage } from '../types/statusMessage';
+import { getRoleNavigation } from '../data/roleNavigation';
+import type { BranchSummary } from '../api/types';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -27,7 +29,7 @@ export interface AppShellProps {
   loginId?: string;
   companyName?: string;
   companyWideRoles?: string[];
-  branchNames?: string[];
+  branchContexts?: BranchSummary[];
   branchesTruncated?: boolean;
 }
 
@@ -52,10 +54,11 @@ export const AppShell: React.FC<AppShellProps> = ({
   loginId,
   companyName,
   companyWideRoles,
-  branchNames,
+  branchContexts,
   branchesTruncated,
 }) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const navigationGroups = getRoleNavigation(companyWideRoles);
 
   return (
     <div data-theme={theme} className={theme === 'dark' ? 'dark' : ''}>
@@ -75,6 +78,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {/* 2. Modern Narrow 64px Navigation Rail with Nested Flyouts (Fixed to Viewport) */}
           <SidebarRail
+            navigationGroups={navigationGroups}
             activeRoute={activeRoute}
             theme={theme}
             onToggleTheme={onToggleTheme}
@@ -85,6 +89,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {/* 3. Responsive Mobile Drawer Navigation */}
           <MobileDrawer
+            navigationGroups={navigationGroups}
             isOpen={mobileDrawerOpen}
             activeRoute={activeRoute}
             onClose={() => setMobileDrawerOpen(false)}
@@ -106,12 +111,14 @@ export const AppShell: React.FC<AppShellProps> = ({
               onToggleTheme={onToggleTheme}
               onRefresh={onRefresh}
               isRefreshing={isRefreshing}
+              mobileDrawerOpen={mobileDrawerOpen}
               onOpenSearch={onOpenSearch}
               onOpenMobileMenu={() => setMobileDrawerOpen(true)}
               loginId={loginId}
               companyName={companyName}
               companyWideRoles={companyWideRoles}
-              branchNames={branchNames}
+              navigationGroups={navigationGroups}
+              branchContexts={branchContexts}
               branchesTruncated={branchesTruncated}
             />
 

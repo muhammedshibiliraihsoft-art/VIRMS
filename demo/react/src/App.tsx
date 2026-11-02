@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AppShell } from './components/AppShell';
+import { RolePresentationProvider } from './auth/RolePresentationContext';
+import {
+  getInitialDashboardView,
+  getRoleDashboardViews,
+  getRoleNavigation,
+  isInvestorOnlyRole,
+  isRoleRouteVisible,
+} from './data/roleNavigation';
 import { PrimaryBalanceCard } from './components/PrimaryBalanceCard';
 import { MetricGrid } from './components/MetricCard';
 import { PerformanceChart } from './components/PerformanceChart';
@@ -61,20 +69,23 @@ import {
 } from './data/mockData';
 import { ActivityItem, Job, Data, Vehicle } from './types';
 import { StatusMessage, StatusMessageType } from './types/statusMessage';
+import type { BranchSummary } from './api/types';
 
 export interface AppProps {
   onLogout?: () => void;
   loginId?: string;
   companyName?: string;
   companyWideRoles?: string[];
-  branchNames?: string[];
+  branchContexts?: BranchSummary[];
   branchesTruncated?: boolean;
 }
 
-export function App({ onLogout, loginId, companyName, companyWideRoles, branchNames, branchesTruncated }: AppProps = {}) {
+export function App({ onLogout, loginId, companyName, companyWideRoles, branchContexts, branchesTruncated }: AppProps = {}) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [themePalette, setThemePalette] = useState<string>(getStoredThemePalette);
-  const [activeRoute, setActiveRoute] = useState<string>('Dashboard');
+  const [activeRoute, setActiveRoute] = useState<string>(() =>
+    getRoleNavigation(companyWideRoles)[0]?.children[0]?.routeKey ?? ''
+  );
   const [activeTab, setActiveTab] = useState<string>('Overview');
   const [selectedGarage, setSelectedGarage] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -84,15 +95,9 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
   const [jobDetailOrigin, setJobDetailOrigin] = useState<'vehicle' | 'garage-jobs'>('garage-jobs');
 
   // Switchable Dashboard Views & Performance-Safe Cache State (Overview is official locked default)
-  const [dashboardViewId, setDashboardViewId] = useState<DashboardViewId>(() => {
-    try {
-      const p = new URLSearchParams(window.location.search).get('view');
-      if (p === 'overview' || p === 'operations' || p === 'analytics' || p === 'financial') {
-        return p as DashboardViewId;
-      }
-    } catch {}
-    return 'overview'; // HARD LOCK DEFAULT: IMAGE 1
-  });
+  const [dashboardViewId, setDashboardViewId] = useState<DashboardViewId>(() =>
+    getInitialDashboardView(window.location.search, companyWideRoles)
+  );
   const [isRefreshingDashboard, setIsRefreshingDashboard] = useState<boolean>(false);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<AutoRefreshInterval>(0);
   const [cacheMeta, setCacheMeta] = useState<Record<DashboardViewId, { lastFetchedAt: number }>>({
@@ -103,6 +108,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
   });
 
   const handleSelectDashboardView = (view: DashboardViewId) => {
+    if (!getRoleDashboardViews(companyWideRoles).includes(view)) return;
     setDashboardViewId(view);
     try {
       const url = new URL(window.location.href);
@@ -126,6 +132,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
   };
 
   const handleRefreshActiveDashboard = async () => {
+    if (!getRoleDashboardViews(companyWideRoles).includes(dashboardViewId)) return;
     if (isRefreshingDashboard) return;
     setIsRefreshingDashboard(true);
     invalidateDashboardCache(dashboardViewId, selectedGarage);
@@ -170,6 +177,13 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
     isOpen: false,
     type: null,
   });
+  const roleNavigation = getRoleNavigation(companyWideRoles);
+  const activeRouteAllowed = isRoleRouteVisible(roleNavigation, activeRoute, companyWideRoles);
+  const investorOnly = isInvestorOnlyRole(companyWideRoles);
+  const allowedDashboardViews = getRoleDashboardViews(companyWideRoles);
+  const dashboardViewForRole = allowedDashboardViews.includes(dashboardViewId)
+    ? dashboardViewId
+    : 'overview';
 
   // Extract core entities for convenience
   const { garages, investors, vehicles, jobs, batches, sales } = data;
@@ -222,6 +236,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
   };
 
   const handleSelectRoute = (routeKey: string) => {
+    if (!isRoleRouteVisible(roleNavigation, routeKey, companyWideRoles)) return;
     setActiveRoute(routeKey);
     if (routeKey !== 'Garage Job Detail') {
       setSelectedJobId(null);
@@ -391,6 +406,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
       : 'all';
 
   return (
+    <RolePresentationProvider companyWideRoles={companyWideRoles}>
     <AppShell
       activeRoute={activeRoute}
       activeTab={activeTab}
@@ -423,17 +439,33 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
       loginId={loginId}
       companyName={companyName}
       companyWideRoles={companyWideRoles}
-      branchNames={branchNames}
+      branchContexts={branchContexts}
       branchesTruncated={branchesTruncated}
     >
-      {isDashboardView ? (
+      {roleNavigation.length === 0 ? (
+        <div role="status" className="rounded-xl border border-gray-200 dark:border-zinc-800 p-4 text-sm text-gray-600 dark:text-gray-300">
+          No business workspace is available for this account.
+        </div>
+      ) : !activeRouteAllowed ? (
+        <div role="status" className="rounded-xl border border-gray-200 dark:border-zinc-800 p-4 text-sm text-gray-600 dark:text-gray-300">
+          This page is not available for the current Company role.
+        </div>
+      ) : isDashboardView && investorOnly ? (
+        <PendingViewPlaceholder
+          routeKey="Dashboard"
+          onReturnToDashboard={() => handleSelectRoute('Dashboard')}
+          descriptionOverride="Investor-specific dashboard data is not connected. Shared Company sample metrics are hidden."
+          stateOverride="Waiting for an Investor-scoped data API; no shared Company sample data is shown."
+        />
+      ) : isDashboardView ? (
         <div className="space-y-4">
           {/* Centralized Switcher & Live Controls Header */}
           <DashboardHeader
             userLabel={loginId}
-            activeView={dashboardViewId}
+            activeView={dashboardViewForRole}
+            availableViews={allowedDashboardViews}
             onSelectView={handleSelectDashboardView}
-            lastFetchedAt={cacheMeta[dashboardViewId]?.lastFetchedAt}
+            lastFetchedAt={cacheMeta[dashboardViewForRole]?.lastFetchedAt}
             isRefreshing={isRefreshingDashboard}
             onRefreshActive={handleRefreshActiveDashboard}
             autoRefreshInterval={autoRefreshInterval}
@@ -441,7 +473,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
           />
 
           {/* View 1: Official Approved Overview Dashboard (Image 1 Layout - Eagerly loaded default with 0 delay) */}
-          {dashboardViewId === 'overview' && (
+          {dashboardViewForRole === 'overview' && (
             <DashboardOverviewView
               totalBuyerReceivable={totalBuyerReceivable}
               investors={investors}
@@ -461,7 +493,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
 
           {/* Secondary Views (Lazy-loaded on demand only) */}
           <React.Suspense fallback={<DashboardSkeleton />}>
-            {dashboardViewId === 'operations' && (
+            {dashboardViewForRole === 'operations' && (
               <DashboardOperationsView
                 data={data}
                 selectedGarage={selectedGarage}
@@ -471,14 +503,14 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
                 onSelectRoute={handleSelectRoute}
               />
             )}
-            {dashboardViewId === 'analytics' && (
+            {dashboardViewForRole === 'analytics' && (
               <DashboardAnalyticsView
                 data={data}
                 selectedGarage={selectedGarage}
                 onSelectRoute={handleSelectRoute}
               />
             )}
-            {dashboardViewId === 'financial' && (
+            {dashboardViewForRole === 'financial' && (
               <DashboardFinancialView
                 data={data}
                 activities={activities}
@@ -629,6 +661,13 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
           }}
           onToggleStatus={handleToggleJobStatus}
         />
+      ) : isVehiclesView && investorOnly ? (
+        <PendingViewPlaceholder
+          routeKey="Stock / Investor"
+          onReturnToDashboard={() => handleSelectRoute('Dashboard')}
+          descriptionOverride="Investor-owned Stock Vehicles are not connected to an Investor-scoped API. Shared Company sample Vehicles are hidden."
+          stateOverride="Waiting for Investor-scoped Vehicle data; no shared Company sample data is shown."
+        />
       ) : isVehiclesView ? (
         /* Reusable Card-Based Vehicles View */
         <AllVehiclesView
@@ -656,7 +695,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
             'BDR-03: Interim Distribution Safeguard (Distribution before final buyer collection is barred)',
             'BDR-04: Multi-Vehicle Fund Pooling (Cross-collateralization across portfolio is locked)',
           ]}
-          onExploreReports={() => handleSelectRoute('Investor Fund Report')}
+          onExploreReports={investorOnly ? undefined : () => handleSelectRoute('Investor Fund Report')}
         />
       ) : activeRoute === 'Reconciliation & Settlement' ? (
         /* Notice View: BDR-05, BDR-06, BDR-07 */
@@ -670,7 +709,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
             'BDR-06: Escrow & Warranty Retention (Reserve holding period for buyer dispute warranty)',
             'BDR-07: Unilateral Capital Extraction (Principal withdrawals during open vehicle lifecycle barred)',
           ]}
-          onExploreReports={() => handleSelectRoute('Company Consolidated')}
+          onExploreReports={investorOnly ? undefined : () => handleSelectRoute('Company Consolidated')}
         />
       ) : activeRoute === 'Owner Distribution' ? (
         /* Notice View: BDR-08 */
@@ -713,6 +752,13 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
           onOpenFormModal={(type, ctx) =>
             setFormModalState({ isOpen: true, type, context: ctx })
           }
+        />
+      ) : activeRoute === 'Investor Fund' && investorOnly ? (
+        <PendingViewPlaceholder
+          routeKey="Investor Fund"
+          onReturnToDashboard={() => handleSelectRoute('Dashboard')}
+          descriptionOverride="Investor-specific Fund data is not connected. Other Investors’ sample balances are hidden."
+          stateOverride="Waiting for Investor-scoped Fund data; no other Investor sample records are shown."
         />
       ) : activeRoute === 'Investor Fund' ||
         activeRoute === 'Vehicle Sales' ||
@@ -757,6 +803,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
             setFormModalState({ isOpen: true, type, context: ctx })
           }
           onSuccessMessage={(msg) => showStatusMessage('info', 'Prototype settings action completed locally', `${msg} No changes were saved to the VIRMS backend.`, 5000)}
+          showNonThemeTabs={false}
         />
       ) : (
         /* Reports Shell (All Reports & 17 Operational Reports) */
@@ -781,6 +828,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchNa
         onSuccessMessage={(msg) => showStatusMessage('info', 'Prototype data changed locally only', `${msg} Not saved to the VIRMS backend.`, 5000)}
       />
     </AppShell>
+    </RolePresentationProvider>
   );
 }
 

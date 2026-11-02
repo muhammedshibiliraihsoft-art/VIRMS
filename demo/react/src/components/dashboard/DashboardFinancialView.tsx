@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Data, ActivityItem } from '../../types';
 import { formatCurrency, formatCompact } from '../../utils/formatters';
+import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
 
 interface DashboardFinancialViewProps {
   data: Data;
@@ -34,6 +35,7 @@ export const DashboardFinancialView: React.FC<DashboardFinancialViewProps> = ({
   onSelectRoute,
   onSelectActivity,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [dealSearch, setDealSearch] = useState('');
 
   const { investors, sales, vehicles, jobs } = data;
@@ -114,6 +116,8 @@ export const DashboardFinancialView: React.FC<DashboardFinancialViewProps> = ({
 
           {/* Quick Actions (Reference 3 Action Row) */}
           <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800 flex-wrap">
+            {canPresentWriteActions && (
+              <>
             <button
               onClick={() => onOpenFormModal('customerReceipt')}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--theme-primary)] hover:brightness-105 text-white font-bold text-xs shadow-2xs transition cursor-pointer"
@@ -128,6 +132,8 @@ export const DashboardFinancialView: React.FC<DashboardFinancialViewProps> = ({
               <Send className="w-3.5 h-3.5" />
               <span>New Vehicle Sale</span>
             </button>
+              </>
+            )}
             <button
               onClick={() => onSelectRoute('Garage Revenue')}
               className="w-9 h-9 rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-gray-600 dark:text-gray-300 transition cursor-pointer shrink-0"

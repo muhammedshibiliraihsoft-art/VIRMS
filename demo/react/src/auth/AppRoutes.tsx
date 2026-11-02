@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import App from '../App';
 import { AuthLoadingPage, AuthUnavailablePage, FirstPasswordPage, LoginPage } from './AuthPages';
-import { AuthProvider, isPlatformUser, useAuth } from './AuthContext';
+import { authScopeFingerprint, AuthProvider, isPlatformUser, useAuth } from './AuthContext';
 
 export const AppRoutes: React.FC<{ protectedApp?: React.ReactNode }> = ({ protectedApp }) => {
   const auth = useAuth();
@@ -23,9 +23,14 @@ export const AppRoutes: React.FC<{ protectedApp?: React.ReactNode }> = ({ protec
       loginId={auth.user?.login_id}
       companyName={auth.currentCompany?.name}
       companyWideRoles={auth.currentCompany?.company_wide_roles}
-      branchNames={auth.currentCompany?.branches.map((branch) => branch.name)}
+      branchContexts={auth.currentCompany?.branches}
       branchesTruncated={auth.currentCompany?.branches_truncated}
     />
+  );
+  const scopedProtectedContent = (
+    <React.Fragment key={auth.user ? authScopeFingerprint(auth.user) : 'missing-auth-context'}>
+      {protectedContent}
+    </React.Fragment>
   );
 
   return (
@@ -55,7 +60,7 @@ export const AppRoutes: React.FC<{ protectedApp?: React.ReactNode }> = ({ protec
             ? <Navigate to="/login" replace />
             : auth.status === 'password_change_required'
               ? <Navigate to="/password/change" replace />
-              : protectedContent
+              : scopedProtectedContent
         }
       />
     </Routes>

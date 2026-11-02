@@ -13,10 +13,11 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
-import { navigationRegistry, NavGroup } from '../data/navigationRegistry';
+import type { NavGroup } from '../data/navigationRegistry';
 import { SidebarFlyout } from './SidebarFlyout';
 
 interface SidebarRailProps {
+  navigationGroups: NavGroup[];
   activeRoute: string;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -26,6 +27,7 @@ interface SidebarRailProps {
 }
 
 export const SidebarRail: React.FC<SidebarRailProps> = ({
+  navigationGroups,
   activeRoute,
   theme,
   onToggleTheme,
@@ -40,16 +42,19 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeGroup =
-    navigationRegistry.find(
+    navigationGroups.find(
       (g) =>
         g.primaryRouteKey === activeRoute ||
         (g.id === 'vehicles' && (activeRoute === 'Vehicles' || activeRoute === 'All Vehicles' || activeRoute === 'Vehicle Detail')) ||
         (g.id === 'garage-operations' && (activeRoute === 'Garage Jobs' || activeRoute === 'Garage Job Detail')) ||
         g.children.some((c) => c.routeKey === activeRoute)
-    ) || navigationRegistry[0];
+    );
 
   const currentOpenGroupId = pinnedGroupId || hoveredGroupId;
-  const currentOpenGroup = navigationRegistry.find((g) => g.id === currentOpenGroupId);
+  const currentOpenGroup = navigationGroups.find((g) => g.id === currentOpenGroupId);
+  const hasDashboard = navigationGroups.some((group) => group.id === 'dashboard');
+  const settingsGroup = navigationGroups.find((group) => group.id === 'settings');
+  const primaryGroups = navigationGroups.filter((group) => group.id !== 'settings');
 
   // Close flyout on outside click
   useEffect(() => {
@@ -88,7 +93,7 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
     }
 
     if (group.id === 'vehicles') {
-      onSelectRoute('All Vehicles');
+      onSelectRoute(group.primaryRouteKey);
     }
 
     if (group.id === 'garage-operations') {
@@ -99,7 +104,7 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
     }
 
     if (group.id === 'settings') {
-      onSelectRoute('Settings');
+      onSelectRoute(group.primaryRouteKey);
       setPinnedGroupId(null);
       setHoveredGroupId(null);
       return;
@@ -158,13 +163,25 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
 
         {/* Zone 1: Compact Top Logo (~36px) */}
         <div className="flex flex-col items-center">
-          <div
-            title="VIRMS Operations"
-            className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 flex items-center justify-center transition cursor-pointer"
-            onClick={() => onSelectRoute('Dashboard')}
-          >
-            <span className="text-[var(--theme-primary)] font-black tracking-tighter text-base transition-colors">//</span>
-          </div>
+          {hasDashboard ? (
+            <button
+              type="button"
+              title="VIRMS Operations"
+              aria-label="Open Dashboard"
+              className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 flex items-center justify-center transition cursor-pointer"
+              onClick={() => onSelectRoute('Dashboard')}
+            >
+              <span className="text-[var(--theme-primary)] font-black tracking-tighter text-base transition-colors">//</span>
+            </button>
+          ) : (
+            <div
+              title="VIRMS Operations"
+              aria-hidden="true"
+              className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
+            >
+              <span className="text-[var(--theme-primary)] font-black tracking-tighter text-base transition-colors">//</span>
+            </div>
+          )}
 
           <div className="w-6 h-[1px] bg-zinc-800/90 mt-2.5 mb-2" />
         </div>
@@ -174,8 +191,8 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
           className="flex flex-col items-center gap-2.5 w-full pt-0.5"
           aria-label="Main Navigation Rail"
         >
-          {navigationRegistry.slice(0, 7).map((group) => {
-            const isGroupActive = activeGroup.id === group.id;
+          {primaryGroups.map((group) => {
+            const isGroupActive = activeGroup?.id === group.id;
             const isOpen = currentOpenGroupId === group.id;
 
             return (
@@ -213,29 +230,28 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
         {/* Zone 3: Compact Bottom Utilities with subtle divider */}
         <div className="flex flex-col items-center gap-2 w-full pt-2 border-t border-zinc-800/90">
           {/* Settings */}
-          <div className="relative group/tooltip flex items-center justify-center">
-            <button
-              onClick={(e) => {
-                const settingsGroup = navigationRegistry.find((g) => g.id === 'settings');
-                if (settingsGroup) handleClickGroup(settingsGroup, e);
-              }}
-              onMouseEnter={(e) => handleMouseEnter('settings', e)}
-              title="Settings"
-              aria-label="Settings"
-              className={`w-[38px] h-[38px] sm:w-[40px] sm:h-[40px] rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                activeGroup.id === 'settings'
-                  ? 'bg-white text-black shadow-xs font-semibold'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/70'
-              }`}
-            >
-              <Settings className="w-[18px] h-[18px]" />
-            </button>
-            {!currentOpenGroupId && (
-              <div className="absolute left-[48px] top-1/2 -translate-y-1/2 px-2 py-0.5 bg-black text-white text-[10px] font-semibold rounded shadow whitespace-nowrap opacity-0 pointer-events-none group-hover/tooltip:opacity-100 transition-opacity z-50">
-                Settings
-              </div>
-            )}
-          </div>
+          {settingsGroup && (
+            <div className="relative group/tooltip flex items-center justify-center">
+              <button
+                onClick={(e) => handleClickGroup(settingsGroup, e)}
+                onMouseEnter={(e) => handleMouseEnter('settings', e)}
+                title="Settings"
+                aria-label="Settings"
+                className={`w-[38px] h-[38px] sm:w-[40px] sm:h-[40px] rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                  activeGroup?.id === 'settings'
+                    ? 'bg-white text-black shadow-xs font-semibold'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/70'
+                }`}
+              >
+                <Settings className="w-[18px] h-[18px]" />
+              </button>
+              {!currentOpenGroupId && (
+                <div className="absolute left-[48px] top-1/2 -translate-y-1/2 px-2 py-0.5 bg-black text-white text-[10px] font-semibold rounded shadow whitespace-nowrap opacity-0 pointer-events-none group-hover/tooltip:opacity-100 transition-opacity z-50">
+                  Settings
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Theme Toggle Sun / Moon */}
           <button
@@ -278,7 +294,7 @@ export const SidebarRail: React.FC<SidebarRailProps> = ({
         >
           <SidebarFlyout
             group={currentOpenGroup}
-            allGroups={navigationRegistry}
+            allGroups={navigationGroups}
             activeRoute={activeRoute}
             isPinned={Boolean(pinnedGroupId)}
             onSelectRoute={(routeKey) => {

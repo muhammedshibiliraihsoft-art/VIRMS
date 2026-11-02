@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Vehicle, Garage, VehicleStatus } from '../types';
+import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
 
 export type VehiclePageMode = 'all' | 'stock-investor' | 'customer';
 
@@ -36,6 +37,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
   onViewVehicleDetail,
   onSelectRoute,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [searchQuery, setSearchQuery] = useState('');
   // Internal filter state defaults based on mode
   const [typeFilter, setTypeFilter] = useState<'All' | 'Stock / Investor' | 'Customer'>(() => {
@@ -253,13 +255,13 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
           </div>
 
           {/* + Register Vehicle */}
-          <button
+          {canPresentWriteActions && <button
             onClick={onRegisterVehicle}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181b] hover:bg-black text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
           >
             <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Register Vehicle</span>
-          </button>
+          </button>}
         </div>
       </div>
 

@@ -4,6 +4,16 @@ Status: DRAFT V2 — Investment and Stock Vehicle finance source after approval
 
 Authorization follows 02, source relationships follow 04, Company accounting follows 09, and Garage work follows 10. Every financial state is scoped to one Company; Branch is attribution, never Investor ownership.
 
+## Vehicle responsibility boundary for Garage work
+
+Vehicle Management owns one stable Company-wide Vehicle identity. The same Vehicle UUID may move from funded Stock activity to external-customer Garage service without a second Vehicle record. The Vehicle-side Investor responsibility has only ACTIVE and ENDED states. An authorized end operation records effective time, actor and reason; it preserves the relationship and all historical Fund, cost, Sale, receipt, Profit, reconciliation and settlement records. Ending the responsibility creates no payment, Fund event or settlement, and existing unresolved obligations remain with Investment/Accounting until their normal authorized resolution.
+
+Garage work is financially scoped per Job/event, not inferred solely from the Vehicle's historical type or Investor. A Job on an active Investor-funded Stock Vehicle does not itself debit Investor Fund. After Investor responsibility is ENDED, a later external-customer Job on that same Vehicle UUID has no automatic former-Investor Fund, principal, Profit, reconciliation or settlement impact. The Garage workflow does not implement Investor Fund, Profit, reconciliation, reassignment or Exit/Settlement.
+
+### Vehicle create field mapping for the Garage workflow
+
+Vehicle registration, model and Branch are operator-entered attributes on the existing Vehicle aggregate. The existing `person` value maps only to Job service-contact Name/Phone context; it does not assert Vehicle ownership or payer identity. Investor responsibility is a separate authorized operation, not part of Vehicle creation. Purchase is outside the Garage workflow. Vehicle status and total cost are derived from their owning business sources and are not manually editable. Any React field placement must preserve the approved page composition and use the existing form contract.
+
 ## 1. Funding and approved Vehicle costs
 
 An Investor has one auditable principal Fund relationship within a Company and may fund multiple Stock Vehicles in that Company. Each funded Stock Vehicle has exactly one Investor. Initial and additional capital are separate confirmed Fund credits. Approved Investor-funded purchase/Vehicle Expense records have a corresponding Fund use and cannot silently exceed Available Investor Fund. A Company may supply actual Running Capital for an approved shortfall; record its exact Vehicle-linked amount in Company finances, separate from Investor principal and Profit. The entire valid approved purchase/work cost contributes once to consolidated Vehicle cost even when funding sources differ. Before spending, validate Company, Branch, Investor lifecycle, Vehicle, approval and funding source; commit related financial events atomically.

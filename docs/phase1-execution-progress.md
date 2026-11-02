@@ -1,4 +1,10 @@
-# Phase 1 Candidate Verification — 2026-11-01
+# Phase 1 Backend Foundation — Verification Record
+
+## Current local integration status — 2026-11-02
+
+Phase 1 account and Company/Branch foundation is integrated with the Phase 2 React foundation on the local `codex/audit` line. The exact integrated source passed `python manage.py test apps.accounts apps.tenants --verbosity 1 --noinput` — **210/210 passed** on disposable PostgreSQL; fresh test-database replay applied migrations through `accounts.0012_scope_end_monotonic`; `manage.py check` and `makemigrations --check --dry-run` passed. A final regression covers blank Admin login identifiers against source/global admission budgets. No staging, production or shared database was used; the local integration has not been pushed.
+
+The candidate-specific snapshot below records the earlier 199-test verification and is retained as dated evidence, not the final integrated test count.
 
 ## Corrections after candidate commit `cac26195`
 
@@ -21,7 +27,7 @@ This section describes the current local, uncommitted Phase 1 correction candida
 ## Current correction-gate file set
 
 - Fixes: `apps/tenants/selectors.py`; `apps/accounts/management/commands/bootstrap_platform_admin.py`; `apps/accounts/migrations/0012_scope_end_monotonic.py`.
-- Regression coverage: `apps/accounts/tests/test_auth_context_roles.py`, `test_b3_bootstrap_temporal.py`, `test_scope_concurrency.py`, `test_scope_history_monotonic.py`, plus `apps/accounts/tests/test_a2_identity_preflight.py` and `apps/tenants/tests/test_tenants.py`.
+- Regression coverage: `apps/accounts/tests/test_auth_context_roles.py`, `test_b3_bootstrap_temporal.py`, `test_scope_concurrency.py`, `test_scope_history_monotonic.py`, `apps/accounts/tests/test_a2_identity_preflight.py`, `apps/tenants/tests/test_tenants.py`, and the integrated `apps/accounts/tests/test_final_defects.py`.
 - Verified-current-state documentation: `architecture/01-DATA-FLOW.md`, `architecture/02-API-FLOW.md`, `architecture/04-CHANGE-IMPACT-COMPATIBILITY.md`, and this report.
 
 ## Prior candidate snapshot (historical)

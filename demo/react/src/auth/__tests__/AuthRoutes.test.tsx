@@ -60,6 +60,17 @@ const RecheckProbe: React.FC = () => {
   return <button onClick={() => void client.invalidateQueries({ queryKey: ['auth', 'me'] })}>Recheck session</button>;
 };
 
+const StatefulScopeProbe: React.FC = () => {
+  const [value, setValue] = React.useState('fresh page state');
+  return (
+    <div>
+      <span>{value}</span>
+      <button onClick={() => setValue('stale page state')}>Change local page state</button>
+      <RecheckProbe />
+    </div>
+  );
+};
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -160,6 +171,24 @@ describe('authentication route gate', () => {
 
     await waitFor(() => expect(client.getQueryData(privateKey)).toBeUndefined());
     expect(await screen.findByRole('button', { name: 'Recheck session' })).toBeInTheDocument();
+  });
+
+  it('remounts role-sensitive UI when the server returns a changed authorization scope', async () => {
+    vi.mocked(authApi.me)
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce({
+        ...user,
+        roles: ['investor'],
+        companies: [{ ...user.companies[0], roles: ['investor'], company_wide_roles: ['investor'] }],
+      });
+
+    renderRoutes('/', <StatefulScopeProbe />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Change local page state' }));
+    expect(screen.getByText('stale page state')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recheck session' }));
+
+    expect(await screen.findByText('fresh page state')).toBeInTheDocument();
   });
 
   it('fails closed when a Company account has missing or ambiguous Company context', async () => {

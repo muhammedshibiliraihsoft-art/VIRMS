@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Job, Vehicle, Garage } from '../types';
+import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
 
 interface GarageJobsViewProps {
   jobs: Job[];
@@ -36,6 +37,7 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
   onReceive,
   onToggleStatus,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [searchTerm, setSearchTerm] = useState('');
 
   const formatCurrency = (val?: number) => {
@@ -87,13 +89,13 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
           </p>
         </div>
 
-        <button
+        {canPresentWriteActions && <button
           onClick={onNewJob}
           className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-full bg-[var(--theme-primary)] hover:brightness-110 text-white transition-all shadow-md shadow-[var(--theme-accent-shadow)] cursor-pointer self-start sm:self-auto shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>New job</span>
-        </button>
+        </button>}
       </div>
 
       {/* 3 Summary KPI Cards (matching Ember Quotes 3-Card Header Aesthetic & Image 3 Alignment) */}
@@ -219,7 +221,7 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
 
                     {/* Status */}
                     <td className="py-3.5 px-3 whitespace-nowrap">
-                      <button
+                      {canPresentWriteActions ? <button
                         onClick={() => onToggleStatus(j)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer ${
                           j.status === 'Open'
@@ -239,7 +241,7 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
                             <span>Reopen</span>
                           </>
                         )}
-                      </button>
+                      </button> : <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">{j.status}</span>}
                     </td>
 
                     {/* Charges / Outstanding */}
@@ -257,6 +259,7 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
                     {/* Actions */}
                     <td className="py-3.5 px-3 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
+                        {canPresentWriteActions && <>
                         <button
                           onClick={() => onSelectJob(j)}
                           className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[var(--theme-primary-soft)] text-[var(--theme-primary)] hover:brightness-95 transition-colors inline-flex items-center gap-0.5 cursor-pointer"
@@ -295,6 +298,7 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
                             Add cost
                           </button>
                         )}
+                        </>}
                       </div>
                     </td>
                   </tr>

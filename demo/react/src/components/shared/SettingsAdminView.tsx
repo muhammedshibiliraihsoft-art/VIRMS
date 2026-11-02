@@ -27,6 +27,7 @@ interface SettingsAdminViewProps {
   onUpdateData: (updater: (prev: Data) => Data) => void;
   onOpenFormModal: (type: FormModalType, initialContext?: Record<string, any>) => void;
   onSuccessMessage: (msg: string) => void;
+  showNonThemeTabs?: boolean;
 }
 
 export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
@@ -37,10 +38,12 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
   onUpdateData,
   onOpenFormModal,
   onSuccessMessage,
+  showNonThemeTabs = false,
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTabType>(initialTab);
   const [jsonInput, setJsonInput] = useState('');
   const [showImportArea, setShowImportArea] = useState(false);
+  const visibleTab = showNonThemeTabs ? activeTab : 'theme-appearance';
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -98,19 +101,21 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-[#f2ebe5] dark:border-zinc-800">
         <div>
           <div className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--theme-primary)]">
-            SYSTEM ADMINISTRATION
+            {showNonThemeTabs ? 'SYSTEM ADMINISTRATION' : 'PREFERENCES'}
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-gray-950 dark:text-white tracking-tight mt-0.5">
-            Settings & Workspace Governance
+            {showNonThemeTabs ? 'Settings & Workspace Governance' : 'Appearance & Theme'}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
-            Manage physical workshop locations, brand themes, and session demo snapshots.
+            {showNonThemeTabs
+              ? 'Manage physical workshop locations, brand themes, and session demo snapshots.'
+              : 'Customize the appearance of this prototype workspace.'}
           </p>
         </div>
 
         {/* Tab Switcher */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button
+          {showNonThemeTabs && <button
             onClick={() => setActiveTab('garages-branches')}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
               activeTab === 'garages-branches'
@@ -119,11 +124,11 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
             }`}
           >
             Garages / Branches
-          </button>
+          </button>}
           <button
             onClick={() => setActiveTab('theme-appearance')}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
-              activeTab === 'theme-appearance'
+              visibleTab === 'theme-appearance'
                 ? 'bg-[#18181b] text-white shadow-2xs'
                 : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 border border-[#e2d8ce] dark:border-zinc-700 hover:bg-gray-50'
             }`}
@@ -131,7 +136,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
             <Palette className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Appearance & Theme</span>
           </button>
-          <button
+          {showNonThemeTabs && <button
             onClick={() => setActiveTab('demo-data')}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
               activeTab === 'demo-data'
@@ -140,12 +145,12 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
             }`}
           >
             Demo Data & Seed
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* Tab 1: Appearance & Theme (CONTROLLED INSIDE SETTINGS ONLY) */}
-      {activeTab === 'theme-appearance' && (
+      {visibleTab === 'theme-appearance' && (
         <div className="space-y-4">
           <div className="dashboard-card-solid rounded-[24px] p-6 space-y-4">
             <div className="flex items-start justify-between gap-4">
@@ -255,7 +260,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
       )}
 
       {/* Tab 2: Garages / Branches */}
-      {activeTab === 'garages-branches' && (
+      {showNonThemeTabs && visibleTab === 'garages-branches' && (
         <div className="space-y-4">
           <div className="dashboard-card-solid rounded-[24px] overflow-hidden">
             <div className="p-4 px-5 border-b border-[#f0e7df] dark:border-zinc-800 flex items-center justify-between gap-3">
@@ -335,7 +340,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
       )}
 
       {/* Tab 3: Demo Data */}
-      {activeTab === 'demo-data' && (
+      {showNonThemeTabs && visibleTab === 'demo-data' && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[

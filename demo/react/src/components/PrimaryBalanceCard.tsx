@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeftRight, Plus, MoreVertical } from 'lucide-react';
 import { Investor } from '../types';
+import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
 
 interface PrimaryBalanceCardProps {
   totalReceivable: number;
@@ -15,6 +16,7 @@ export const PrimaryBalanceCard: React.FC<PrimaryBalanceCardProps> = ({
   onRecordReceipt,
   onNewSale,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const formatCurrency = (val: number) =>
     '₹' + val.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
@@ -48,22 +50,24 @@ export const PrimaryBalanceCard: React.FC<PrimaryBalanceCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2.5 mt-4">
-          <button
-            onClick={onRecordReceipt}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-full bg-[#18181b] hover:bg-black text-white font-bold text-[11px] shadow-xs transition cursor-pointer active:scale-[0.98]"
-          >
-            <ArrowLeftRight className="w-3 h-3" />
-            <span className="truncate">Record Receipt</span>
-          </button>
-          <button
-            onClick={onNewSale}
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-full bg-white dark:bg-zinc-800 border border-gray-200/90 dark:border-zinc-700 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 font-bold text-[11px] shadow-2xs transition cursor-pointer active:scale-[0.98]"
-          >
-            <Plus className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-            <span className="truncate">New Sale</span>
-          </button>
-        </div>
+        {canPresentWriteActions && (
+          <div className="grid grid-cols-2 gap-2.5 mt-4">
+            <button
+              onClick={onRecordReceipt}
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-full bg-[#18181b] hover:bg-black text-white font-bold text-[11px] shadow-xs transition cursor-pointer active:scale-[0.98]"
+            >
+              <ArrowLeftRight className="w-3 h-3" />
+              <span className="truncate">Record Receipt</span>
+            </button>
+            <button
+              onClick={onNewSale}
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-full bg-white dark:bg-zinc-800 border border-gray-200/90 dark:border-zinc-700 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700 font-bold text-[11px] shadow-2xs transition cursor-pointer active:scale-[0.98]"
+            >
+              <Plus className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+              <span className="truncate">New Sale</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom Section: Mini Investor Wallets */}

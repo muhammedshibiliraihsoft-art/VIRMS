@@ -25,6 +25,7 @@ import {
   paid,
 } from '../../utils/selectors';
 import { FormModalType } from './SharedFormModal';
+import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
 
 interface FinancialLedgerViewProps {
   routeKey: string;
@@ -43,6 +44,7 @@ export const FinancialLedgerView: React.FC<FinancialLedgerViewProps> = ({
   onSelectGarage,
   onOpenFormModal,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [searchQuery, setSearchQuery] = useState('');
   const inScope = (gId: string) => selectedGarage === 'all' || gId === selectedGarage;
   const formatINR = (val?: number) =>
@@ -507,7 +509,7 @@ export const FinancialLedgerView: React.FC<FinancialLedgerViewProps> = ({
           </div>
 
           {/* Primary Action Button */}
-          {primaryButton && (
+          {canPresentWriteActions && primaryButton && (
             <button
               onClick={() => onOpenFormModal(primaryButton!.formType)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#18181b] hover:bg-black text-white text-xs font-bold shadow-xs transition cursor-pointer active:scale-95"
@@ -611,7 +613,7 @@ export const FinancialLedgerView: React.FC<FinancialLedgerViewProps> = ({
                       if (col.key === 'actions') {
                         return (
                           <td key={col.key} className="py-3 px-4 text-right">
-                            {r.actionType && (
+                            {canPresentWriteActions && r.actionType && (
                               <button
                                 onClick={() =>
                                   onOpenFormModal(r.actionType, {

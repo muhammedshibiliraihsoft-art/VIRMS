@@ -1,30 +1,34 @@
 # VIRMS Architecture Phase 2 — Frontend Foundation + Real Backend Integration
 
-> Version 1.0 — implementation verified on the isolated candidate worktree. This file remains the task specification; current evidence and limits are in [the execution report](../../docs/phase2-execution-progress.md). No staging integration or release is claimed.
+> Version 1.0 — task specification with a 2026-11-02 local integration status overlay. The accepted Phase 2 source and P2-13–P2-22 corrections are integrated on local `codex/audit`; no push, staging integration or release is claimed. Current evidence and limits are in [the execution report](../../docs/phase2-execution-progress.md) and [V2 roadmap](../../planning/V2-DEVELOPMENT-ROADMAP.md). Candidate-specific plan details below are historical where they differ.
 
 ## Version and status
 
 | Item | Value |
 |---|---|
 | Observed | 2026-11-02, Asia/Calcutta |
-| Mode | IMPLEMENTED_CANDIDATE |
+| Mode | IMPLEMENTED_LOCAL_INTEGRATION |
 | Risk | HIGH-RISK: authentication, authorization, Company/Branch isolation and session handling |
-| Status | `PHASE_2_READY_FOR_ACCEPTANCE` on isolated candidate; not integrated into staging |
-| Repository/worktree | `D:/VIRMS/tmp/phase1-consolidated-20261101`, `codex/phase1-consolidated`, base `cac26195611432b44b2cc594aad5f2f0e208b69a` |
-| Git state | Dirty, uncommitted and unstaged. Phase 1 corrections and Phase 2 frontend changes are preserved. No remote fetch/push was run. |
+| Status | `PHASE_2_FULLY_COMPLETE_AND_ACCEPTED` on local `codex/audit`; remote baseline remains `f266803acd5e86caa2286fb8eae41df6cadfcb86` pending separately authorized push |
+| Published commit | `f266803acd5e86caa2286fb8eae41df6cadfcb86` on `origin/codex/audit`; parent `6ee3202f0432f19577f88a24b1d3c97ff2d36eef` |
+| Git state | Local integration is not pushed; `staging` remains untouched. No production readiness is claimed. |
 
 The planning snapshot below was created on 2026-11-01 against `D:/VIRMS` staging. Its staging-specific observations are historical and are superseded by the execution result and report below. The implementation uses the separately verified Phase 1 candidate in the worktree named above.
 
 ## Execution result — 2026-11-02
 
-- **P2-00:** PASS for the exact local candidate source, including its uncommitted Phase 1 corrections. The accounts/tenants PostgreSQL suite passed 199/199; fresh migration replay reached `accounts.0012_scope_end_monotonic`; Django and schema-drift checks passed. This does not imply that staging contains those changes.
+- **P2-00:** PASS for the Phase 1 correction baseline at parent commit `6ee3202f0432f19577f88a24b1d3c97ff2d36eef`. The accounts/tenants PostgreSQL suite passed 199/199; fresh migration replay reached `accounts.0012_scope_end_monotonic`; Django and schema-drift checks passed. This does not imply that staging contains those changes.
 - **P2-01–P2-11:** DONE for the existing `demo/react` Vite/React UI: auth/session, typed CSRF API client, route guard, `/auth/me/` context, Company/role/Branch summaries, logout and in-memory query-cache controls.
-- **P2-12:** COMPLETE for the authorized Branch-context boundary. `/auth/me/` summaries remain context-only; the paginated Branch API parser matches the exact serializer (`id`, `tenant_id`, `name`); the scoped query hook is conditional and role-gated; tests prove Investor-only and truncated Company context do not trigger Branch reads. Business-page filters remain deferred until an approved business API accepts Branch scope. Synthetic Garage IDs remain separate.
-- **P2-13–P2-19:** DONE for role-as-presentation-only, TanStack Query/cache policy, safe local prototype messages, tests, build, focused lint, dependency audit, keyboard/accessibility and responsive regression.
+- **P2-12:** `P2-12_COMPLETE_AND_VERIFIED` for the authorized Branch-context boundary. `/auth/me/` summaries remain context-only; the paginated Branch API parser matches the exact serializer (`id`, `tenant_id`, `name`); the scoped query hook is conditional and role-gated; tests prove Investor-only and truncated Company context do not trigger Branch reads. Business-page filters remain deferred until an approved business API accepts Branch scope. Synthetic Garage IDs remain separate.
+- **P2-13:** `VERIFIED_DONE` after adding the tested role-navigation mapping, preventing Investor access to shared mock dashboard/Fund/Vehicle data, guarding direct dashboard/detail routes, aligning navigation shortcuts and adding Owner Distribution visibility for Owner/Accountant.
+- **P2-14–P2-17:** `VERIFIED_DONE`; scoped TanStack Query lifecycle, error handling, bounded Company/Branch context and demo-only business data boundaries were re-audited. No business API or persistence was introduced.
+- **P2-18:** `VERIFIED_DONE` for regression scope. Candidate Owner and Investor browser checks covered 320/390/768/1024/1440 px with no document overflow. The Owner dashboard tab strip now scrolls within its available mobile width; desktop layout is unchanged. The previous TopBar label-content finding was traced to decorative `OP` avatar initials, which are now hidden from the accessibility tree. Live accessibility-tree, login label/alert, keyboard and focus checks passed; no page errors were observed.
+- **P2-19:** `VERIFIED_DONE`; 74/74 frontend tests across 13 files, TypeScript/build, configured lint, dependency audit and `git diff --check` passed. Role/navigation regression passed 31/31 across 6 files. The current-candidate accounts/tenants PostgreSQL regression passed 199/199 and fresh migrations replayed through `accounts.0012_scope_end_monotonic`. The Vite main chunk remains above the 500 kB advisory and is deferred.
 - **P2-20:** DONE as a dependency/deferral map; dashboard and future business-module data remain synthetic.
-- **P2-21:** DONE for the README, living architecture maps, execution report and this plan. Frozen `docs-final-v2/` was unchanged.
-- **P2-22:** PASS. See [the Phase 2 execution report](../../docs/phase2-execution-progress.md) for exact checks, browser evidence, remaining C/D items and the final adversarial audit.
-- No commit, push, merge, staging integration, deployment or Phase 3 work occurred.
+- **P2-21:** DONE for the README, living architecture maps, execution report, this plan and the supporting authentication security document. That supporting document records the approved six-character password minimum; canonical business permissions were not changed.
+- **P2-20–P2-21:** `VERIFIED_DONE`; future business modules are mapped to their approved backend/data dependencies, and living documentation now matches the local accepted candidate.
+- **P2-22:** `VERIFIED_DONE`; final adversarial acceptance found no unresolved A-level or material B-level issue. Production host/proxy configuration, future business APIs and the bundle advisory remain documented deferrals.
+- Commit `f266803acd5e86caa2286fb8eae41df6cadfcb86` remains the remote `origin/codex/audit` baseline until a separately authorized push. The accepted corrections are included in the current local `codex/audit` integration; staging integration and deployment did not occur. Phase 3 Main Operations remains not started, and Garage belongs to Phase 6 per the verified roadmap.
 
 All statements in sections below labeled current/verified describe the original 2026-11-01 planning snapshot unless they are explicitly updated by this execution result. The report is the current evidence source.
 
@@ -696,7 +700,7 @@ Planning confirmations: `demo/react` was selected and preserved in the candidate
 | R2-03 | A | Route/role state could be mistaken for permission. | **CLOSED:** backend remains authoritative; scoped negative API checks passed. |
 | R2-04 | B | Next `/api/mock` or local JSON could be mistaken for production. | **CLOSED:** no Next.js code/API was used; API client targets only `/api/v1/`. |
 | R2-05 | B | Mock money or local success could be presented as actual. | **CLOSED:** prototype data is retained and local actions disclose that no backend save occurred. |
-| R2-06 | B | Older roadmap phase naming conflicts with this task. | **DEFERRED:** referenced roadmap path is absent; historical roadmap docs remain labeled historical. |
+| R2-06 | B | Older roadmap phase naming conflicted with this task. | **RESOLVED FOR SEQUENCING:** the verified `planning/V2-DEVELOPMENT-ROADMAP.md` assigns Phase 3 to Main Operations Foundation and Garage to Phase 6 after Phases 4 and 5. The preserved Garage design candidate is not imported as Phase 3 implementation work. |
 | R2-07 | B | Cookie/CSRF origin topology is unknown for deployment. | **C — DEFERRED:** same-origin local proxy was verified; production topology is not configured or claimed. |
 | R2-08 | C | Demo includes Parts Inventory outside V2 baseline. | **DEFERRED:** kept as synthetic reference only; no API or backend scope was added. |
 
@@ -717,8 +721,8 @@ Planning confirmations: `demo/react` was selected and preserved in the candidate
 - `README.md`, `architecture/01-DATA-FLOW.md`, `architecture/02-API-FLOW.md`, `architecture/03-ARCHITECTURE-CONFLICT-MAP.md`, `architecture/04-CHANGE-IMPACT-COMPATIBILITY.md`, `docs/phase1-execution-progress.md`, and `docs/phase2-execution-progress.md` — describe the verified candidate integration and its boundaries.
 - `architecture/05-SYSTEM-STRUCTURE-MAP.md` and `planning/V2-DEVELOPMENT-ROADMAP.md` were referenced by the original plan but are absent from this worktree; they were not created from stale references.
 
-`docs-final-v2/*` was not changed because target business rules did not change. The plan records the task scope; the execution report records implemented truth and runtime evidence.
+`docs-final-v2/*` was not changed by the Phase 2 application implementation. During a later, separately approved roadmap/business-rule reconciliation, seven canonical Garage decision documents were updated; that documentation work added no Phase 2 application behavior. The execution report records tested Phase 2 truth and runtime evidence.
 
-## Phase 3 boundary
+## Current roadmap boundary
 
-At Phase2 completion, the reusable authenticated frontend and real Company/Branch context are ready for later business-domain work. Investor finance, Vehicle engine, Garage, Sales/Collections, Accounting, dashboards and other Phase3+ flows remain unimplemented and must be planned separately from the repository state then present.
+At Phase 2 completion, the reusable authenticated frontend and real Company/Branch context are available for later business-domain work. The current roadmap's Phase 3 is Main Operations Foundation and is not started. Garage, Jobs and Labour are Phase 6 after Phase 4 Accounting and Phase 5 Vehicle/Investment contracts. No business-domain API/model implementation was added by Phase 2.

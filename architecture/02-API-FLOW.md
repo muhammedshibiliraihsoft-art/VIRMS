@@ -6,13 +6,13 @@
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
-> Phase 2 candidate — 2026-11-02: `demo/react` calls only the session/CSRF/password endpoints and reads bounded `/auth/me/` Company/Branch context. A typed, authorized Company Branch-list hook is available but no mock Garage filter calls it. No business API or `/api/mock` caller was added. The React app and backend were exercised together on a disposable local PostgreSQL target; production origin/proxy behavior remains unverified. See [the Phase 2 report](../docs/phase2-execution-progress.md).
+> Local integration state — 2026-11-02: `codex/audit` now includes the accepted Phase 1 API source and Phase 2 React consumer, including P2-13–P2-22 role-navigation and mock-data boundary corrections. React uses session/CSRF/password endpoints and bounded `/auth/me/` Company/Branch context. A typed Branch-list hook exists but no mock Garage filter calls it. No business API or `/api/mock` caller was added. Phase 1 account/tenant suite passed 210/210 on disposable PostgreSQL; Phase 2 passed 74/74 React tests, configured lint/build, and isolated browser acceptance. Remote branch remains at the earlier `f266803acd5e86caa2286fb8eae41df6cadfcb86` until separately authorized push; staging and production were not changed or verified. Roadmap Phase 3 is Main Operations Foundation (not started); Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md) and [Phase 2 report](../docs/phase2-execution-progress.md).
 
 ## 2026-10-31 verified Phase 1 state
 
 One normal Company User UUID belongs to one Company. Another Company uses a separate account UUID with independent credentials and authorization. Global `login_id` and email uniqueness are locked; login has no Company selector. Provisioning, reset/status, revoke and scoped Company/Branch reads now use Company membership and the applicable scoped policy; cross-Company targets are hidden or denied. These are source and disposable-PostgreSQL test results, not staging/production runtime evidence.
 
-## 2026-10-31 implementation delta (worktree only)
+## Historical 2026-10-31 implementation snapshot
 
 The dated 2026-10-19 route inventory below is a historical baseline. Current routes cover CSRF/login/logout/me/password change, Company-scoped account provisioning/reset/status/revoke, Company list/detail and scoped Branch list/detail, Django Admin adapters, and liveness/readiness. All prior legacy business-role authorization was removed from ordinary account lifecycle paths; explicit Platform technical/bootstrap boundaries remain. The current request inventory and classifications are in `docs/phase1-execution-progress.md`. Final source/tests ran on disposable PostgreSQL; live/staging HTTP behavior remains unverified.
 

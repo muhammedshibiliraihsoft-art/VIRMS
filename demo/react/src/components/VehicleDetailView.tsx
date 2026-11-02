@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Wrench, DollarSign, Calendar, MapPin, Layers } from 'l
 import { Vehicle, Garage, Job, Data } from '../types';
 import { VehicleImageCard } from './VehicleImageCard';
 import { capitalContribution, totalVehicleCost } from '../utils/selectors';
+import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
 
 interface VehicleDetailViewProps {
   vehicle: Vehicle;
@@ -25,6 +26,7 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
   onAddExpense,
   onViewJobDetail,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const formatCurrency = (val?: number) => {
     if (val === undefined || val === null) return '₹0';
     return '₹' + val.toLocaleString('en-IN');
@@ -75,6 +77,7 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
         </div>
 
         {/* Action Buttons matching IMAGE 2 */}
+        {canPresentWriteActions && (
         <div className="flex items-center gap-2">
           <button
             onClick={() => onCreateJob(vehicle)}
@@ -94,6 +97,7 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
             </button>
           )}
         </div>
+        )}
       </div>
 
       {/* 3. Top Summary Row: Tablet Reference Style (Reduced Height ~88px, Increased Side Curves rounded-[26px]) */}
@@ -176,13 +180,13 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
             </span>
           </div>
 
-          <button
+          {canPresentWriteActions && <button
             onClick={() => onCreateJob(vehicle)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-800 dark:text-gray-200 border border-[#e2d8ce] dark:border-zinc-700 text-xs font-bold shadow-2xs transition cursor-pointer active:scale-95"
           >
             <Plus className="w-3 h-3 text-[var(--theme-primary)]" />
             <span>Add job</span>
-          </button>
+          </button>}
         </div>
 
         {/* Jobs List or Empty State */}

@@ -22,7 +22,7 @@ export interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 const COMPANY_CONTEXT_ERROR = new Error('A single authorized Company context could not be verified.');
 
-function authScopeFingerprint(user: AuthMe): string {
+export function authScopeFingerprint(user: AuthMe): string {
   return JSON.stringify({
     userId: user.id,
     roles: [...user.roles].sort(),

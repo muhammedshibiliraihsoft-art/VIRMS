@@ -6,7 +6,7 @@ Status: DRAFT V2 — authorization source after approval
 
 Every protected request requires backend authentication, Company/Tenant membership, enabled-module permission, role/action permission, Branch scope where relevant, and object/field ownership checks. A Company, Branch, Investor, Vehicle, Job or image UUID grants no access by itself. Default deny applies to every new module and operation; frontend visibility is only presentation. A Platform operator's access to one Company never implies access to another Company's business data.
 
-Company-wide views aggregate only the user's explicitly authorized Company scope and permitted Branch records. Same-Company previous-Branch history may be read by authorized users; another Branch's original operational record is normally read-only unless Company-level correction authority is explicitly granted. Company and Branch access checks apply to reports, exports, search, files, jobs, notifications and audit as well as ordinary APIs.
+Company-wide views aggregate only the user's explicitly authorized Company scope and permitted Branch records. Same-Company previous-Branch history may be read by authorized users; another Branch's original operational record is normally read-only unless Company-level correction authority is explicitly granted. Phase 6 Garage mutation across Branches is default-deny and adds no such correction grant. Company and Branch access checks apply to reports, exports, search, files, jobs, notifications and audit as well as ordinary APIs.
 
 ## Existing business roles
 
@@ -30,7 +30,7 @@ Public consumers have only the dedicated published/eligible public-safe Vehicle 
 
 ## Module availability
 
-An enabled module still requires the user's normal Company, Branch, role and object permissions. When a module is OFF, ordinary new module activity is denied by the backend; authorized history/read access and minimum actions needed to resolve already-open obligations remain available under explicit permission. Data is retained, and re-enabling restores ordinary supported access without recreating historical records. Module OFF cannot be used to evade an open receivable, refund, recovery, interim or settlement position.
+An enabled module still requires the user's normal Company, Branch, role and object permissions. When a module is OFF, ordinary new module activity is denied by the backend; authorized history/read access and minimum actions needed to resolve already-open obligations remain available under explicit permission. For Phase 6 Garage, OFF denies new Jobs, optional expansion of an existing Job and unrelated new Garage charges. Existing-obligation actions may be performed only through the authoritative module (such as Accounting) and its normal permission checks. Data is retained, and re-enabling restores ordinary supported access without recreating historical records. Module OFF cannot be used to evade an open receivable, refund, recovery, interim or settlement position.
 
 ## Accounts, Portal, public access and audit
 
@@ -40,5 +40,5 @@ Owner AI is read-only over the Owner's verified authorized Company/Branch scope 
 
 ## Authorization decisions pending
 
-- **BUSINESS DECISION REQUIRED:** Define exact Company-level correction and manual Loss confirmation authority, including whether the existing Accountant role may exercise it in all Branches or only through a separate explicit grant.
-- **BUSINESS DECISION REQUIRED:** Define whether and when Platform Back Office support may read a Company's private financial records beyond explicit Company assignment, and the exact minimum settlement actions permitted while each module is OFF.
+- **BUSINESS DECISION REQUIRED:** Define broader Company-level correction and manual Loss confirmation authority, including whether the existing Accountant role may exercise it across Branches or only through a separate explicit grant. Phase 6 Garage keeps cross-Branch mutation default-deny and does not depend on that broader grant.
+- **BUSINESS DECISION REQUIRED:** Define whether and when Platform Back Office support may read a Company's private financial records beyond explicit Company assignment, and the minimum OFF-module actions for modules beyond the Phase 6 Garage boundary locked in 10.

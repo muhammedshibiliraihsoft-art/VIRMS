@@ -12,6 +12,7 @@ import {
 import { Data, Garage } from '../../types';
 import { remaining, margin, issueGarage } from '../../utils/selectors';
 import { FormModalType } from './SharedFormModal';
+import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
 
 interface InventoryWorkspaceViewProps {
   initialTab?: 'items-purchases' | 'stock-issues' | 'stock-reports';
@@ -30,6 +31,7 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
   onSelectGarage,
   onOpenFormModal,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [activeSubTab, setActiveSubTab] = useState<'items-purchases' | 'stock-issues' | 'stock-reports'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
@@ -80,13 +82,13 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <button
+          {canPresentWriteActions && <button
             onClick={() => onOpenFormModal('purchase')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#18181b] hover:bg-black text-white text-xs font-bold shadow-xs transition cursor-pointer active:scale-95"
           >
             <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Purchase Batch</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -148,13 +150,13 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
             <h3 className="text-sm font-bold text-gray-950 dark:text-white">
               Procured Batches & Catalog
             </h3>
-            <button
+            {canPresentWriteActions && <button
               onClick={() => onOpenFormModal('purchase')}
               className="inline-flex items-center gap-1 text-xs font-bold text-[var(--theme-primary)] hover:underline"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Batch</span>
-            </button>
+            </button>}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -201,13 +203,13 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
             <h3 className="text-sm font-bold text-gray-950 dark:text-white">
               Dispensed Stock to Jobs & Vehicles
             </h3>
-            <button
+            {canPresentWriteActions && <button
               onClick={() => onOpenFormModal('issue')}
               className="inline-flex items-center gap-1 text-xs font-bold text-[var(--theme-primary)] hover:underline"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Issue Stock</span>
-            </button>
+            </button>}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">

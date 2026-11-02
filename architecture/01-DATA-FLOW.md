@@ -6,13 +6,13 @@
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
-> Phase 2 candidate — 2026-11-02: `demo/react` now bootstraps the Django session through `/auth/me/`, displays bounded Company/Branch context and clears in-memory user-scoped query state on logout/session expiry/scope change. Only authentication and context data flow is integrated; business-page data remains synthetic. Browser and disposable PostgreSQL evidence is in [the Phase 2 report](../docs/phase2-execution-progress.md). This candidate is not in staging.
+> Local integration state — 2026-11-02: the `codex/audit` integration line includes the accepted Phase 1 account/Company/Branch foundation and Phase 2 React session/context integration, plus P2-13–P2-22 role-navigation and Investor mock-data boundary corrections. Phase 1 account/tenant suite: 210/210 passed on disposable PostgreSQL; Phase 2 React suite: 74/74 passed, with configured lint/build and isolated browser acceptance. The remote remains at the earlier `f266803acd5e86caa2286fb8eae41df6cadfcb86` baseline until a separately authorized push; staging was not updated. Business-domain data remains synthetic and no business APIs were added. The roadmap's Phase 3 Main Operations Foundation is not started; Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md), [Phase 1 report](../docs/phase1-execution-progress.md), and [Phase 2 report](../docs/phase2-execution-progress.md).
 
 ## 2026-10-31 verified Phase 1 state
 
 One ordinary Company User UUID is protected to one Company by the `accounts.0007_one_company_account` PostgreSQL guard and by provisioning/Admin policy. The same human may have separate UUID accounts in other Companies; credentials, sessions, epochs, grants, Branch scope, and audit history stay independent. Existing databases are still unverified: migration preflight fails closed on multi-Company business accounts, and no account is auto-split. `login_id` and email remain globally unique; login has no Company selector.
 
-## 2026-10-31 implementation delta (worktree only)
+## Historical 2026-10-31 implementation snapshot
 
 The dated 2026-10-19 material below is a historical baseline. The current worktree completes P1-11 through P1-19: account provisioning and lifecycle use Company-scoped policy; Login ID admission is bounded; Company/Branch readers use membership, scoped grants and effective assignments; Django Admin routes use scoped adapters; errors, request IDs and health probes are implemented; migrations include explicit legacy mapping and cutover safeguards. Final validation on disposable PostgreSQL 15.19 passed 129 accounts/tenants tests after the read-query audit additions, plus fresh migration and schema-drift checks. The exact result is recorded in `docs/phase1-execution-progress.md`. No finance module, frontend, persistent database or deployment was added or verified.
 
@@ -80,7 +80,7 @@ Reports, dashboard, UI cache and Owner AI are derived consumers, never independe
 
 | Workflow | Authoritative source and effect | Consumer and gate | State |
 |---|---|---|---|
-| Account provision / Tenant context | Local atomic User, RoleAssignment, TenantMembership and AccountSecurityEvent; session and LoginAttempt flows | Phase 2 candidate uses `/auth/me/` for authenticated identity and bounded Company/Branch context; lifecycle APIs have no React caller | CURRENT IMPLEMENTED in local candidate; production behavior UNVERIFIED |
+| Account provision / Tenant context | Local atomic User, RoleAssignment, TenantMembership and AccountSecurityEvent; session and LoginAttempt flows | Committed Phase 2 React client uses `/auth/me/` for authenticated identity and bounded Company/Branch context; lifecycle APIs have no React caller | CURRENT IMPLEMENTED in audit candidate; production behavior UNVERIFIED |
 | Company/Branch and module context | Explicit Company/Branch assignments and versioned module state; no ID grants access | Every protected API, report, export, media and job | CURRENT APPROVED/TARGET; implementation gap |
 | Stock Vehicle funding and Garage work | Investor Fund actual use and/or exact Company Running Capital actual contribution; Garage Job work/cost source counted once | Vehicle cost, Company Accounting, Sale and authorized views | CURRENT APPROVED/TARGET; implementation gap |
 | External customer Garage Job | Customer charge and separately confirmed receipt with Branch attribution | Company Garage Revenue/receivable; no Investor Fund effect | CURRENT APPROVED/TARGET; implementation gap |

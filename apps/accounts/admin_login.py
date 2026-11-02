@@ -16,9 +16,8 @@ class VIRMSAdminAuthenticationForm(AdminAuthenticationForm):
         return super().confirm_login_allowed(user)
 
     def clean(self):
-        username = self.cleaned_data.get("username")
-        if not username:
-            return super().clean()
+        username = self.cleaned_data.get("username") or ""
+        password = self.cleaned_data.get("password")
         with login_attempt(self.request, username) as outcome:
             if not outcome.allowed:
                 raise forms.ValidationError(
@@ -27,11 +26,23 @@ class VIRMSAdminAuthenticationForm(AdminAuthenticationForm):
             try:
                 result = super().clean()
             except forms.ValidationError as error:
-                outcome.authenticated = self._credentials_authenticated
+                # An empty password is incomplete input, not a failed credential
+                # check. Preserve source/global admission accounting while
+                # leaving the identifier failure budget unchanged.
+                outcome.authenticated = (
+                    self._credentials_authenticated
+                    if username and password
+                    else None
+                )
                 failure = error
             else:
                 outcome.authenticated = (
-                    self._credentials_authenticated or self.get_user() is not None
+                    (
+                        self._credentials_authenticated
+                        or self.get_user() is not None
+                    )
+                    if username and password
+                    else None
                 )
                 failure = None
         if failure is not None:

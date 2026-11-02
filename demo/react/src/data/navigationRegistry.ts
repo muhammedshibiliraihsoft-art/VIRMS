@@ -207,6 +207,13 @@ export const navigationRegistry: NavGroup[] = [
         description: 'Company-wide source event register',
       },
       {
+        id: 'owner-distribution',
+        label: 'Owner Distribution',
+        routeKey: 'Owner Distribution',
+        status: 'read_only_by_business_rule',
+        description: 'Owner allocation governance notice; business rules remain pending',
+      },
+      {
         id: 'audit-corrections',
         label: 'Audit & Corrections',
         routeKey: 'Audit & Corrections',

@@ -10,6 +10,9 @@ import {
   Menu,
 } from 'lucide-react';
 import { Garage } from '../types';
+import type { NavGroup } from '../data/navigationRegistry';
+import { getRoleQuickSections } from '../data/roleNavigation';
+import type { BranchSummary } from '../api/types';
 
 export interface TopBarProps {
   activeTab: string;
@@ -21,12 +24,14 @@ export interface TopBarProps {
   onToggleTheme: () => void;
   onRefresh: () => void;
   isRefreshing?: boolean;
+  mobileDrawerOpen: boolean;
   onOpenSearch?: () => void;
   onOpenMobileMenu?: () => void;
   loginId?: string;
   companyName?: string;
   companyWideRoles?: string[];
-  branchNames?: string[];
+  navigationGroups: NavGroup[];
+  branchContexts?: BranchSummary[];
   branchesTruncated?: boolean;
 }
 
@@ -40,26 +45,27 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleTheme,
   onRefresh,
   isRefreshing = false,
+  mobileDrawerOpen,
   onOpenSearch,
   onOpenMobileMenu,
   loginId = '',
   companyName = '',
   companyWideRoles = [],
-  branchNames = [],
+  navigationGroups,
+  branchContexts = [],
   branchesTruncated = false,
 }) => {
   const [garageMenuOpen, setGarageMenuOpen] = useState(false);
 
-  const tabs = [
-    { key: 'Overview', label: 'Overview' },
-    { key: 'Vehicles', label: 'Vehicles' },
-    { key: 'Garage Jobs', label: 'Garage Jobs', shortLabel: 'Jobs' },
-    { key: 'Inventory', label: 'Inventory' },
-    { key: 'Investor Fund', label: 'Investor Fund', shortLabel: 'Fund' },
-    { key: 'Accounting', label: 'Accounting' },
-    { key: 'Reports', label: 'Reports' },
-  ];
+  const tabs = getRoleQuickSections(navigationGroups);
 
+  const branchContextLabel = branchContexts
+    .slice(0, 3)
+    .map((branch) => `${branch.name} · Roles: ${branch.roles.length ? branch.roles.join(', ') : 'none'}`)
+    .join('; ');
+  const allBranchContextLabel = branchContexts
+    .map((branch) => `${branch.name} · Roles: ${branch.roles.length ? branch.roles.join(', ') : 'none'}`)
+    .join('; ');
   const currentGarageName =
     selectedGarage === 'all'
       ? 'All Garages'
@@ -71,6 +77,9 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={onOpenMobileMenu}
+          aria-expanded={mobileDrawerOpen}
+          aria-controls="mobile-navigation-dialog"
+          aria-haspopup="dialog"
           className="lg:hidden p-1.5 rounded-xl text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
           aria-label="Open mobile navigation menu"
         >
@@ -185,14 +194,14 @@ export const TopBar: React.FC<TopBarProps> = ({
             title={`Signed in as ${loginId || 'user'} · Company: ${companyName || 'unavailable'}`}
             className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-white dark:bg-zinc-800 border border-gray-200/80 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 transition cursor-pointer shadow-2xs"
           >
-            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-stone-800 to-stone-600 text-white flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
+            <div aria-hidden="true" className="w-6 h-6 rounded-full bg-gradient-to-tr from-stone-800 to-stone-600 text-white flex items-center justify-center text-[9px] font-bold overflow-hidden shrink-0">
               OP
             </div>
             <div className="text-left hidden md:block">
               <div className="text-[10px] font-bold text-gray-900 dark:text-white leading-tight">
                 {currentGarageName}
               </div>
-              <div className="text-[8px] text-gray-400 dark:text-gray-500 leading-tight hidden xl:block">
+              <div className="text-[8px] text-gray-600 dark:text-gray-400 leading-tight hidden xl:block">
                 {loginId || 'Signed in'}
               </div>
             </div>
@@ -214,10 +223,10 @@ export const TopBar: React.FC<TopBarProps> = ({
                       Company-wide roles: {companyWideRoles.join(', ')}
                     </div>
                   )}
-                  <div className="mt-0.5 truncate text-[10px] text-gray-500 dark:text-gray-400" title={branchNames.join(', ')}>
-                    Branch context: {branchNames.length ? branchNames.slice(0, 3).join(', ') : 'no summaries returned'}
+                  <div className="mt-0.5 truncate text-[10px] text-gray-500 dark:text-gray-400" title={allBranchContextLabel}>
+                    Branch context: {branchContextLabel || 'no summaries returned'}
                   </div>
-                  {(branchNames.length > 3 || branchesTruncated) && (
+                  {(branchContexts.length > 3 || branchesTruncated) && (
                     <div className="text-[10px] text-gray-500 dark:text-gray-400">More Branch context is available.</div>
                   )}
                 </div>

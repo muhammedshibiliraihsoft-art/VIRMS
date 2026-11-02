@@ -14,6 +14,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Job, Vehicle, Garage, Data } from '../types';
+import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
 import { capitalContribution } from '../utils/selectors';
 
 interface GarageJobDetailViewProps {
@@ -45,6 +46,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
   onReceive,
   onToggleJobStatus,
 }) => {
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [isGarageDropdownOpen, setIsGarageDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +92,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
-          {onToggleJobStatus && (
+          {canPresentWriteActions && onToggleJobStatus && (
             <button
               onClick={() => onToggleJobStatus(job)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors shadow-xs cursor-pointer"
@@ -141,7 +143,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
 
         {/* Action Button Row */}
         <div className="flex items-center gap-2 flex-wrap">
-          {onAddWork && (
+          {canPresentWriteActions && onAddWork && (
             <button
               onClick={() => onAddWork(job)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-800 dark:text-gray-200 transition-colors shadow-xs cursor-pointer"
@@ -153,7 +155,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
 
           {isCustomer ? (
             <>
-              {onAddCostOrCharge && (
+              {canPresentWriteActions && onAddCostOrCharge && (
                 <button
                   onClick={() => onAddCostOrCharge(job)}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-750 text-gray-800 dark:text-gray-200 transition-colors shadow-xs cursor-pointer"
@@ -162,7 +164,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
                   <span>Add charge</span>
                 </button>
               )}
-              {outstanding > 0 && onReceive && (
+              {canPresentWriteActions && outstanding > 0 && onReceive && (
                 <button
                   onClick={() => onReceive(job)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-[var(--theme-primary)] hover:brightness-110 text-white transition-all shadow-md shadow-[var(--theme-accent-shadow)] cursor-pointer"
@@ -173,7 +175,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
               )}
             </>
           ) : (
-            onAddCostOrCharge && (
+            canPresentWriteActions && onAddCostOrCharge && (
               <button
                 onClick={() => onAddCostOrCharge(job)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-[var(--theme-primary)] hover:brightness-110 text-white transition-all shadow-md shadow-[var(--theme-accent-shadow)] cursor-pointer"
@@ -329,7 +331,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
                 {job.workEntries?.length ?? 0}
               </span>
             </div>
-            {onAddWork && (
+            {canPresentWriteActions && onAddWork && (
               <button
                 onClick={() => onAddWork(job)}
                 className="text-xs font-semibold text-[var(--theme-primary)] hover:underline inline-flex items-center gap-1 cursor-pointer"
@@ -385,7 +387,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
                 {isCustomer ? 'Customer Charges & Receipts' : 'Stock Vehicle Costs'}
               </h2>
             </div>
-            {onAddCostOrCharge && (
+            {canPresentWriteActions && onAddCostOrCharge && (
               <button
                 onClick={() => onAddCostOrCharge(job)}
                 className="text-xs font-semibold text-[var(--theme-primary)] hover:underline inline-flex items-center gap-1 cursor-pointer"

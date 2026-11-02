@@ -20,6 +20,7 @@ import {
   recoveryLimit,
   fundPosition,
 } from '../../utils/selectors';
+import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
 
 export type FormModalType =
   | 'vehicle'
@@ -60,22 +61,24 @@ interface SharedFormModalProps {
   onSuccessMessage?: (msg: string) => void;
 }
 
+const EMPTY_FORM_CONTEXT: NonNullable<SharedFormModalProps['initialContext']> = Object.freeze({});
+
 export const SharedFormModal: React.FC<SharedFormModalProps> = ({
   isOpen,
   type,
   onClose,
   data,
   onUpdateData,
-  initialContext = {},
+  initialContext = EMPTY_FORM_CONTEXT,
   onSuccessMessage,
 }) => {
-  if (!isOpen || !type) return null;
-
+  const canPresentWriteActions = useCanPresentBusinessWriteActions();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
 
   // Initialize defaults based on form type and context
   useEffect(() => {
+    if (!isOpen || !type || !canPresentWriteActions) return;
     setError(null);
     const today = new Date().toISOString().slice(0, 10);
     const defaultGarage = initialContext.garageId || data.garages[0]?.id || 'g-1';
@@ -268,7 +271,7 @@ export const SharedFormModal: React.FC<SharedFormModalProps> = ({
       default:
         setFormData({});
     }
-  }, [type, initialContext, isOpen]);
+  }, [type, initialContext, isOpen, canPresentWriteActions]);
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -733,6 +736,8 @@ export const SharedFormModal: React.FC<SharedFormModalProps> = ({
         return 'Form Dialog';
     }
   };
+
+  if (!isOpen || !type || !canPresentWriteActions) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-100">
