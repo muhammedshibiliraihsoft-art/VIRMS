@@ -67,14 +67,18 @@ class TenantIsolationTests(TestCase):
         self.assertEqual(me["roles"], [])
         self.assertEqual(me["companies"], [])
 
-    def test_expired_membership_and_inactive_tenant_are_hidden(self):
+    def test_expired_membership_is_hidden(self):
         self.client.force_login(self.member)
         membership = self.member.tenant_memberships.get(tenant=self.north)
         membership.effective_until = timezone.now()
         membership.save()
         self.assertEqual(self.client.get(reverse("tenant-list")).json()["results"], [])
-        membership.effective_until = None
-        membership.save()
+
+    def test_inactive_tenant_is_hidden_from_current_member(self):
+        self.client.force_login(self.member)
+        self.assertEqual(
+            len(self.client.get(reverse("tenant-list")).json()["results"]), 1
+        )
         self.north.is_active = False
         self.north.save()
         self.assertEqual(self.client.get(reverse("tenant-list")).json()["results"], [])

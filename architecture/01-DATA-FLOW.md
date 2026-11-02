@@ -1,6 +1,8 @@
 # 01 — Data Flow
 
-> Isolated candidate update — 2026-11-01: account login-failure state, Company identity cutover guards, scoped lifecycle writes and bounded Branch summaries are updated in this candidate. The accounts/tenants suite passed 172/172 on disposable PostgreSQL 15.19. The owner accepted the concurrent-writer cutover risk with a mandatory legacy-writer pause; Phase 2 entry is READY for isolated development. Cutover and deployment remain unauthorized. See [candidate verification](../docs/phase1-execution-progress.md). The dated verification and implementation sections below describe earlier snapshots, not this candidate.
+> Phase 1 corrections candidate after `cac26195`: self authentication context includes effective Investor Company scope independently of business reads. Branch-scoped role context requires a current matching Branch assignment. Migration 0012 prevents a finite authorization end from being removed or extended, including a future scheduled end; a new authorization uses a new history row. Bootstrap reuses current finite or open scope and rejects future or overlapping current scope for review. See the current verification in [the execution report](../docs/phase1-execution-progress.md).
+
+> Earlier candidate snapshot — 2026-11-01: the accounts/tenants suite passed 172/172 on disposable PostgreSQL 15.19 before the subsequent B1/B2/B3 corrections. Current correction status and the final 199-test result are in [the execution report](../docs/phase1-execution-progress.md). The accepted legacy migration cutover procedure still requires pausing legacy writers; no cutover or deployment is authorized.
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 

@@ -42,6 +42,16 @@ class PlatformIdentityPreflightTests(TransactionTestCase):
 
     reset_sequences = False
 
+    @classmethod
+    def tearDownClass(cls):
+        # Each test deliberately finishes at 0009; after TransactionTestCase
+        # has flushed its fixtures, restore the latest schema for later tests.
+        try:
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes())
+        finally:
+            super().tearDownClass()
+
     def setUp(self):
         super().setUp()
         self.migrate(POST_0009_STATE)

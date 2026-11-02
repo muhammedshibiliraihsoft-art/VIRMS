@@ -6,6 +6,7 @@ import uuid
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.audit import record_event
@@ -79,49 +80,37 @@ def _apply_bootstrap(
             )
 
         now = timezone.now()
-        open_roles = list(
+        relevant_roles = list(
             RoleAssignment.objects.select_for_update()
             .filter(
                 user=user,
                 role=RoleAssignment.Role.BACK_OFFICE,
-                effective_until__isnull=True,
             )
+            .filter(Q(effective_until__isnull=True) | Q(effective_until__gt=now))
             .order_by("id")
         )
-        active_role = next(
-            (
-                row
-                for row in open_roles
-                if row.effective_from <= now
-                and (row.effective_until is None or row.effective_until > now)
-            ),
-            None,
-        )
-        if open_roles and active_role is None:
-            raise CommandError("An open future back-office role needs manual review")
-        if not open_roles:
+        if any(row.effective_from > now for row in relevant_roles):
+            raise CommandError("A future back-office role needs manual review")
+        if len(relevant_roles) > 1:
+            raise CommandError("Overlapping back-office roles need manual review")
+        if not relevant_roles:
             RoleAssignment.objects.create(
                 user=user,
                 role=RoleAssignment.Role.BACK_OFFICE,
                 assigned_by=user,
             )
 
-        open_memberships = list(
+        relevant_memberships = list(
             TenantMembership.objects.select_for_update()
-            .filter(user=user, tenant=company, effective_until__isnull=True)
+            .filter(user=user, tenant=company)
+            .filter(Q(effective_until__isnull=True) | Q(effective_until__gt=now))
             .order_by("id")
         )
-        active_membership = next(
-            (
-                row
-                for row in open_memberships
-                if row.effective_from <= now
-                and (row.effective_until is None or row.effective_until > now)
-            ),
-            None,
-        )
-        if open_memberships and active_membership is None:
-            raise CommandError("An open future Company membership needs manual review")
+        if any(row.effective_from > now for row in relevant_memberships):
+            raise CommandError("A future Company membership needs manual review")
+        if len(relevant_memberships) > 1:
+            raise CommandError("Overlapping Company memberships need manual review")
+        active_membership = relevant_memberships[0] if relevant_memberships else None
         if active_membership is None:
             active_membership = TenantMembership.objects.create(
                 user=user,

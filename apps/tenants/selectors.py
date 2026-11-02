@@ -1,9 +1,12 @@
+from django.contrib.postgres.expressions import ArraySubquery
 from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from apps.accounts.platform_identity import is_platform_actor
 
 READ_ROLES = ("owner", "accountant", "media")
+# Self context describes the caller's own scope; it does not grant core reads.
+CONTEXT_ROLES = (*READ_ROLES, "investor")
 
 
 def current_interval(at=None):
@@ -96,46 +99,77 @@ def visible_branches(user, company_id, at=None):
 
 def company_context(user, at=None, *, limit=50, branch_limit=20):
     """Bounded self-context projection; it does not grant access by itself."""
-    from apps.accounts.models import CompanyRoleGrant
-    from apps.tenants.models import TenantMembership
+    from apps.accounts.models import CompanyRoleGrant, User
+    from apps.tenants.models import BranchAssignment, Tenant, TenantMembership
 
     at = at or timezone.now()
+    if not user.is_authenticated or not user.is_active or user.must_change_password:
+        return [], False
+    platform = user.account_kind == User.AccountKind.PLATFORM
+    if platform and not is_platform_actor(user, at):
+        return [], False
+
+    effective_assignment = BranchAssignment.objects.filter(
+        membership_id=OuterRef("membership_id"), branch_id=OuterRef("branch_id")
+    ).filter(current_interval(at))
+    context_grants = (
+        CompanyRoleGrant.objects.filter(role__in=CONTEXT_ROLES)
+        .filter(current_interval(at))
+        .annotate(_assigned=Exists(effective_assignment))
+        .filter(Q(branch__isnull=True) | Q(_assigned=True))
+    )
+    context_membership = TenantMembership.objects.filter(
+        user=user, tenant_id=OuterRef("pk")
+    ).filter(current_interval(at))
+    if not platform:
+        context_membership = context_membership.annotate(
+            _has_context=Exists(context_grants.filter(membership_id=OuterRef("pk")))
+        ).filter(_has_context=True)
     company_ids = list(
-        visible_companies(user, at).values_list("pk", flat=True)[: limit + 1]
+        Tenant.objects.filter(is_active=True)
+        .annotate(_member=Exists(context_membership))
+        .filter(_member=True)
+        .order_by("name", "id")
+        .values_list("pk", flat=True)[: limit + 1]
     )
     truncated = len(company_ids) > limit
     company_ids = company_ids[:limit]
-    from apps.accounts.models import User
-    from apps.tenants.models import BranchAssignment
-
-    platform = user.account_kind == User.AccountKind.PLATFORM and is_platform_actor(
-        user, at
-    )
-    readable_grant = (
+    context_grant = (
         CompanyRoleGrant.objects.filter(
-            membership_id=OuterRef("membership_id"), role__in=READ_ROLES
+            membership_id=OuterRef("membership_id"), role__in=CONTEXT_ROLES
         )
         .filter(current_interval(at))
         .filter(Q(branch__isnull=True) | Q(branch_id=OuterRef("branch_id")))
     )
     assignments = BranchAssignment.objects.filter(current_interval(at))
     if not platform:
-        assignments = assignments.annotate(_granted=Exists(readable_grant)).filter(
+        assignments = assignments.annotate(_granted=Exists(context_grant)).filter(
             _granted=True
         )
-    assignments = assignments.select_related("branch").order_by(
-        "branch__name", "branch_id", "id"
+    branch_roles = context_grant.order_by("role").values("role").distinct()
+    assignments = (
+        assignments.annotate(_context_roles=ArraySubquery(branch_roles))
+        .select_related("branch")
+        .order_by("branch__name", "branch_id", "id")
     )
-    role_summary = (
-        CompanyRoleGrant.objects.filter(current_interval(at))
-        .order_by("membership_id", "role")
-        .distinct("membership_id", "role")
+    role_summary = context_grants.order_by("membership_id", "role").distinct(
+        "membership_id", "role"
+    )
+    company_wide_roles = (
+        CompanyRoleGrant.objects.filter(
+            membership_id=OuterRef("pk"), branch__isnull=True, role__in=CONTEXT_ROLES
+        )
+        .filter(current_interval(at))
+        .order_by("role")
+        .values("role")
+        .distinct()
     )
     memberships = (
         TenantMembership.objects.filter(
             user=user, tenant_id__in=company_ids, tenant__is_active=True
         )
         .filter(current_interval(at))
+        .annotate(_company_wide_roles=ArraySubquery(company_wide_roles))
         .select_related("tenant")
         .prefetch_related(
             Prefetch("role_grants", queryset=role_summary, to_attr="context_roles"),
@@ -159,20 +193,24 @@ def company_context(user, at=None, *, limit=50, branch_limit=20):
         seen = set()
         for row in rows[:branch_limit]:
             if row.branch_id not in seen:
-                branches.append(row.branch)
+                branches.append(
+                    {
+                        "id": str(row.branch_id),
+                        "name": row.branch.name,
+                        "roles": sorted(set(row._context_roles)),
+                    }
+                )
                 seen.add(row.branch_id)
         result.append(
             {
                 "id": str(membership.tenant_id),
                 "name": membership.tenant.name,
                 "roles": roles,
+                "company_wide_roles": sorted(set(membership._company_wide_roles)),
                 "branches_truncated": branches_truncated,
-                "branches": [
-                    {"id": str(branch.pk), "name": branch.name}
-                    for branch in sorted(
-                        branches, key=lambda item: (item.name, str(item.pk))
-                    )
-                ],
+                "branches": sorted(
+                    branches, key=lambda item: (item["name"], item["id"])
+                ),
             }
         )
     return result, truncated

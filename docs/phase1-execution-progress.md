@@ -1,6 +1,32 @@
 # Phase 1 Candidate Verification — 2026-11-01
 
-> **Current gate: PHASE_2_ENTRY_READY for isolated Phase 2 development.** On 2026-11-01, the owner accepted the A2 migration cutover risk with the required legacy-writer pause described below. This acceptance does not authorize a database cutover, staging integration or deployment. This report describes only the isolated uncommitted candidate.
+## Corrections after candidate commit `cac26195`
+
+This section records the Phase 1 correction candidate verified before publication. The 172-test result in the historical snapshot below predates these corrections.
+
+- Verification source: `D:/VIRMS/tmp/phase1-consolidated-20261101` at base `cac26195611432b44b2cc594aad5f2f0e208b69a`. The same Phase 1 code, migration and tests were isolated in `D:/VIRMS/tmp/phase1-corrections-isolated-20261102` on `codex/phase1-corrections-isolated`; the original mixed worktree was preserved separately. The verification results below were obtained before this isolation.
+
+- `/auth/me` returns a current Investor's own Company context without adding Investor to the Company/Branch business-read policy. Existing role aggregates remain; additive `company_wide_roles` and each Branch's `roles` preserve role-to-scope provenance. Platform Back Office remains a separate top-level role. Clients must not infer a Branch permission from the aggregate role list; backend authorization remains authoritative.
+- Accounts migration 0012 adds PostgreSQL guards for membership, Company grant, Branch assignment and legacy role history. Once `effective_until` is finite it may be shortened but not extended or removed, even while still future. Existing supported administrative commands only end scope or create new rows; no writer extending a finite end was found. Legacy history is preserved and new authority requires a new row.
+- Platform bootstrap recognizes finite-current as well as open-current role/membership intervals and rejects future or overlapping current scope for review. Failure rolls back newly created Company state.
+- Concurrent supported service operations are serialized by existing parent locks. The database has no general exclusion constraint on overlapping finite inserts; approved Phase 1 administrative writes use the service boundary and legacy overlap requires reviewed treatment. The previously accepted 0007 cutover risk still requires pausing legacy writers.
+- **Correction gate — PASS:** `python manage.py test apps.accounts apps.tenants --verbosity 1 --noinput` ran 199 tests on disposable PostgreSQL 15.19 in 416.317 seconds: 199 passed, 0 failed, 0 skipped. Django reported no system-check issues.
+- **Fresh migration — PASS:** on isolated database `virms_b2` at `127.0.0.1:55443`, `python manage.py migrate --noinput` applied all migrations from an empty schema through `accounts.0012_scope_end_monotonic`; `showmigrations accounts tenants` showed every migration applied and `migrate --plan` reported no pending operations. PostgreSQL reported version 15.19.
+- **Upgrade and schema — PASS:** the full suite includes `test_upgrade_preserves_history_and_allows_future_end_now`, which migrates existing history through 0012 and verifies valid future-to-now closure. `python manage.py check` reported no issues; `python manage.py makemigrations --check --dry-run` reported no changes.
+- **Static checks — PASS:** isort `--check-only`, Black `--check`, flake8 on all changed Python files, and `git diff --check` passed.
+- **Performance — PASS for the tested synthetic fixture:** `/auth/me` remained bounded at 1, 25, 75 and 250 Branches; the 250-Branch case returned 20 summaries with truncation set. The final test run also measured paginated Branch reads at 6 queries for both 1 and 25 rows (20-row page). This is not production-load evidence.
+- **Final adversarial re-audit — PASS:** the independent reviewer found no A-level or additional material B-level defect after these changes. The accepted legacy 0007 preflight/write race remains a **C operational cutover risk**: pause every legacy identity, membership, Company-role and Branch-scope writer from before preflight until migration success; on failure preserve the database and do not bypass the guard.
+- No staging/production/shared database validation, staging merge or deployment is claimed. Phase 2 frontend files are excluded from the isolated Phase 1 correction set.
+
+## Current correction-gate file set
+
+- Fixes: `apps/tenants/selectors.py`; `apps/accounts/management/commands/bootstrap_platform_admin.py`; `apps/accounts/migrations/0012_scope_end_monotonic.py`.
+- Regression coverage: `apps/accounts/tests/test_auth_context_roles.py`, `test_b3_bootstrap_temporal.py`, `test_scope_concurrency.py`, `test_scope_history_monotonic.py`, plus `apps/accounts/tests/test_a2_identity_preflight.py` and `apps/tenants/tests/test_tenants.py`.
+- Verified-current-state documentation: `architecture/01-DATA-FLOW.md`, `architecture/02-API-FLOW.md`, `architecture/04-CHANGE-IMPACT-COMPATIBILITY.md`, and this report.
+
+## Prior candidate snapshot (historical)
+
+> **Prior candidate gate: PHASE_2_ENTRY_READY for isolated Phase 2 development.** On 2026-11-01, the owner accepted the A2 migration cutover risk with the required legacy-writer pause described below. This acceptance does not authorize a database cutover, staging integration or deployment. The remaining sections record the earlier snapshot before commit `cac26195`.
 
 ## Candidate identity and boundaries
 
@@ -52,5 +78,5 @@
 ## Documentation and release scope
 
 - README migration guidance and this candidate report describe the required identity cutover writer pause and current acceptance status. /docs-final-v2/ canonical target documents were not changed.
-- No frontend, Phase 2, finance, Vehicles, Garage, Sales, Collections, Accounting, dashboard or custom Back Office implementation is included.
+- At this Phase 1 snapshot, no frontend, finance, Vehicles, Garage, Sales, Collections, Accounting, dashboard or custom Back Office implementation was included.
 - No staging/production/shared database, push, merge, commit or deployment was touched.
