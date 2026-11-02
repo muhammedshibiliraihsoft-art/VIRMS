@@ -6,7 +6,9 @@ import { StatusMessageLayer } from './StatusMessageLayer';
 import { Garage } from '../types';
 import { StatusMessage } from '../types/statusMessage';
 import { getRoleNavigation } from '../data/roleNavigation';
+import { getRouteDataSourceStatus } from '../data/navigationRegistry';
 import type { BranchSummary } from '../api/types';
+import { DemoBadge } from './shared/DemoBadge';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -59,6 +61,10 @@ export const AppShell: React.FC<AppShellProps> = ({
 }) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const navigationGroups = getRoleNavigation(companyWideRoles);
+  const showDemoPageBadge =
+    activeRoute !== 'Dashboard' &&
+    activeRoute !== 'Overview' &&
+    getRouteDataSourceStatus(activeRoute) === 'demo';
 
   return (
     <div data-theme={theme} className={theme === 'dark' ? 'dark' : ''}>
@@ -124,6 +130,11 @@ export const AppShell: React.FC<AppShellProps> = ({
 
             {/* Main Content Area: flex-1 expands to fill available vertical space */}
             <main className="flex-1 min-w-0 flex flex-col gap-3.5 sm:gap-4.5 pt-3 sm:pt-3.5">
+              {showDemoPageBadge && (
+                <div className="flex justify-end">
+                  <DemoBadge />
+                </div>
+              )}
               {children}
             </main>
 

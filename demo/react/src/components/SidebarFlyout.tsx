@@ -16,6 +16,7 @@ import {
   Home,
 } from 'lucide-react';
 import { NavGroup, NavChildItem } from '../data/navigationRegistry';
+import { DemoBadge } from './shared/DemoBadge';
 
 interface SidebarFlyoutProps {
   group: NavGroup;
@@ -138,7 +139,10 @@ export const SidebarFlyout: React.FC<SidebarFlyoutProps> = ({
               </div>
 
               {/* Status Chips */}
-              <div className="shrink-0 ml-1.5">
+              <div className="shrink-0 ml-1.5 flex items-center gap-1.5">
+                {(child.dataSourceStatus ?? group.dataSourceStatus) === 'demo' && (
+                  <DemoBadge size="compact" />
+                )}
                 {child.status === 'implemented' ? (
                   <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Implemented" />
                 ) : child.status === 'read_only_by_business_rule' ? (

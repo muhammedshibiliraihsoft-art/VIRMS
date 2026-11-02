@@ -16,6 +16,8 @@ import { Data, Garage } from '../../types';
 import { initialData } from '../../data/mockData';
 import { FormModalType } from './SharedFormModal';
 import { THEME_REGISTRY, DEFAULT_THEME_ID } from '../../theme/themeRegistry';
+import { getFormDataSourceStatus, getRouteDataSourceStatus } from '../../data/navigationRegistry';
+import { DemoBadge } from './DemoBadge';
 
 export type SettingsTabType = 'garages-branches' | 'theme-appearance' | 'demo-data';
 
@@ -278,6 +280,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
               >
                 <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
                 <span>Add Branch</span>
+                {getFormDataSourceStatus('garage') === 'demo' && <DemoBadge size="compact" />}
               </button>
             </div>
 
@@ -321,12 +324,14 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
                             className="text-[11px] font-bold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition cursor-pointer"
                           >
                             {g.active ? 'Deactivate' : 'Activate'}
+                            {getRouteDataSourceStatus('Garages / Branches') === 'demo' && <DemoBadge size="compact" />}
                           </button>
                           <button
                             onClick={() => onOpenFormModal('garageEdit', { garageId: g.id })}
                             className="text-[11px] font-bold text-[var(--theme-primary)] hover:underline transition cursor-pointer"
                           >
                             Edit
+                            {getFormDataSourceStatus('garageEdit') === 'demo' && <DemoBadge size="compact" />}
                           </button>
                         </td>
                       </tr>
@@ -377,6 +382,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
               >
                 <Download className="w-3.5 h-3.5 text-blue-500" />
                 <span>Export Snapshot (JSON)</span>
+                <DemoBadge size="compact" />
               </button>
 
               <button
@@ -385,6 +391,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
               >
                 <Upload className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Import Snapshot</span>
+                <DemoBadge size="compact" />
               </button>
 
               <button
@@ -393,6 +400,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
               >
                 <RotateCcw className="w-3.5 h-3.5 text-red-600" />
                 <span>Reset to Seed Data</span>
+                <DemoBadge size="compact" />
               </button>
             </div>
 
@@ -413,6 +421,7 @@ export const SettingsAdminView: React.FC<SettingsAdminViewProps> = ({
                   className="px-4 py-2 rounded-full bg-[#18181b] text-white text-xs font-bold"
                 >
                   Apply Imported Data
+                  <DemoBadge size="compact" />
                 </button>
               </div>
             )}

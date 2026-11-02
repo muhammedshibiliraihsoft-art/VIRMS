@@ -17,6 +17,8 @@ import {
 import { Data, ActivityItem } from '../../types';
 import { formatCurrency, formatCompact } from '../../utils/formatters';
 import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../../data/navigationRegistry';
+import { DemoBadge } from '../shared/DemoBadge';
 
 interface DashboardFinancialViewProps {
   data: Data;
@@ -123,14 +125,16 @@ export const DashboardFinancialView: React.FC<DashboardFinancialViewProps> = ({
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--theme-primary)] hover:brightness-105 text-white font-bold text-xs shadow-2xs transition cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Record Receipt</span>
+              <span className="min-w-0 truncate">Record Receipt</span>
+              {getFormDataSourceStatus('customerReceipt') === 'demo' && <DemoBadge size="compact" />}
             </button>
             <button
               onClick={() => onOpenFormModal('sale')}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-gray-900 dark:text-white font-bold text-xs transition cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>New Vehicle Sale</span>
+              <span className="min-w-0 truncate">New Vehicle Sale</span>
+              {getFormDataSourceStatus('sale') === 'demo' && <DemoBadge size="compact" />}
             </button>
               </>
             )}

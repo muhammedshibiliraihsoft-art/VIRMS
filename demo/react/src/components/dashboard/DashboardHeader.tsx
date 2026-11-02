@@ -14,6 +14,7 @@ import {
   AutoRefreshInterval,
   DASHBOARD_VIEWS,
 } from '../../types/dashboard';
+import { DemoBadge } from '../shared/DemoBadge';
 
 interface DashboardHeaderProps {
   userLabel?: string;
@@ -67,11 +68,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           <h1 className="text-xl sm:text-2xl lg:text-[26px] font-extrabold text-gray-950 dark:text-white tracking-tight">
             Good morning, {userLabel || 'there'}
           </h1>
-          {!DASHBOARD_VIEWS[activeView]?.isBackendConnected && (
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              UI ONLY
-            </span>
-          )}
+          {!DASHBOARD_VIEWS[activeView]?.isBackendConnected && <DemoBadge />}
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">
           {DASHBOARD_VIEWS[activeView]?.description || 'Stay on top of your tasks, monitor progress, and track status.'}

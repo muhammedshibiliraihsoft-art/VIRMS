@@ -13,6 +13,8 @@ import { Data, Garage } from '../../types';
 import { remaining, margin, issueGarage } from '../../utils/selectors';
 import { FormModalType } from './SharedFormModal';
 import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../../data/navigationRegistry';
+import { DemoBadge } from './DemoBadge';
 
 interface InventoryWorkspaceViewProps {
   initialTab?: 'items-purchases' | 'stock-issues' | 'stock-reports';
@@ -88,6 +90,7 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
           >
             <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Purchase Batch</span>
+            {getFormDataSourceStatus('purchase') === 'demo' && <DemoBadge size="compact" />}
           </button>}
         </div>
       </div>
@@ -156,6 +159,7 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Batch</span>
+              {getFormDataSourceStatus('purchase') === 'demo' && <DemoBadge size="compact" />}
             </button>}
           </div>
           <div className="overflow-x-auto">
@@ -209,6 +213,7 @@ export const InventoryWorkspaceView: React.FC<InventoryWorkspaceViewProps> = ({
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Issue Stock</span>
+              {getFormDataSourceStatus('issue') === 'demo' && <DemoBadge size="compact" />}
             </button>}
           </div>
           <div className="overflow-x-auto">

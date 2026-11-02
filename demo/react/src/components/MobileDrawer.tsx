@@ -15,6 +15,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import type { NavGroup } from '../data/navigationRegistry';
+import { DemoBadge } from './shared/DemoBadge';
 
 interface MobileDrawerProps {
   navigationGroups: NavGroup[];
@@ -177,6 +178,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   >
                     {getIcon(group.iconName)}
                     <span>Dashboard</span>
+                    {group.dataSourceStatus === 'demo' && <DemoBadge size="compact" />}
                   </button>
                 );
               }
@@ -234,11 +236,16 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                           >
                             <div className="flex items-center justify-between">
                               <span className="truncate">{child.label}</span>
-                              {child.status === 'pending' && (
-                                <span className="text-[9px] text-gray-400 font-normal">
-                                  Pending
-                                </span>
-                              )}
+                              <span className="ml-2 flex shrink-0 items-center gap-1.5">
+                                {(child.dataSourceStatus ?? group.dataSourceStatus) === 'demo' && (
+                                  <DemoBadge size="compact" />
+                                )}
+                                {child.status === 'pending' && (
+                                  <span className="text-[9px] text-gray-400 font-normal">
+                                    Pending
+                                  </span>
+                                )}
+                              </span>
                             </div>
                           </button>
                         );

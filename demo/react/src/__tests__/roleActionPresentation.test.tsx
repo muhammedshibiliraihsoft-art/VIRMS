@@ -10,7 +10,7 @@ describe('role-aware business action presentation', () => {
     expect(screen.queryByRole('button', { name: 'New Sale' })).not.toBeInTheDocument();
 
     rerender(<App companyWideRoles={['accountant']} />);
-    expect(screen.getByRole('button', { name: 'Record Receipt' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New Sale' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Record Receipt.*Demo/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /New Sale.*Demo/ })).toBeInTheDocument();
   });
 });

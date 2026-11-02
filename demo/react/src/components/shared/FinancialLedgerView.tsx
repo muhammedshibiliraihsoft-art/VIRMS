@@ -26,6 +26,8 @@ import {
 } from '../../utils/selectors';
 import { FormModalType } from './SharedFormModal';
 import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../../data/navigationRegistry';
+import { DemoBadge } from './DemoBadge';
 
 interface FinancialLedgerViewProps {
   routeKey: string;
@@ -515,7 +517,8 @@ export const FinancialLedgerView: React.FC<FinancialLedgerViewProps> = ({
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#18181b] hover:bg-black text-white text-xs font-bold shadow-xs transition cursor-pointer active:scale-95"
             >
               <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
-              <span>{primaryButton.label}</span>
+              <span className="min-w-0 truncate">{primaryButton.label}</span>
+              {getFormDataSourceStatus(primaryButton.formType) === 'demo' && <DemoBadge size="compact" />}
             </button>
           )}
         </div>
@@ -626,6 +629,7 @@ export const FinancialLedgerView: React.FC<FinancialLedgerViewProps> = ({
                                 className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--theme-primary)] hover:text-[var(--theme-primary-hover)] px-2 py-0.5 rounded-md hover:bg-[var(--theme-primary-soft)] transition cursor-pointer"
                               >
                                 <span>{r.actionLabel || 'Action'}</span>
+                                {getFormDataSourceStatus(r.actionType) === 'demo' && <DemoBadge size="compact" />}
                               </button>
                             )}
                           </td>

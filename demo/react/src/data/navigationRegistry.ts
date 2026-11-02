@@ -1,4 +1,5 @@
 export type NavItemStatus = 'implemented' | 'pending' | 'read_only_by_business_rule';
+export type DataSourceStatus = 'backend' | 'demo';
 
 export interface NavChildItem {
   id: string;
@@ -7,6 +8,7 @@ export interface NavChildItem {
   status: NavItemStatus;
   description?: string;
   badge?: string;
+  dataSourceStatus?: DataSourceStatus;
 }
 
 export interface NavGroup {
@@ -15,6 +17,7 @@ export interface NavGroup {
   iconName: string;
   primaryRouteKey: string;
   status: NavItemStatus;
+  dataSourceStatus: DataSourceStatus;
   children: NavChildItem[];
 }
 
@@ -25,6 +28,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Home',
     primaryRouteKey: 'Dashboard',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'overview',
@@ -41,6 +45,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Car',
     primaryRouteKey: 'All Vehicles',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'stock-investor',
@@ -64,6 +69,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Wrench',
     primaryRouteKey: 'Garage Jobs',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'garage-jobs',
@@ -80,6 +86,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Package',
     primaryRouteKey: 'Items & Purchases',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'items-purchases',
@@ -110,6 +117,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Users',
     primaryRouteKey: 'Investor Fund',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'investor-fund',
@@ -163,6 +171,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Folder',
     primaryRouteKey: 'Garage Revenue',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'garage-revenue',
@@ -228,6 +237,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'BarChart3',
     primaryRouteKey: 'All Reports',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'all-reports',
@@ -286,6 +296,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Settings',
     primaryRouteKey: 'Appearance & Theme',
     status: 'implemented',
+    dataSourceStatus: 'demo',
     children: [
       {
         id: 'theme-appearance',
@@ -311,3 +322,62 @@ export const navigationRegistry: NavGroup[] = [
     ],
   },
 ];
+
+const ROUTE_GROUP_ALIASES: Record<string, string> = {
+  Overview: 'dashboard',
+  'All Vehicles': 'vehicles',
+  'Vehicle Detail': 'vehicles',
+  'Garage Job Detail': 'garage-operations',
+  Reports: 'reports',
+  Accounting: 'company-accounting',
+  Inventory: 'inventory',
+  Settings: 'settings',
+};
+
+const FORM_ROUTE_KEYS: Record<string, string> = {
+  vehicle: 'All Vehicles',
+  job: 'Garage Jobs',
+  jobWork: 'Garage Jobs',
+  jobExpense: 'Garage Jobs',
+  vehicleExpense: 'Garage Jobs',
+  customerCharge: 'Garage Jobs',
+  customerReceipt: 'Garage Jobs',
+  purchase: 'Items & Purchases',
+  issue: 'Items & Purchases',
+  sale: 'Vehicle Sales',
+  collection: 'Collections',
+  saleCorrection: 'Sale Corrections & Refunds',
+  refund: 'Sale Corrections & Refunds',
+  fundCredit: 'Investor Fund',
+  investor: 'Investor Fund',
+  companyExpense: 'Company Expenses',
+  otherIncome: 'Company Income',
+  recovery: 'Investor Fund',
+  capitalRecovery: 'Investor Fund',
+  garage: 'Garages / Branches',
+  garageEdit: 'Garages / Branches',
+};
+
+/**
+ * Business routes default to Demo until a verified business API owns their
+ * displayed records and mutations. Authentication/context APIs are outside
+ * this navigation registry.
+ */
+export function getRouteDataSourceStatus(routeKey: string): DataSourceStatus {
+  const group = navigationRegistry.find(
+    (candidate) =>
+      candidate.primaryRouteKey === routeKey ||
+      candidate.children.some((child) => child.routeKey === routeKey)
+  ) ?? navigationRegistry.find((candidate) => candidate.id === ROUTE_GROUP_ALIASES[routeKey]);
+
+  if (!group) return 'demo';
+
+  const child = group.children.find((candidate) => candidate.routeKey === routeKey);
+  return child?.dataSourceStatus ?? group.dataSourceStatus;
+}
+
+/** Resolves a mutation form to its owning module for incremental backend integration. */
+export function getFormDataSourceStatus(formType: string): DataSourceStatus {
+  const routeKey = FORM_ROUTE_KEYS[formType];
+  return routeKey ? getRouteDataSourceStatus(routeKey) : 'demo';
+}

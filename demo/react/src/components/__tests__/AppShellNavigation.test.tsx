@@ -5,12 +5,13 @@ import { AppShell } from '../AppShell';
 
 function renderShell(
   companyWideRoles: string[],
-  branchContexts: Array<{ id: string; name: string; roles: string[] }> = []
+  branchContexts: Array<{ id: string; name: string; roles: string[] }> = [],
+  activeRoute = 'Dashboard'
 ) {
   const onSelectRoute = vi.fn();
   const rendered = render(
     <AppShell
-      activeRoute="Dashboard"
+      activeRoute={activeRoute}
       activeTab="Overview"
       theme="light"
       onToggleTheme={vi.fn()}
@@ -33,6 +34,35 @@ function renderShell(
 }
 
 describe('AppShell role-filtered navigation', () => {
+  it('marks business screens as Demo while keeping backend Company context separate', () => {
+    const { rerender } = renderShell(['owner'], [], 'Garage Jobs');
+
+    expect(screen.getByRole('note', { name: /Demo data and actions/i })).toHaveTextContent('Demo');
+
+    rerender(
+      <AppShell
+        activeRoute="Dashboard"
+        activeTab="Overview"
+        theme="light"
+        onToggleTheme={vi.fn()}
+        onSelectRoute={vi.fn()}
+        onSelectTab={vi.fn()}
+        garages={[]}
+        selectedGarage="all"
+        onSelectGarage={vi.fn()}
+        onRefresh={vi.fn()}
+        statusMessages={[]}
+        onDismissStatus={vi.fn()}
+        companyName="Example Company"
+        companyWideRoles={['owner']}
+      >
+        <div>Current dashboard</div>
+      </AppShell>
+    );
+
+    expect(screen.queryByRole('note', { name: /Demo data and actions/i })).not.toBeInTheDocument();
+  });
+
   it('applies Owner visibility to both rail and quick tabs', () => {
     renderShell(['owner']);
 

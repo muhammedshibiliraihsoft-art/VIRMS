@@ -8,7 +8,7 @@ import {
   isInvestorOnlyRole,
   isRoleRouteVisible,
 } from '../roleNavigation';
-import { navigationRegistry } from '../navigationRegistry';
+import { getFormDataSourceStatus, getRouteDataSourceStatus, navigationRegistry } from '../navigationRegistry';
 
 const groupIds = (roles: readonly string[] | undefined) =>
   getRoleNavigation(roles).map((group) => group.id);
@@ -17,6 +17,50 @@ const routeKeys = (roles: readonly string[] | undefined) =>
   getRoleNavigation(roles).flatMap((group) => group.children.map((child) => child.routeKey));
 
 describe('role-based navigation presentation', () => {
+  it('defaults all business screens and detail routes to Demo until a backend contract is wired', () => {
+    for (const group of navigationRegistry) {
+      expect(group.dataSourceStatus).toBe('demo');
+      for (const child of group.children) {
+        expect(getRouteDataSourceStatus(child.routeKey)).toBe('demo');
+      }
+    }
+
+    expect(getRouteDataSourceStatus('Vehicle Detail')).toBe('demo');
+    expect(getRouteDataSourceStatus('Garage Job Detail')).toBe('demo');
+    expect(getRouteDataSourceStatus('Overview')).toBe('demo');
+  });
+
+  it('resolves every mutation form to its owning module source status', () => {
+    const formTypes = [
+      'vehicle', 'job', 'jobWork', 'jobExpense', 'vehicleExpense', 'customerCharge',
+      'customerReceipt', 'purchase', 'issue', 'sale', 'collection', 'saleCorrection',
+      'refund', 'fundCredit', 'investor', 'companyExpense', 'otherIncome', 'recovery',
+      'capitalRecovery', 'garage', 'garageEdit',
+    ];
+    const originalGroupStatuses = navigationRegistry.map((group) => group.dataSourceStatus);
+    const originalChildStatuses = navigationRegistry.map((group) =>
+      group.children.map((child) => child.dataSourceStatus)
+    );
+
+    try {
+      for (const group of navigationRegistry) {
+        group.dataSourceStatus = 'backend';
+        for (const child of group.children) child.dataSourceStatus = 'backend';
+      }
+
+      for (const formType of formTypes) {
+        expect(getFormDataSourceStatus(formType), formType).toBe('backend');
+      }
+    } finally {
+      navigationRegistry.forEach((group, groupIndex) => {
+        group.dataSourceStatus = originalGroupStatuses[groupIndex];
+        group.children.forEach((child, childIndex) => {
+          child.dataSourceStatus = originalChildStatuses[groupIndex][childIndex];
+        });
+      });
+    }
+  });
+
   it('presents ordinary business write actions only for a Company-wide Accountant role', () => {
     expect(canPresentBusinessWriteActions(['accountant'])).toBe(true);
     expect(canPresentBusinessWriteActions(['owner'])).toBe(false);

@@ -21,6 +21,8 @@ import {
   fundPosition,
 } from '../../utils/selectors';
 import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
+import { DemoBadge } from './DemoBadge';
+import { getFormDataSourceStatus } from '../../data/navigationRegistry';
 
 export type FormModalType =
   | 'vehicle'
@@ -1323,6 +1325,7 @@ export const SharedFormModal: React.FC<SharedFormModalProps> = ({
             >
               <Check className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
               <span>Confirm & Record</span>
+              {type && getFormDataSourceStatus(type) === 'demo' && <DemoBadge size="compact" />}
             </button>
           </div>
         </form>

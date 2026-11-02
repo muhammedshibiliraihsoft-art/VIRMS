@@ -2,6 +2,8 @@ import React from 'react';
 import { ArrowLeftRight, Plus, MoreVertical } from 'lucide-react';
 import { Investor } from '../types';
 import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../data/navigationRegistry';
+import { DemoBadge } from './shared/DemoBadge';
 
 interface PrimaryBalanceCardProps {
   totalReceivable: number;
@@ -58,6 +60,7 @@ export const PrimaryBalanceCard: React.FC<PrimaryBalanceCardProps> = ({
             >
               <ArrowLeftRight className="w-3 h-3" />
               <span className="truncate">Record Receipt</span>
+              {getFormDataSourceStatus('customerReceipt') === 'demo' && <DemoBadge size="compact" />}
             </button>
             <button
               onClick={onNewSale}
@@ -65,6 +68,7 @@ export const PrimaryBalanceCard: React.FC<PrimaryBalanceCardProps> = ({
             >
               <Plus className="w-3 h-3 text-gray-600 dark:text-gray-400" />
               <span className="truncate">New Sale</span>
+              {getFormDataSourceStatus('sale') === 'demo' && <DemoBadge size="compact" />}
             </button>
           </div>
         )}

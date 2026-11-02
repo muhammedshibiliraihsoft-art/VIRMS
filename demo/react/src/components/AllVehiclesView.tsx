@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Vehicle, Garage, VehicleStatus } from '../types';
 import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../data/navigationRegistry';
+import { DemoBadge } from './shared/DemoBadge';
 
 export type VehiclePageMode = 'all' | 'stock-investor' | 'customer';
 
@@ -261,6 +263,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
           >
             <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Register Vehicle</span>
+            {getFormDataSourceStatus('vehicle') === 'demo' && <DemoBadge size="compact" />}
           </button>}
         </div>
       </div>

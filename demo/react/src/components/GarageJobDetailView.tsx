@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Job, Vehicle, Garage, Data } from '../types';
 import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../data/navigationRegistry';
+import { DemoBadge } from './shared/DemoBadge';
 import { capitalContribution } from '../utils/selectors';
 
 interface GarageJobDetailViewProps {
@@ -101,11 +103,13 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                   <span>Mark completed</span>
+                  {getFormDataSourceStatus('job') === 'demo' && <DemoBadge size="compact" />}
                 </>
               ) : (
                 <>
                   <RotateCcw className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
                   <span>Reopen job</span>
+                  {getFormDataSourceStatus('job') === 'demo' && <DemoBadge size="compact" />}
                 </>
               )}
             </button>
@@ -150,6 +154,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
             >
               <Wrench className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
               <span>Add work</span>
+              {getFormDataSourceStatus('jobWork') === 'demo' && <DemoBadge size="compact" />}
             </button>
           )}
 
@@ -162,6 +167,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
                 >
                   <Plus className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
                   <span>Add charge</span>
+                  {getFormDataSourceStatus('customerCharge') === 'demo' && <DemoBadge size="compact" />}
                 </button>
               )}
               {canPresentWriteActions && outstanding > 0 && onReceive && (
@@ -171,6 +177,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
                 >
                   <Receipt className="w-3.5 h-3.5 text-white" />
                   <span>Receive</span>
+                  {getFormDataSourceStatus('customerReceipt') === 'demo' && <DemoBadge size="compact" />}
                 </button>
               )}
             </>
@@ -182,6 +189,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
               >
                 <Plus className="w-3.5 h-3.5 text-white" />
                 <span>Add cost</span>
+                {getFormDataSourceStatus('jobExpense') === 'demo' && <DemoBadge size="compact" />}
               </button>
             )
           )}
@@ -338,6 +346,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add work entry</span>
+                {getFormDataSourceStatus('jobWork') === 'demo' && <DemoBadge size="compact" />}
               </button>
             )}
           </div>
@@ -394,6 +403,7 @@ export const GarageJobDetailView: React.FC<GarageJobDetailViewProps> = ({
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{isCustomer ? 'Add charge' : 'Add cost'}</span>
+                {getFormDataSourceStatus(isCustomer ? 'customerCharge' : 'jobExpense') === 'demo' && <DemoBadge size="compact" />}
               </button>
             )}
           </div>

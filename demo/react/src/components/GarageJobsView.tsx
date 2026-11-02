@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { Job, Vehicle, Garage } from '../types';
 import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../data/navigationRegistry';
+import { DemoBadge } from './shared/DemoBadge';
 
 interface GarageJobsViewProps {
   jobs: Job[];
@@ -95,6 +97,7 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
         >
           <Plus className="w-4 h-4" />
           <span>New job</span>
+          {getFormDataSourceStatus('job') === 'demo' && <DemoBadge size="compact" />}
         </button>}
       </div>
 
@@ -234,11 +237,13 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
                           <>
                             <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                             <span>Mark completed</span>
+                            {getFormDataSourceStatus('job') === 'demo' && <DemoBadge size="compact" />}
                           </>
                         ) : (
                           <>
                             <RotateCcw className="w-3 h-3 text-gray-500" />
                             <span>Reopen</span>
+                            {getFormDataSourceStatus('job') === 'demo' && <DemoBadge size="compact" />}
                           </>
                         )}
                       </button> : <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">{j.status}</span>}
@@ -269,33 +274,37 @@ export const GarageJobsView: React.FC<GarageJobsViewProps> = ({
                         </button>
                         <button
                           onClick={() => onAddWork(j)}
-                          className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                          className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
                         >
                           Add work
+                          {getFormDataSourceStatus('jobWork') === 'demo' && <DemoBadge size="compact" />}
                         </button>
                         {isCustomer ? (
                           <>
                             <button
                               onClick={() => onAddCostOrCharge(j)}
-                              className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                              className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
                             >
                               Add charge
+                              {getFormDataSourceStatus('customerCharge') === 'demo' && <DemoBadge size="compact" />}
                             </button>
                             {due > 0 && onReceive && (
                               <button
                                 onClick={() => onReceive(j)}
-                                className="text-xs font-semibold text-[var(--theme-primary)] hover:underline cursor-pointer"
+                                className="text-xs font-semibold text-[var(--theme-primary)] hover:underline cursor-pointer inline-flex items-center gap-1"
                               >
                                 Receive
+                                {getFormDataSourceStatus('customerReceipt') === 'demo' && <DemoBadge size="compact" />}
                               </button>
                             )}
                           </>
                         ) : (
                           <button
                             onClick={() => onAddCostOrCharge(j)}
-                            className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+                            className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
                           >
                             Add cost
+                            {getFormDataSourceStatus('jobExpense') === 'demo' && <DemoBadge size="compact" />}
                           </button>
                         )}
                         </>}

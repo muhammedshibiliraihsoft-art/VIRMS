@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Data } from '../../types';
 import { useCanPresentBusinessWriteActions } from '../../auth/RolePresentationContext';
+import { getFormDataSourceStatus } from '../../data/navigationRegistry';
+import { DemoBadge } from '../shared/DemoBadge';
 
 interface DashboardOperationsViewProps {
   data: Data;
@@ -289,6 +291,7 @@ export const DashboardOperationsView: React.FC<DashboardOperationsViewProps> = (
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-white text-gray-950 font-extrabold text-xs shadow-xs hover:bg-white/95 transition cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
+                {getFormDataSourceStatus('job') === 'demo' && <DemoBadge size="compact" />}
                 <span>Create New</span>
               </button>
             </div>
