@@ -8,6 +8,8 @@
 
 > Local integration state — 2026-11-02: the `codex/audit` integration line includes the accepted Phase 1 account/Company/Branch foundation and Phase 2 React session/context integration, plus P2-13–P2-22 role-navigation and Investor mock-data boundary corrections. Phase 1 account/tenant suite: 210/210 passed on disposable PostgreSQL; Phase 2 React suite: 74/74 passed, with configured lint/build and isolated browser acceptance. The remote remains at the earlier `f266803acd5e86caa2286fb8eae41df6cadfcb86` baseline until a separately authorized push; staging was not updated. Business-domain data remains synthetic and no business APIs were added. The roadmap's Phase 3 Main Operations Foundation is not started; Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md), [Phase 1 report](../docs/phase1-execution-progress.md), and [Phase 2 report](../docs/phase2-execution-progress.md).
 
+> Phase 3 implementation checkpoint — 2026-11-03: versioned Company module state, scoped Platform Admin configuration/audit, Company-scoped read projection and the React shared query/bootstrap are implemented and verified locally. React passed 89/89 tests, lint and build. Django passed 232/232 account/tenant tests on disposable PostgreSQL 15; fresh migration apply, empty-state reverse/reapply and populated-history reverse protection passed. No business workflow, visible UI, route identity, or mock business record changed. No push, staging or production operation occurred.
+
 ## 2026-10-31 verified Phase 1 state
 
 One ordinary Company User UUID is protected to one Company by the `accounts.0007_one_company_account` PostgreSQL guard and by provisioning/Admin policy. The same human may have separate UUID accounts in other Companies; credentials, sessions, epochs, grants, Branch scope, and audit history stay independent. Existing databases are still unverified: migration preflight fails closed on multi-Company business accounts, and no account is auto-split. `login_id` and email remain globally unique; login has no Company selector.
@@ -44,19 +46,25 @@ flowchart LR
   V -->|failed login throttle| L[LoginAttempt]
   V -->|sensitive action record| E[AccountSecurityEvent]
   V -->|JSON / DRF response| C
+  C -->|module-state configuration| A[Scoped Django Admin]
+  A -->|locked command + audit| M[CompanyModuleState revisions + AccountSecurityEvent]
+  C -->|module-state read| R[Company-scoped DRF projection]
+  R -->|visible_companies + latest revision| M
+  R --> Q[React Query user + Company cache]
 ```
 
-These are local ORM models and migration definitions, not verified applied tables. `Tenant` is a generic implemented entity; code does not establish the V2 Company/Branch model. No Branch, module-state, Investor, Fund, Stock Vehicle, Garage Job, Company Accounting, Owner Distribution or React data flow exists in inspected source. A private S3-compatible storage adapter exists without a Vehicle image workflow.
+These are local ORM models and migration definitions. `Tenant` is the current Company identity and Branch membership/assignment foundation exists in source. The module-state model and additive migration were applied to a fresh disposable PostgreSQL database and exercised by the backend suite; persistent, staging and production schemas remain unverified. No Investor, Fund, Stock Vehicle, Garage Job, Company Accounting, Owner Distribution or business-record React data flow exists in inspected source. A private S3-compatible storage adapter exists without a Vehicle image workflow.
 
 ## 3. Ownership and source-of-truth matrix
 
 | Data | Scope / identity | Authoritative writer and consumers | History / status |
 |---|---|---|---|
 | User and RoleAssignment | Global UUID User; effective role rows | Current provision/Admin writes; auth and protected handlers read | CURRENT IMPLEMENTED, source inspected; Admin delete denied; deployed state UNVERIFIED |
-| Tenant and TenantMembership | UUID Tenant; effective User membership | Current provision/Admin writes; Tenant list/detail scopes reads | CURRENT IMPLEMENTED, source inspected; no Branch assignment or module gate |
+| Tenant and TenantMembership | UUID Tenant; effective User membership | Current provision/Admin writes; Tenant list/detail scopes reads; Branch assignment is separate | CURRENT IMPLEMENTED in source; applied database UNVERIFIED |
 | LoginAttempt and AccountSecurityEvent | Login key or actor/subject reference | Current auth/account views; security evidence only | CURRENT IMPLEMENTED, source inspected; not a business ledger |
-| Platform, Company/Tenant and Branch | Company is hard isolation/financial owner; Branch is operational attribution inside Company | Platform administration, Company/Branch scoped operations and reports | CURRENT APPROVED/TARGET; Branch and V2 Company membership semantics not implemented |
-| Company module state and protected configuration | Versioned Company/module state; Platform-protected rates and recipient splits | Platform Back Office changes; enabled/action checks and effective snapshots consume | CURRENT APPROVED/TARGET; no model/handler; module-OFF minimum settlement actions BDR |
+| Platform, Company/Tenant and Branch | Tenant is the Company UUID; Branch and effective membership/assignment provide operational scope | Platform administration and Company/Branch-scoped reads are implemented; business/financial owners remain future modules | CURRENT IMPLEMENTED foundation in source; applied database and full business behavior UNVERIFIED |
+| Company module state | Versioned Company/module state keyed by Tenant UUID | Platform Back Office command writes immutable revisions and an audit event; Company-scoped read API and React Query consume | SOURCE IMPLEMENTED; migration/runtime unverified; no business-operation module gate in this phase |
+| Protected rates and recipient splits | Versioned Company-level financial configuration | Platform Back Office changes; future financial workflows consume snapshots | CURRENT APPROVED/TARGET; later phases |
 | Investor and principal Fund | Investor relationship and one auditable Fund **within a Company**, shared across its Branches | Investment source movements; Stock Vehicle use/recovery and Investor views | CURRENT APPROVED/TARGET; no current model; never merge Funds across Companies by name |
 | Stock Vehicle, movement, funded costs | Stable Company Vehicle UUID; one Investor; current Branch and movement history | Investment/Garage source records; Sale, Finance, Media consume | CURRENT APPROVED/TARGET; no current model |
 | External customer Vehicle and Garage Job | Stable Company Vehicle/Job identity; no Investor required | Garage owns work/charge/history; Accounting links receipt/revenue | CURRENT APPROVED/TARGET; no current model; Investment may be OFF |
@@ -70,7 +78,7 @@ Reports, dashboard, UI cache and Owner AI are derived consumers, never independe
 
 ## 4. Relationships, versioning and boundaries
 
-- **Implemented:** User→RoleAssignment and User→TenantMembership are effective rows; local constraints allow only one open row per User/role and User/Tenant. Tenant list/detail filters active Tenant membership. Neither a Tenant UUID nor a global role alone grants access. No current Branch assignment or module enablement model exists.
+- **Implemented:** User→RoleAssignment and User→TenantMembership are effective rows; local constraints allow only one open row per User/role and User/Tenant. Branch assignment and scoped Tenant/Branch reads exist. Company module state is a separate versioned Company-wide history record; the API resolves read scope through `visible_companies`, and Branch query parameters are not accepted. Applied database state remains unverified.
 - **V2 target:** Platform→multiple isolated Companies/Tenants→Branches. A Company has one consolidated Accounting boundary; a Branch is not another Tenant or ledger owner. A Company-scoped Investor may fund many Stock Vehicles within that Company; each funded Stock Vehicle has exactly one Investor. An external customer Garage Vehicle needs no Investor.
 - **V2 target:** a Stock Vehicle keeps one identity through Branch moves; prior Job/Expense/financial source Branch attribution remains historical. Stock Sale, Buyer and actual Buyer receipt/refund are Company-consistent and separately linked. Investment and Garage source events feed Company Accounting by reference, not duplicate posting.
 - **V2 target:** effective Investor positive-share agreements, monthly rates, module state and Owner recipient configuration have version/history. Completed positive Vehicle and confirmed Company distribution positions retain applicable snapshots. Finalized money facts use linked correction/reversal/adjustment; derived balances are rebuildable.
@@ -81,7 +89,7 @@ Reports, dashboard, UI cache and Owner AI are derived consumers, never independe
 | Workflow | Authoritative source and effect | Consumer and gate | State |
 |---|---|---|---|
 | Account provision / Tenant context | Local atomic User, RoleAssignment, TenantMembership and AccountSecurityEvent; session and LoginAttempt flows | Committed Phase 2 React client uses `/auth/me/` for authenticated identity and bounded Company/Branch context; lifecycle APIs have no React caller | CURRENT IMPLEMENTED in audit candidate; production behavior UNVERIFIED |
-| Company/Branch and module context | Explicit Company/Branch assignments and versioned module state; no ID grants access | Every protected API, report, export, media and job | CURRENT APPROVED/TARGET; implementation gap |
+| Company/Branch and module context | Explicit Company/Branch assignments and versioned module state; no ID grants access | The module-state metadata API uses Company read scope; later business APIs still require their own module/action/object checks | Module-state source implemented; business-operation enforcement remains a future-phase gap |
 | Stock Vehicle funding and Garage work | Investor Fund actual use and/or exact Company Running Capital actual contribution; Garage Job work/cost source counted once | Vehicle cost, Company Accounting, Sale and authorized views | CURRENT APPROVED/TARGET; implementation gap |
 | External customer Garage Job | Customer charge and separately confirmed receipt with Branch attribution | Company Garage Revenue/receivable; no Investor Fund effect | CURRENT APPROVED/TARGET; implementation gap |
 | Sale and positive Vehicle result | Agreed Sale plus bounded actual Buyer receipts/refunds; full collection; Investor principal then actual Company capital recovery; effective Investor positive share and Company Share | Investor Profit, Company Accounting, settlement; Company Share is not direct Owner payout | CURRENT APPROVED/TARGET; implementation gap |

@@ -13,6 +13,7 @@ PLATFORM_ACTIONS = {
     "company.rename",
     "company.suspend",
     "company.activate",
+    "module.configure",
     "branch.create",
     "branch.rename",
     "membership.add",

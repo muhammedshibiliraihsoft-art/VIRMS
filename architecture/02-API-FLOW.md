@@ -8,6 +8,8 @@
 
 > Local integration state — 2026-11-02: `codex/audit` now includes the accepted Phase 1 API source and Phase 2 React consumer, including P2-13–P2-22 role-navigation and mock-data boundary corrections. React uses session/CSRF/password endpoints and bounded `/auth/me/` Company/Branch context. A typed Branch-list hook exists but no mock Garage filter calls it. No business API or `/api/mock` caller was added. Phase 1 account/tenant suite passed 210/210 on disposable PostgreSQL; Phase 2 passed 74/74 React tests, configured lint/build, and isolated browser acceptance. Remote branch remains at the earlier `f266803acd5e86caa2286fb8eae41df6cadfcb86` until separately authorized push; staging and production were not changed or verified. Roadmap Phase 3 is Main Operations Foundation (not started); Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md) and [Phase 2 report](../docs/phase2-execution-progress.md).
 
+> Phase 3 implementation checkpoint — 2026-11-03: one read-only Company module-state metadata endpoint and a scoped Platform Admin configuration path are implemented; React starts the shared user+Company module-state query for authorized Company readers. It is not a financial/business API. React passed 89/89 tests, lint and build. Django passed 232/232 account/tenant tests on disposable PostgreSQL 15; fresh migration apply, empty-state reverse/reapply and populated-history reverse protection passed. No deployed HTTP, staging or production behavior was verified.
+
 ## 2026-10-31 verified Phase 1 state
 
 One normal Company User UUID belongs to one Company. Another Company uses a separate account UUID with independent credentials and authorization. Global `login_id` and email uniqueness are locked; login has no Company selector. Provisioning, reset/status, revoke and scoped Company/Branch reads now use Company membership and the applicable scoped policy; cross-Company targets are hidden or denied. These are source and disposable-PostgreSQL test results, not staging/production runtime evidence.
@@ -24,7 +26,7 @@ The dated 2026-10-19 route inventory below is a historical baseline. Current rou
 
 ## 1. Architecture state classification and purpose
 
-The current API surface is the completed **Phase 1 account and scope foundation**, not the full V2 product contract. Authentication, provisioning/lifecycle, Company/Branch reads, Django Admin adapters and operational probes are implemented and covered by disposable PostgreSQL regressions. V2 finance, media, vehicle and module workflows are not implemented. System Design's V1 representative API paths are **HISTORICAL / SUPERSEDED technical target**, not current V2 endpoints.
+The current API surface contains the **Phase 1 account/scope foundation plus the Phase 3 Company module-state metadata read**; it is not the full V2 product contract. Authentication, provisioning/lifecycle, Company/Branch reads, Django Admin adapters and operational probes have disposable PostgreSQL evidence. The new module-state route and Admin path passed the combined backend test suite on disposable PostgreSQL. V2 finance, media, vehicle and operational business workflows are not implemented. System Design's V1 representative API paths are **HISTORICAL / SUPERSEDED technical target**, not current V2 endpoints.
 
 ## 2. Current source-inspected request flow — one view
 
@@ -40,7 +42,7 @@ flowchart LR
   R --> C
 ```
 
-The PostgreSQL schema, migrations and runtime-role checks were exercised on disposable PostgreSQL 15.19; no shared database connection or deployed API was verified. The local Phase 2 React candidate calls the session/authentication and self-context routes only; there is no module state, Investor/Vehicle/Job/Accounting handler, public catalog or financial command. A private S3-compatible storage class is not an upload API.
+The Phase 1 schema, migrations and runtime-role checks and the Phase 3 module-state schema/API/Admin tests were exercised on disposable PostgreSQL; no shared database or deployed API was used. Phase 2 called session/authentication and self-context routes. Phase 3 adds a Company module-state metadata read and React query consumer. There is still no Investor/Vehicle/Job/Accounting handler, public catalog or financial command. A private S3-compatible storage class is not an upload API.
 
 ## 3. Current route and action registry
 
@@ -57,10 +59,12 @@ The PostgreSQL schema, migrations and runtime-role checks were exercised on disp
 | `POST /api/v1/auth/accounts/<uuid:user_id>/revoke/` | MUTATION | Exact UUID target; scoped session revocation and auth-epoch change | Phase 1 tests passed |
 | `GET /api/v1/tenants/`, `GET /api/v1/tenants/<uuid:pk>/` | AUTHORITATIVE READ | Active Company membership and effective readable grant; paginated Company summary | Phase 1 tests and query-bound audit passed |
 | `GET /api/v1/tenants/<uuid:company_id>/branches/`, detail | AUTHORITATIVE READ | Effective same-Company BranchAssignment intersected with Company read grant; paginated summary | Phase 1 tests, query-bound and EXPLAIN audit passed |
+| `GET /api/v1/tenants/<uuid:company_id>/module-state/` | COMPANY-SCOPED METADATA READ | `IsAuthenticated` + `visible_companies`; fixed 14-code projection, latest revision or `unconfigured`; rejects query parameters and is private/no-store | Implemented; backend tests passed on disposable PostgreSQL |
+| `/admin/tenants/companymodulestate/configure/` (GET/POST) | ADMINISTRATIVE CONFIGURATION | Managed-Company scoped form; Platform action policy; expected-version command; immutable revision + same-transaction audit | Implemented; Admin tests passed on disposable PostgreSQL |
 | `/admin/`, `/admin/password_change/` | ADMINISTRATIVE UI | Scoped Company adapters; generic credential/role/membership mutation blocked; safe one-time temporary credential path | Admin/API parity and bypass tests passed |
 | `GET /health/live/`, `GET /health/ready/` | OPERATIONS PROBE | Liveness and migration-aware readiness; safe request correlation | Phase 1 tests passed |
 
-Source: `core/urls.py`, `apps/accounts/urls.py`, `apps/tenants/urls.py`, handlers, policy/service layers, migrations and tests. No source route for public signup/JWT, Investor/Fund, module state, Stock Vehicle, external Garage Job, Sale, Company Accounting, interim payment, Owner Distribution, media or public catalog. No observed production request trace supports calling any current request redundant/duplicate.
+Source: `core/urls.py`, `apps/accounts/urls.py`, `apps/tenants/urls.py`, handlers, policy/service layers, migrations and tests. There is no route for public signup/JWT, Investor/Fund, Stock Vehicle, external Garage Job, Sale, Company Accounting, interim payment, Owner Distribution, media or public catalog. The module-state endpoint returns configuration metadata only and does not authorize any business mutation. No observed production request trace supports calling any current request redundant/duplicate.
 
 ## 4. Current execution, authorization and failure
 
@@ -68,7 +72,7 @@ Source: `core/urls.py`, `apps/accounts/urls.py`, `apps/tenants/urls.py`, handler
 
 Provision validates the requested Company/role/Branch and uses the current command/policy service; user UUID, membership and scoped grant are committed atomically. Reset/status/revoke lock the exact account and authorize the actor inside the target Company. A Company account cannot be attached to a second Company; independent accounts cannot be found by matching name/email. Company/Branch list selectors filter before serialization and paginate at 20 rows; 1→25-row fixture growth kept Company reads at 6 queries and Branch reads at 8. Error handling returns safe codes and request IDs while preserving `Retry-After` on throttling. Deployed proxy behavior remains **UNVERIFIED**.
 
-Current successful mutation → transaction-scoped model/security-event write → JSON response; credential-reset responses are no-store and temporary credentials are not logged or audited. The React candidate uses in-memory TanStack Query state; the backend has no queue/job producer, consumer, dead-letter or async financial event route. Provisioning has a UUID-keyed operation/idempotency guard where supported; password/lifecycle operations are exact-target and transaction-locked. Tests and migration evidence are in `docs/phase1-execution-progress.md`; frontend integration evidence is in `docs/phase2-execution-progress.md`.
+Current successful mutation → transaction-scoped model/security-event write → JSON response; credential-reset responses are no-store and temporary credentials are not logged or audited. React uses in-memory TanStack Query for auth/Company context and the new module-state metadata query; business records remain mock-backed. The backend has no queue/job producer, consumer, dead-letter or async financial event route. Provisioning has a UUID-keyed operation/idempotency guard where supported; password/lifecycle and module-state writes are transaction-locked. Phase 1/2 evidence is in their execution reports; Phase 3 source/test status is recorded in the Phase 3 architecture checkpoint.
 
 ## 5. V2 target request/action flow — not current endpoints
 

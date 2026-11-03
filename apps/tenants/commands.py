@@ -1,6 +1,7 @@
 """Protected internal commands. No generic CRUD or new public adapters."""
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import IntegrityError
 from django.utils import timezone
 
 from apps.accounts.audit import record_event
@@ -9,7 +10,15 @@ from apps.accounts.models import CompanyRoleGrant, User
 from apps.accounts.policy import require_action
 
 from . import primitives
-from .models import Branch, BranchAssignment, Tenant, TenantMembership
+from .exceptions import CompanyModuleStateConflict
+from .models import (
+    Branch,
+    BranchAssignment,
+    CompanyModuleCode,
+    CompanyModuleState,
+    Tenant,
+    TenantMembership,
+)
 from .selectors import current_interval
 
 
@@ -82,6 +91,63 @@ def create_branch(*, actor, company, name):
         company = Tenant.objects.select_for_update().get(pk=company.pk)
         actor = require_action(users[actor.pk], "branch.create", company=company)
         return primitives._create_branch(actor=actor, company=company, name=name)
+
+
+def set_company_module_state(
+    *,
+    actor,
+    company,
+    module_code,
+    state,
+    expected_version,
+    reason,
+    request_id=None,
+):
+    if module_code not in CompanyModuleCode.values:
+        raise ValidationError({"module_code": "Unsupported module code."})
+    if state not in CompanyModuleState.State.values:
+        raise ValidationError({"state": "Unsupported module state."})
+    if type(expected_version) is not int or expected_version < 0:
+        raise ValidationError(
+            {"expected_version": "A non-negative version is required."}
+        )
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+        raise ValidationError(
+            {"reason": "A reason of 1 to 500 characters is required."}
+        )
+
+    try:
+        with locked_users(actor.pk) as users:
+            if (
+                actor.auth_epoch != users[actor.pk].auth_epoch
+                or actor.password != users[actor.pk].password
+            ):
+                raise PermissionDenied("Authentication changed")
+            company = Tenant.objects.select_for_update().get(pk=company.pk)
+            actor = require_action(
+                users[actor.pk], "module.configure", company=company
+            )
+            return primitives._set_company_module_state(
+                actor=actor,
+                company=company,
+                module_code=module_code,
+                state=state,
+                expected_version=expected_version,
+                reason=reason,
+                request_id=request_id,
+            )
+    except IntegrityError as error:
+        constraint_name = getattr(
+            getattr(getattr(error, "__cause__", None), "diag", None),
+            "constraint_name",
+            None,
+        )
+        if constraint_name == "company_module_rev_unique":
+            raise CompanyModuleStateConflict(
+                "Company module state changed concurrently; reload before retrying.",
+                code="stale_version",
+            ) from error
+        raise
 
 
 def assign_branch(*, actor, membership, branch):

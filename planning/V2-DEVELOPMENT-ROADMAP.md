@@ -62,9 +62,9 @@ This roadmap now describes the local `codex/audit` integration line. Phase 1 and
 
 **Ends when:** The core operational workspace can host authorized business capabilities and their vertical user flows.
 
-**Status:** NOT STARTED
+**Status:** COMPLETE — approved Company module-state foundation implemented and verified locally; staging/production remain unverified.
 
-No Phase 3 Main Operations implementation or architecture candidate was found in the inspected source worktrees. The preserved Garage design candidate is not Phase 3 under this roadmap and is not imported as current-phase implementation work.
+The approved Phase 3 slice establishes versioned Company module state, scoped Platform Back Office administration, an authenticated Company-scoped read API and the React shared query boundary. The approved 14-code catalog includes Audit and Corrections; audit capture remains cross-cutting. On the local `codex/audit` worktree, React passed 89/89 tests, lint and production build; Django passed 232/232 account/tenant tests on disposable PostgreSQL 15, system checks and migration drift checks. Fresh migration apply, empty-state reverse/reapply and populated-history reverse protection were verified. No business workflows or financial APIs were added. This is not staging/production runtime evidence and no deployment is claimed. The preserved Garage design candidate is not Phase 3 under this roadmap; Garage remains Phase 6 after Phases 4 and 5.
 
 ### Phase 4 — Accounting Foundation
 

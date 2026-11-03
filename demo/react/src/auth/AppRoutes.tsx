@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import App from '../App';
+import { useCompanyModuleStates } from '../api/queries';
 import { AuthLoadingPage, AuthUnavailablePage, FirstPasswordPage, LoginPage } from './AuthPages';
 import { authScopeFingerprint, AuthProvider, isPlatformUser, useAuth } from './AuthContext';
 
@@ -18,14 +19,17 @@ export const AppRoutes: React.FC<{ protectedApp?: React.ReactNode }> = ({ protec
   };
 
   const protectedContent = protectedApp ?? (
-    <App
-      onLogout={handleLogout}
-      loginId={auth.user?.login_id}
-      companyName={auth.currentCompany?.name}
-      companyWideRoles={auth.currentCompany?.company_wide_roles}
-      branchContexts={auth.currentCompany?.branches}
-      branchesTruncated={auth.currentCompany?.branches_truncated}
-    />
+    <>
+      <WorkspaceModuleStateBootstrap />
+      <App
+        onLogout={handleLogout}
+        loginId={auth.user?.login_id}
+        companyName={auth.currentCompany?.name}
+        companyWideRoles={auth.currentCompany?.company_wide_roles}
+        branchContexts={auth.currentCompany?.branches}
+        branchesTruncated={auth.currentCompany?.branches_truncated}
+      />
+    </>
   );
   const scopedProtectedContent = (
     <React.Fragment key={auth.user ? authScopeFingerprint(auth.user) : 'missing-auth-context'}>
@@ -65,6 +69,11 @@ export const AppRoutes: React.FC<{ protectedApp?: React.ReactNode }> = ({ protec
       />
     </Routes>
   );
+};
+
+const WorkspaceModuleStateBootstrap: React.FC = () => {
+  useCompanyModuleStates();
+  return null;
 };
 
 export const AuthenticatedApplication: React.FC<{ protectedApp?: React.ReactNode }> = ({ protectedApp }) => (

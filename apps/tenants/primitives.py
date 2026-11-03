@@ -10,7 +10,15 @@ from django.utils import timezone
 
 from apps.accounts.audit import record_event
 
-from .models import Branch, BranchAssignment, Tenant, TenantMembership
+from .exceptions import CompanyModuleStateConflict
+from .models import (
+    Branch,
+    BranchAssignment,
+    CompanyModuleCode,
+    CompanyModuleState,
+    Tenant,
+    TenantMembership,
+)
 from .selectors import current_interval
 
 
@@ -124,6 +132,81 @@ def _create_branch(*, actor, company, name):
         resource=branch,
     )
     return branch
+
+
+def _set_company_module_state(
+    *,
+    actor,
+    company,
+    module_code,
+    state,
+    expected_version,
+    reason,
+    request_id=None,
+):
+    _atomic_required()
+    if module_code not in CompanyModuleCode.values:
+        raise ValidationError({"module_code": "Unsupported module code."})
+    if state not in CompanyModuleState.State.values:
+        raise ValidationError({"state": "Unsupported module state."})
+    if type(expected_version) is not int or expected_version < 0:
+        raise ValidationError(
+            {"expected_version": "A non-negative version is required."}
+        )
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+        raise ValidationError(
+            {"reason": "A reason of 1 to 500 characters is required."}
+        )
+
+    company = Tenant.objects.select_for_update().get(pk=company.pk)
+    previous = (
+        CompanyModuleState.objects.filter(tenant=company, module_code=module_code)
+        .order_by("-version")
+        .first()
+    )
+    previous_version = previous.version if previous else 0
+    if previous is not None and previous.state == state:
+        return previous
+    if expected_version != previous_version:
+        raise CompanyModuleStateConflict(
+            "Company module state changed; reload before retrying.",
+            code="stale_version",
+        )
+
+    now = timezone.now()
+    if previous is not None and now <= previous.effective_from:
+        raise CompanyModuleStateConflict(
+            "The latest module-state timestamp is not earlier than server time; retry.",
+            code="non_monotonic_time",
+        )
+
+    revision = CompanyModuleState(
+        tenant=company,
+        module_code=module_code,
+        state=state,
+        version=previous_version + 1,
+        effective_from=now,
+        changed_by=actor,
+    )
+    revision.full_clean()
+    revision.save(force_insert=True)
+
+    record_event(
+        action="module.configure",
+        actor=actor,
+        company=company,
+        resource=revision,
+        reason=reason.strip(),
+        request_id=request_id,
+        metadata={
+            "module_code": module_code,
+            "previous_state": previous.state if previous else "UNCONFIGURED",
+            "new_state": state,
+            "version": revision.version,
+            "effective_from": now.isoformat(),
+        },
+    )
+    return revision
 
 
 def _assign_branch(*, actor, membership, branch):

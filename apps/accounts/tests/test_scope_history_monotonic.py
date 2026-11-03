@@ -200,7 +200,7 @@ class ScopeHistoryUpgradeTests(TransactionTestCase):
     ]
     current = [
         ("accounts", "0012_scope_end_monotonic"),
-        ("tenants", "0002_platform_scope"),
+        ("tenants", "0003_company_module_state"),
     ]
 
     def tearDown(self):
@@ -297,6 +297,13 @@ class ScopeHistoryUpgradeTests(TransactionTestCase):
 
 
 class ScopeHistoryConcurrencyTests(TransactionTestCase):
+    def tearDown(self):
+        # Historical migration rehearsals must leave the full current schema
+        # installed for later app tests, including Phase 3 tenant migrations.
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+        super().tearDown()
+
     def test_concurrent_update_cannot_reopen_a_just_closed_membership(self):
         MigrationExecutor(connection).migrate(
             [

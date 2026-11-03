@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthContext';
 import { authApi } from './authApi';
+import { companyModuleStates } from './moduleApi';
 import { queryKeys } from './queryKeys';
 import { AuthMe } from './types';
 
@@ -26,5 +27,27 @@ export function useCompanyBranches(page = 1) {
     },
     enabled,
     retry: false,
+  });
+}
+
+export function useCompanyModuleStates() {
+  const { status, user, currentCompany } = useAuth();
+  const enabled =
+    status === 'authenticated' &&
+    Boolean(currentCompany) &&
+    hasCompanyBranchReadRole(user);
+  const queryKey = user && currentCompany
+    ? queryKeys.companyModuleStates(user.id, currentCompany.id)
+    : ['companies', 'unavailable', 'module-state'] as const;
+
+  return useQuery({
+    queryKey,
+    queryFn: ({ signal }) => {
+      if (!currentCompany) throw new Error('A single authorized Company context is required.');
+      return companyModuleStates(currentCompany.id, signal);
+    },
+    enabled,
+    retry: false,
+    refetchOnWindowFocus: true,
   });
 }

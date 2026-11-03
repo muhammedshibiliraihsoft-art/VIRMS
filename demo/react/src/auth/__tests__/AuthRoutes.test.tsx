@@ -18,8 +18,12 @@ vi.mock('../../api/authApi', () => ({
     branches: vi.fn(),
   },
 }));
+vi.mock('../../api/moduleApi', () => ({ companyModuleStates: vi.fn() }));
+vi.mock('../../App', () => ({ default: () => <div>Workspace surface</div> }));
 
 import { authApi } from '../../api/authApi';
+import { companyModuleStates } from '../../api/moduleApi';
+import { queryKeys } from '../../api/queryKeys';
 
 const user: AuthMe = {
   id: '0d6f183a-8cd8-4ed5-9a19-d51c92bbf4ae',
@@ -38,12 +42,18 @@ const user: AuthMe = {
   company_context_truncated: false,
 };
 
-function renderRoutes(path = '/', protectedApp: React.ReactNode = <div>Protected application</div>) {
+function renderRoutes(
+  path = '/',
+  protectedApp: React.ReactNode = <div>Protected application</div>,
+  useDefaultWorkspace = false,
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const rendered = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
-        <AuthProvider><AppRoutes protectedApp={protectedApp} /></AuthProvider>
+        <AuthProvider>
+          <AppRoutes protectedApp={useDefaultWorkspace ? undefined : protectedApp} />
+        </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -84,6 +94,23 @@ describe('authentication route gate', () => {
     expect(await screen.findByText('Protected application')).toBeInTheDocument();
     expect(authApi.me).toHaveBeenCalledTimes(1);
     expect(authApi.me).toHaveBeenCalledWith(expect.any(AbortSignal));
+  });
+
+  it('loads the Company module-state contract when the default protected workspace mounts', async () => {
+    vi.mocked(authApi.me).mockResolvedValue(user);
+    const moduleState = { company_id: user.companies[0].id, modules: [] };
+    vi.mocked(companyModuleStates).mockResolvedValue(moduleState);
+
+    const { client } = renderRoutes('/', undefined, true);
+
+    expect(await screen.findByText('Workspace surface')).toBeInTheDocument();
+    await waitFor(() => expect(companyModuleStates).toHaveBeenCalledWith(
+      user.companies[0].id,
+      expect.any(AbortSignal),
+    ));
+    await waitFor(() => expect(client.getQueryData(
+      queryKeys.companyModuleStates(user.id, user.companies[0].id),
+    )).toEqual(moduleState));
   });
 
   it('redirects an anonymous user to Login and rejects an external return URL', async () => {

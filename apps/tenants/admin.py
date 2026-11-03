@@ -1,11 +1,18 @@
+from urllib.parse import urlencode
+
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Exists, OuterRef
+from django.http import HttpResponseForbidden, HttpResponseNotAllowed
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 
 from apps.accounts.models import CompanyRoleGrant, User
 
 from .admin_scope import is_platform_admin_actor, managed_companies
+from .admin_forms import CompanyModuleStateChangeForm, CompanyModuleStateLookupForm
 from .commands import (
     add_membership,
     assign_branch,
@@ -15,9 +22,18 @@ from .commands import (
     end_scope_row,
     grant_role,
     rename_branch,
+    set_company_module_state,
     set_company,
 )
-from .models import Branch, BranchAssignment, Tenant, TenantMembership
+from .exceptions import CompanyModuleStateConflict
+from .models import (
+    Branch,
+    BranchAssignment,
+    CompanyModuleCode,
+    CompanyModuleState,
+    Tenant,
+    TenantMembership,
+)
 from .selectors import current_interval
 
 
@@ -32,6 +48,13 @@ def _end_selected(request, queryset, operation, label):
         return None
     messages.success(request, f"{len(rows)} {label} ended.")
     return None
+
+
+def _private_admin_response(response):
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    response["Pragma"] = "no-cache"
+    response["Vary"] = "Cookie"
+    return response
 
 
 @admin.register(Tenant)
@@ -466,3 +489,207 @@ class BranchAssignmentAdmin(admin.ModelAdmin):
     )
     def end_selected_assignments(self, request, queryset):
         return _end_selected(request, queryset, end_scope_row, "Branch assignments")
+
+
+@admin.register(CompanyModuleState)
+class CompanyModuleStateAdmin(admin.ModelAdmin):
+    list_display = (
+        "tenant",
+        "module_code",
+        "version",
+        "state",
+        "effective_from",
+        "changed_by",
+    )
+    list_filter = ("module_code", "state")
+    list_select_related = ("tenant", "changed_by")
+    search_fields = ("tenant__name", "module_code", "changed_by__login_id")
+    ordering = ("-effective_from", "-id")
+    list_per_page = 50
+    change_list_template = "admin/tenants/companymodulestate/change_list.html"
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "configure/",
+                self.admin_site.admin_view(self.configure_module_state),
+                name="tenants_companymodulestate_configure",
+            )
+        ]
+        return custom_urls + super().get_urls()
+
+    def has_module_permission(self, request):
+        return (
+            is_platform_admin_actor(request.user)
+            and managed_companies(request.user).exists()
+        )
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .filter(tenant__in=managed_companies(request.user))
+            .select_related("tenant", "changed_by")
+        )
+
+    def has_view_permission(self, request, obj=None):
+        if not is_platform_admin_actor(request.user):
+            return False
+        return (
+            obj is None
+            or managed_companies(request.user).filter(pk=obj.tenant_id).exists()
+        )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(field.name for field in self.model._meta.fields)
+
+    def _latest_revision(self, company, module_code):
+        return (
+            CompanyModuleState.objects.filter(
+                tenant=company,
+                module_code=module_code,
+            )
+            .order_by("-version")
+            .first()
+        )
+
+    def _render_configuration(
+        self,
+        request,
+        *,
+        lookup_form,
+        change_form=None,
+        company=None,
+        module_code=None,
+        current_revision=None,
+        status=200,
+    ):
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "Configure Company module state",
+            "lookup_form": lookup_form,
+            "change_form": change_form,
+            "selected_company": company,
+            "selected_module_code": module_code,
+            "current_revision": current_revision,
+            "current_state": current_revision.state if current_revision else "unconfigured",
+            "current_version": current_revision.version if current_revision else 0,
+            "module_label": dict(CompanyModuleCode.choices).get(module_code, ""),
+            "changelist_url": reverse("admin:tenants_companymodulestate_changelist"),
+        }
+        response = TemplateResponse(
+            request,
+            "admin/tenants/companymodulestate/configure_module_state.html",
+            context,
+            status=status,
+        )
+        return _private_admin_response(response)
+
+    def configure_module_state(self, request):
+        if not self.has_module_permission(request):
+            return HttpResponseForbidden("Not authorized")
+        if request.method not in {"GET", "POST"}:
+            return HttpResponseNotAllowed(["GET", "POST"])
+
+        lookup_form = CompanyModuleStateLookupForm(
+            request.GET if request.method == "GET" else None,
+            actor=request.user,
+        )
+        if request.method == "GET":
+            company = None
+            module_code = None
+            current_revision = None
+            change_form = None
+            if lookup_form.is_bound and lookup_form.is_valid():
+                company = lookup_form.cleaned_data["company"]
+                module_code = lookup_form.cleaned_data["module_code"]
+                current_revision = self._latest_revision(company, module_code)
+                change_form = CompanyModuleStateChangeForm(
+                    initial={
+                        "company": company.pk,
+                        "module_code": module_code,
+                        "expected_version": current_revision.version
+                        if current_revision
+                        else 0,
+                        "state": "",
+                    },
+                    actor=request.user,
+                )
+            return self._render_configuration(
+                request,
+                lookup_form=lookup_form,
+                change_form=change_form,
+                company=company,
+                module_code=module_code,
+                current_revision=current_revision,
+            )
+
+        change_form = CompanyModuleStateChangeForm(
+            request.POST,
+            actor=request.user,
+        )
+        company = None
+        module_code = None
+        current_revision = None
+        status = 400
+        if change_form.is_valid():
+            company = change_form.cleaned_data["company"]
+            module_code = change_form.cleaned_data["module_code"]
+            current_revision = self._latest_revision(company, module_code)
+            try:
+                set_company_module_state(
+                    actor=request.user,
+                    company=company,
+                    module_code=module_code,
+                    state=change_form.cleaned_data["state"],
+                    expected_version=change_form.cleaned_data["expected_version"],
+                    reason=change_form.cleaned_data["reason"],
+                    request_id=getattr(request, "request_id", None),
+                )
+            except CompanyModuleStateConflict:
+                change_form.add_error(
+                    None,
+                    "Module state changed since this form was loaded. Reload it before retrying.",
+                )
+                current_revision = self._latest_revision(company, module_code)
+                status = 409
+            except (PermissionDenied, Tenant.DoesNotExist):
+                return HttpResponseForbidden("Not authorized")
+            except ValidationError:
+                change_form.add_error(
+                    None,
+                    "Module state could not be saved. Verify the values and retry.",
+                )
+            else:
+                messages.success(request, "Company module state saved.")
+                target = reverse("admin:tenants_companymodulestate_configure")
+                query = urlencode(
+                    {"company": str(company.pk), "module_code": module_code}
+                )
+                return _private_admin_response(redirect(f"{target}?{query}"))
+        else:
+            company = change_form.cleaned_data.get("company")
+            module_code = change_form.cleaned_data.get("module_code")
+            if company is not None and module_code is not None:
+                current_revision = self._latest_revision(company, module_code)
+
+        lookup_form = CompanyModuleStateLookupForm(actor=request.user)
+        return self._render_configuration(
+            request,
+            lookup_form=lookup_form,
+            change_form=change_form,
+            company=company,
+            module_code=module_code,
+            current_revision=current_revision,
+            status=status,
+        )

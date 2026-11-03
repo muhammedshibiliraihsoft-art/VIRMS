@@ -15,4 +15,11 @@ describe('scope-sensitive query keys', () => {
     expect(key).not.toEqual(queryKeys.branch('user-a', 'company-b', 'branch-a'));
     expect(key).not.toEqual(queryKeys.branch('user-a', 'company-a', 'branch-b'));
   });
+
+  it('includes user and Company UUIDs for module-state metadata', () => {
+    const key = queryKeys.companyModuleStates('user-a', 'company-a');
+
+    expect(key).not.toEqual(queryKeys.companyModuleStates('user-b', 'company-a'));
+    expect(key).not.toEqual(queryKeys.companyModuleStates('user-a', 'company-b'));
+  });
 });
