@@ -2,7 +2,7 @@ import { ApiError, ApiErrorPayload, normalizeApiError } from './apiError';
 
 export const SESSION_EXPIRED_EVENT = 'virms:session-expired';
 
-export type ApiMethod = 'GET' | 'POST';
+export type ApiMethod = 'GET' | 'POST' | 'PATCH';
 
 export interface ApiRequestOptions {
   method?: ApiMethod;

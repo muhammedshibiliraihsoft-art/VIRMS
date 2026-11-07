@@ -1,0 +1,76 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { accountingCorrectionPath, accountingMutation } from '../accountingApi';
+import { requestApi } from '../client';
+
+vi.mock('../client', () => ({ requestApi: vi.fn() }));
+
+const requestMock = vi.mocked(requestApi);
+
+const eventId = '11111111-1111-4111-8111-111111111111';
+
+beforeEach(() => {
+  sessionStorage.clear();
+  vi.clearAllMocks();
+  requestMock.mockResolvedValue({ id: eventId });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('Accounting correction resource routing', () => {
+  it.each(['INCOME', 'EXPENSE'] as const)('%s uses the general event correction resource', (eventType) => {
+    expect(accountingCorrectionPath(eventType, eventId, 'REVERSE_ONLY'))
+      .toBe(`events/${eventId}/corrections/`);
+    expect(accountingCorrectionPath(eventType, eventId, 'REVERSE_AND_REPLACE'))
+      .toBe(`events/${eventId}/corrections/`);
+  });
+
+  it.each([
+    ['RECEIPT', `receipts/${eventId}/corrections/`],
+    ['PAYMENT', `payments/${eventId}/corrections/`],
+    ['OPENING_BALANCE', `opening-balances/${eventId}/corrections/`],
+  ] as const)('%s uses its typed correction resource for either outcome', (eventType, path) => {
+    expect(accountingCorrectionPath(eventType, eventId, 'REVERSE_ONLY')).toBe(path);
+    expect(accountingCorrectionPath(eventType, eventId, 'REVERSE_AND_REPLACE')).toBe(path);
+  });
+
+  it('uses separate Transfer reversal and replacement correction resources', () => {
+    expect(accountingCorrectionPath('TRANSFER', eventId, 'REVERSE_ONLY'))
+      .toBe(`transfers/${eventId}/reversals/`);
+    expect(accountingCorrectionPath('TRANSFER', eventId, 'REVERSE_AND_REPLACE'))
+      .toBe(`transfers/${eventId}/corrections/`);
+  });
+
+  it('rejects an invalid event identity', () => {
+    expect(() => accountingCorrectionPath('RECEIPT', 'not-a-uuid', 'REVERSE_ONLY'))
+      .toThrow('A valid Accounting event identity is required.');
+  });
+});
+
+describe('Accounting mutation idempotency', () => {
+  it('reuses the pending idempotency key after an ambiguous network failure', async () => {
+    requestMock.mockRejectedValueOnce(new Error('network failure'));
+    const body = { amount: '125.00', source_reference: 'SRC-125' };
+
+    await expect(accountingMutation(eventId, eventId, 'incomes/', 'POST', body)).rejects.toThrow('network failure');
+    await accountingMutation(eventId, eventId, 'incomes/', 'POST', body);
+
+    const firstHeaders = requestMock.mock.calls[0][1]?.headers as Record<string, string>;
+    const retryHeaders = requestMock.mock.calls[1][1]?.headers as Record<string, string>;
+    expect(firstHeaders['Idempotency-Key']).toBeTruthy();
+    expect(retryHeaders['Idempotency-Key']).toBe(firstHeaders['Idempotency-Key']);
+  });
+
+  it('does not post a financial mutation when browser storage cannot preserve its retry key', async () => {
+    vi.stubGlobal('sessionStorage', {
+      getItem: () => null,
+      setItem: () => { throw new DOMException('Storage is disabled.', 'SecurityError'); },
+      removeItem: vi.fn(),
+    });
+
+    await expect(accountingMutation(eventId, eventId, 'incomes/', 'POST', { amount: '125.00' }))
+      .rejects.toThrow('Accounting changes cannot be saved because browser retry storage is unavailable.');
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+});

@@ -480,73 +480,9 @@ export const SharedFormModal: React.FC<SharedFormModalProps> = ({
           break;
         }
 
-        case 'companyExpense': {
-          const amt = Number(formData.amount);
-          if (amt <= 0) throw new Error('Amount must be positive.');
-          if (!formData.description.trim()) throw new Error('Description is required.');
-
-          const newExp: Expense = {
-            id: 'exp-' + Date.now(),
-            vehicleId: '',
-            garageId: formData.garageId,
-            description: formData.description.trim(),
-            amount: amt,
-            investor: 0,
-            capital: 0,
-            date: formData.date,
-            category: 'Company',
-            costType: formData.costType,
-          };
-
-          onUpdateData((prev) => ({
-            ...prev,
-            expenses: [newExp, ...prev.expenses],
-            audit: [
-              {
-                id: 'aud-' + Date.now(),
-                date: formData.date,
-                action: 'Company expense recorded',
-                detail: `${newExp.description} · ₹${amt.toLocaleString('en-IN')}`,
-              },
-              ...prev.audit,
-            ],
-          }));
-          onSuccessMessage?.(`Company expense of ₹${amt.toLocaleString('en-IN')} logged.`);
-          break;
-        }
-
-        case 'otherIncome': {
-          const amt = Number(formData.amount);
-          if (amt <= 0) throw new Error('Amount must be positive.');
-          if (!formData.description.trim()) throw new Error('Description is required.');
-
-          const newReceipt = {
-            id: 'inc-' + Date.now(),
-            garageId: formData.garageId,
-            source: formData.source.trim() || 'Operational',
-            description: formData.description.trim(),
-            amount: amt,
-            method: formData.method,
-            timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            actor: 'Accountant',
-          };
-
-          onUpdateData((prev) => ({
-            ...prev,
-            otherIncomeReceipts: [newReceipt, ...(prev.otherIncomeReceipts ?? [])],
-            audit: [
-              {
-                id: 'aud-' + Date.now(),
-                date: new Date().toISOString().slice(0, 10),
-                action: 'Other operational income recorded',
-                detail: `${newReceipt.description} · ₹${amt.toLocaleString('en-IN')} from ${newReceipt.source}`,
-              },
-              ...prev.audit,
-            ],
-          }));
-          onSuccessMessage?.(`Recorded other income of ₹${amt.toLocaleString('en-IN')}.`);
-          break;
-        }
+        case 'companyExpense':
+        case 'otherIncome':
+          throw new Error('This legacy form is not connected to Company Accounting. Use the Company Accounting workspace.');
 
         case 'recovery': {
           const amt = Number(formData.amount);

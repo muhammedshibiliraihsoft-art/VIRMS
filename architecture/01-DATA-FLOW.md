@@ -6,9 +6,11 @@
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
+> HISTORICAL SNAPSHOT — 2026-11-02. The following Phase 1/2 integration note is superseded by the Phase 3 checkpoint below.
+
 > Local integration state — 2026-11-02: the `codex/audit` integration line includes the accepted Phase 1 account/Company/Branch foundation and Phase 2 React session/context integration, plus P2-13–P2-22 role-navigation and Investor mock-data boundary corrections. Phase 1 account/tenant suite: 210/210 passed on disposable PostgreSQL; Phase 2 React suite: 74/74 passed, with configured lint/build and isolated browser acceptance. The remote remains at the earlier `f266803acd5e86caa2286fb8eae41df6cadfcb86` baseline until a separately authorized push; staging was not updated. Business-domain data remains synthetic and no business APIs were added. The roadmap's Phase 3 Main Operations Foundation is not started; Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md), [Phase 1 report](../docs/phase1-execution-progress.md), and [Phase 2 report](../docs/phase2-execution-progress.md).
 
-> Phase 3 implementation checkpoint — 2026-11-03: versioned Company module state, scoped Platform Admin configuration/audit, Company-scoped read projection and the React shared query/bootstrap are implemented and verified locally. React passed 89/89 tests, lint and build. Django passed 232/232 account/tenant tests on disposable PostgreSQL 15; fresh migration apply, empty-state reverse/reapply and populated-history reverse protection passed. No business workflow, visible UI, route identity, or mock business record changed. No push, staging or production operation occurred.
+> Phase 3 implementation checkpoint — 2026-11-03: the Company module-state model/migration, scoped Platform Admin configuration and audit, Company-scoped read projection, and React shared query/bootstrap are implemented. Commit 73797b16aa35db776b5601fe1483c2be8de6c100 is pushed to origin/codex/audit; local and fetched remote heads matched. Local verification: Django 232/232 and React 89/89, lint/build/system/migration checks; fresh migration and history-preservation checks passed. GitHub status/run lists were empty at inspection. No staging/production runtime, deployed database role, or deployment was verified.
 
 ## 2026-10-31 verified Phase 1 state
 
@@ -18,7 +20,7 @@ One ordinary Company User UUID is protected to one Company by the `accounts.0007
 
 The dated 2026-10-19 material below is a historical baseline. The current worktree completes P1-11 through P1-19: account provisioning and lifecycle use Company-scoped policy; Login ID admission is bounded; Company/Branch readers use membership, scoped grants and effective assignments; Django Admin routes use scoped adapters; errors, request IDs and health probes are implemented; migrations include explicit legacy mapping and cutover safeguards. Final validation on disposable PostgreSQL 15.19 passed 129 accounts/tenants tests after the read-query audit additions, plus fresh migration and schema-drift checks. The exact result is recorded in `docs/phase1-execution-progress.md`. No finance module, frontend, persistent database or deployment was added or verified.
 
-## 0. Verification header
+## 0. Historical verification header — 2026-10-19 baseline
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD: `b4a40772edec567297e96d72bf037df73ea0cae6`. The local Django foundation and these maps are untracked, so HEAD does not attest to their contents.
 - **CURRENT APPROVED/TARGET:** `/docs-final-v2/` is the current intended V2 business architecture for these maps, established by the user's explicit 2026-10-19 direction and reinforced by `docs-final-v2/01` calling `/docs-final/` a previous baseline. V2 still labels itself draft and leaves specific business decisions open; this map does not claim every V2 action is ready to implement.
@@ -29,7 +31,7 @@ The dated 2026-10-19 material below is a historical baseline. The current worktr
 
 | State | Meaning here | Evidence boundary |
 |---|---|---|
-| CURRENT IMPLEMENTED | Local User, role, Tenant membership, login-attempt and account-security source paths | `apps/accounts/`, `apps/tenants/`, `core/`; untracked, source inspected only |
+| CURRENT IMPLEMENTED | Phase 1 User/scope and Phase 3 Company module-state paths | `apps/accounts/`, `apps/tenants/`, `core/`; tracked source at 73797b16; local source/tests verified, deployed state UNVERIFIED |
 | CURRENT APPROVED/TARGET | Intended V2 Platform → Company/Tenant → Branch architecture and its defined workflows | User direction; `docs-final-v2/01`–`10` and `supporting/`; open decisions remain explicit |
 | HISTORICAL / SUPERSEDED | V1 Garage=Tenant, global Investor/Fund, per-deal Owner distribution and formula Loss; older legacy material | `/docs-final/`, `/docs-legacy/`; historical documentation, not current target |
 | PROPOSED | Optional future changes outside V2 | None asserted by this map |
@@ -108,8 +110,8 @@ Current Django Admin denies delete of User, RoleAssignment, Tenant and TenantMem
 ## 7. Risks and change entry points
 
 - `DATA-RISK-001` **A before V2 finance work:** importing V1 global Fund, per-deal Owner payout or percentage Loss into V2 would change money ownership and outcomes. See `CONFLICT-003` in [03](03-ARCHITECTURE-CONFLICT-MAP.md).
-- `DATA-RISK-002` **A before Company/Branch work:** existing Tenant membership lacks Branch/module scope. Treat it as an implementation gap, not proof that Garage remains the target Tenant. See `CONFLICT-002`.
-- `DATA-RISK-003` **B:** migrations and backend source are untracked; applied schema/live historical data are **UNVERIFIED**. No data cutover strategy is inferred. See `CONFLICT-005`.
+- `DATA-RISK-002` **A before future business-module access work:** Phase 1 implements Company/Branch scope and Phase 3 provides Company module-state metadata; future business handlers still need module/action/object/field enforcement. Do not treat these foundations as complete business authorization. See `CONFLICT-002`.
+- `DATA-RISK-003` **B:** application source and migrations are tracked and pushed on codex/audit; disposable-PostgreSQL migration/tests passed. Persistent/staging/production schema and historical rows are **UNVERIFIED**. No live-data cutover is inferred. See `CONFLICT-005`.
 - Re-review on Company/Branch identity or access changes, Investor Fund and Running Capital movement, Job/Sale/accounting source linkage, module OFF, payment or correction semantics, historical snapshots, public media and settlement.
 
 ## 8. Remaining decisions and evidence
@@ -117,3 +119,54 @@ Current Django Admin denies delete of User, RoleAssignment, Tenant and TenantMem
 **BUSINESS DECISION REQUIRED:** monthly eligible-principal basis and active-cycle withdrawal constraints; which deals belong in a reconciliation period and how ordinary deal Profit coexists with interim/periodic payments; exact manual Loss impact on Investor principal and Company money plus confirmation authority; Company distributable-Profit base, recognition and period close/carryforward; Company-level cross-Branch correction authority; Platform support private-finance read outside explicit Company assignment; minimum settlement actions while a module is OFF. These gaps block only the affected V2 behavior, not the description of V2 as current target.
 
 Evidence: `docs-final-v2/01-business-rules.md`, `02-user-roles-permissions.md`, `03-system-modules.md`, `04-data-model-relationships.md`, `05-vehicle-investor-finance-workflow.md`, `06-technical-architecture-engineering-operations.md`, `07-ui-navigation-structure.md`, `08-image-file-architecture.md`, `09-company-accounting-owner-distribution.md`, `10-garage-jobs-workflow.md`, and V2 `supporting/`; current account/Tenant models, migrations, views, admin, tests and `core/`; historical `/docs-final/`, `/docs-legacy/` and Git documentation commits. `AGENTS.md`, README and older governance/roadmap documents now distinguish the V2 target from implemented state and historical V1 material. System Design bodies remain unreconciled historical content and must not be reused as V2 requirements without section-level review. Source inspected; tests/database/runtime/deployment not verified.
+
+## Current V2 Business Decision Additions Referenced
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: future Company result projections derive from Accounting Income/Expense while cash movement and correction history remain separate. This reference does not change current implemented data flows or resolve the remaining source-recognition and distributable-Profit BDRs.
+- Permission reference: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions). The existing cross-Branch BDR is superseded only for Accounting corrections; non-Accounting boundaries remain.
+
+## Current V2 Business Decision Additions Referenced — 2026-11-03
+
+- Current decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: Accounting OFF settlement reads/writes must target obligations that predate OFF; Company result projections use Asia/Kolkata calendar boundaries over UTC event instants; the opening balance movement may carry either sign; Profit remains derived from editable pre-confirmation Income/Expense inputs.
+- These references add no implemented data flow, permissions, API, schema, or migration. Unrelated module-OFF rules and Profit/Investment ownership remain unchanged.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 result and opening balance
+
+- Canonical additions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: Phase 4 Accounting Result derives only from committed Accounting Income/Expense correction chains. Signed opening movements are excluded; zero opening amounts create no event. No implementation or source data flow is implied.
+- Full Company Profit source recognition remains unresolved.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 cash corrections
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: separate wrong-target application reallocation from wrong-cash-fact reversal/replacement; actual cash records retain one history chain. Future actual cash dates are rejected. This reference implements no current data flow.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 correction and archive safety
+
+- Canonical decisions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: corrections use explicit reverse-only versus reverse-and-replace outcomes; OFF eligibility compares immutable root `recorded_at` with the current Accounting disabled revision; archived accounts have no financial history. No current data flow or implementation is implied.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 OFF settlement and effective-period boundary
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: ordinary Receipt/Payment settlement remains possible against pre-OFF obligations; correction/reallocation is a distinct, narrower gate. Persisted module-state revision identity establishes ordering. Income/Expense corrections retain original effective periods; cash correction dates follow typed event rules. No current flow is implemented.
+
+## Phase 4 implementation checkpoint — 2026-11-03
+
+**VERIFIED FROM REPOSITORY:** the current local worktree implements the bounded Company Accounting flow. The existing React Company Income/Expenses surfaces and Accounting tools call the shared Accounting API/query boundary; Django DRF serializers and Company/Branch policy dispatch to atomic Accounting services; `AccountingEvent`, `AccountingApplication`, `AccountMovement`, named accounts, categories, and idempotency records persist in PostgreSQL. Receipt/Payment, Income/Expense, and account movements remain distinct records. Corrections append linked history, and Accounting Result derives from committed Income/Expense records.
+
+**VERIFIED FROM DATA FLOW:** a local Company Income create request returned 201 and the record remained visible after browser reload/reopening the register against the disposable Docker PostgreSQL database. Detailed checks are recorded in [Phase 4 execution evidence](../docs/phase4-execution-progress.md). This proves only the local disposable setup, not staging or production.
+
+**Compatibility:** the approved React page composition and route identities are retained. Non-Accounting modules do not yet emit source events into this Accounting domain; those later vertical integrations remain in their roadmap phases. This checkpoint supersedes only earlier statements in this map that Phase 4 Accounting persistence/API flows are not implemented; historical Phase 1–3 checkpoints and unresolved business rules remain unchanged.
+
+## Current V2 Business Decision Additions Referenced — Phase 5 Monthly Interim amount
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Technical impact: a future Investment data flow must read the fixed per-Investor cycle amount from effective configuration, keep it separate from confirmed payments, enforce the Company-level Accountant permission, and retain cycle history. This does not claim Phase 5 implementation or resolve principal-withdrawal/reconciliation-period BDRs.
+
+## Current V2 Business Decision Additions Referenced — Interim advance as Paid
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Technical impact: the future Investor Profit projection must keep earned Profit intact and reference confirmed Interim payments in its Paid component; this display/reconciliation relationship must not emit a duplicate financial event. Period deal membership and ordinary payout reconciliation remain unresolved.

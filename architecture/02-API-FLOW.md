@@ -6,9 +6,11 @@
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
+> HISTORICAL SNAPSHOT — 2026-11-02. This Phase 1/2 integration note describes the state at that time; see the Phase 3 checkpoint below for current branch status.
+
 > Local integration state — 2026-11-02: `codex/audit` now includes the accepted Phase 1 API source and Phase 2 React consumer, including P2-13–P2-22 role-navigation and mock-data boundary corrections. React uses session/CSRF/password endpoints and bounded `/auth/me/` Company/Branch context. A typed Branch-list hook exists but no mock Garage filter calls it. No business API or `/api/mock` caller was added. Phase 1 account/tenant suite passed 210/210 on disposable PostgreSQL; Phase 2 passed 74/74 React tests, configured lint/build, and isolated browser acceptance. Remote branch remains at the earlier `f266803acd5e86caa2286fb8eae41df6cadfcb86` until separately authorized push; staging and production were not changed or verified. Roadmap Phase 3 is Main Operations Foundation (not started); Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md) and [Phase 2 report](../docs/phase2-execution-progress.md).
 
-> Phase 3 implementation checkpoint — 2026-11-03: one read-only Company module-state metadata endpoint and a scoped Platform Admin configuration path are implemented; React starts the shared user+Company module-state query for authorized Company readers. It is not a financial/business API. React passed 89/89 tests, lint and build. Django passed 232/232 account/tenant tests on disposable PostgreSQL 15; fresh migration apply, empty-state reverse/reapply and populated-history reverse protection passed. No deployed HTTP, staging or production behavior was verified.
+> Phase 3 implementation checkpoint — 2026-11-03: the Company-scoped module-state metadata read, scoped Platform Admin configuration path, and React shared query are implemented. Commit 73797b16aa35db776b5601fe1483c2be8de6c100 is pushed to origin/codex/audit; local and fetched remote heads matched. Django 232/232 and React 89/89 tests plus lint/build/system/migration checks passed locally. GitHub status/run lists were empty. Staging/production HTTP and PostgreSQL runtime-role grants remain UNVERIFIED.
 
 ## 2026-10-31 verified Phase 1 state
 
@@ -18,7 +20,7 @@ One normal Company User UUID belongs to one Company. Another Company uses a sepa
 
 The dated 2026-10-19 route inventory below is a historical baseline. Current routes cover CSRF/login/logout/me/password change, Company-scoped account provisioning/reset/status/revoke, Company list/detail and scoped Branch list/detail, Django Admin adapters, and liveness/readiness. All prior legacy business-role authorization was removed from ordinary account lifecycle paths; explicit Platform technical/bootstrap boundaries remain. The current request inventory and classifications are in `docs/phase1-execution-progress.md`. Final source/tests ran on disposable PostgreSQL; live/staging HTTP behavior remains unverified.
 
-## 0. Verification header
+## 0. Historical verification header — 2026-10-19 baseline
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`; current Django code is local and untracked.
 - **CURRENT APPROVED/TARGET:** V2 in `/docs-final-v2/` per explicit user direction; its unresolved business decisions remain open. **CURRENT IMPLEMENTED:** account/Tenant routes inspected in source. **HISTORICAL / SUPERSEDED:** V1 `/docs-final/` and `/docs-legacy/`. **PROPOSED:** no new exact endpoint is declared here.
@@ -26,7 +28,7 @@ The dated 2026-10-19 route inventory below is a historical baseline. Current rou
 
 ## 1. Architecture state classification and purpose
 
-The current API surface contains the **Phase 1 account/scope foundation plus the Phase 3 Company module-state metadata read**; it is not the full V2 product contract. Authentication, provisioning/lifecycle, Company/Branch reads, Django Admin adapters and operational probes have disposable PostgreSQL evidence. The new module-state route and Admin path passed the combined backend test suite on disposable PostgreSQL. V2 finance, media, vehicle and operational business workflows are not implemented. System Design's V1 representative API paths are **HISTORICAL / SUPERSEDED technical target**, not current V2 endpoints.
+The current API surface contains the **Phase 1 account/scope foundation, Phase 3 Company module-state metadata read, and Phase 4 Company Accounting resources**; it is not the full V2 product contract. Authentication, provisioning/lifecycle, Company/Branch reads, Django Admin adapters, operational probes, and Phase 4 Accounting flows have local disposable-PostgreSQL/test evidence. Staging/production API behavior and deployment remain unverified. Vehicle/Investment, Garage, Sales, media, and other operational business APIs remain future work. System Design's V1 representative API paths are **HISTORICAL / SUPERSEDED technical target**, not current V2 endpoints.
 
 ## 2. Current source-inspected request flow — one view
 
@@ -103,8 +105,57 @@ Git history proves a V1 documentation freeze followed by V2 draft commits, not a
 
 ## 7. Conflicts, decisions, risks and evidence
 
-- `API-RISK-001` **A before V2 scope work:** existing Tenant-only routes lack V2 Branch, enabled-module, action and object/field checks. This is an **implementation gap**, not evidence of V1 business authority; see `CONFLICT-002` in [03](03-ARCHITECTURE-CONFLICT-MAP.md).
+- `API-RISK-001` **A before V2 scope work:** Phase 3 adds no business-operation endpoints yet. New handlers must enforce approved Company, Branch, module, action and object/field scope; the existing account/tenant and module-state foundations do not prove those business controls; see `CONFLICT-002` in [03](03-ARCHITECTURE-CONFLICT-MAP.md).
 - `API-RISK-002` **A before affected finance actions:** monthly eligible basis, manual Loss actor/impact, Company distributable amount and OFF-module settlement action are **BUSINESS DECISION REQUIRED**. No handler should infer them from V1.
-- `API-RISK-003` **B:** source is untracked; tests, live HTTP, database and deployment are **UNVERIFIED**. Do not claim end-to-end API verification.
+- `API-RISK-003` **B:** source is tracked and Phase 3 is pushed at 73797b16; local suites and disposable-PostgreSQL checks are documented. Deployed HTTP/database state and actual staging/production runtime-role grants remain **UNVERIFIED**. Do not claim end-to-end API verification.
 
-Authority model: explicit project direction and V2's cross-document statement establish V2 as **CURRENT APPROVED/TARGET architecture**, while V2's own open items remain unresolved. `AGENTS.md`, README and older governance documents now distinguish target from implementation and history. System Design bodies are V1-derived and historicalized, not reconciled as V2 contracts. Evidence: all 13 V2 documents (especially 01/02/04/05/06/09/10 and supporting authentication); current URL/handler/model/settings/test files; historical V1/System Design and Git documentation commits. **CURRENT IMPLEMENTED** means source inspected only; tests/live API/database/deployment remain **UNVERIFIED**. **PROPOSED** extra endpoint families: none.
+Authority model: explicit project direction and V2's cross-document statement establish V2 as **CURRENT APPROVED/TARGET architecture**, while V2's own open items remain unresolved. `AGENTS.md`, README and older governance documents now distinguish target from implementation and history. System Design bodies are V1-derived and historicalized, not reconciled as V2 contracts. Evidence: all 13 V2 documents (especially 01/02/04/05/06/09/10 and supporting authentication); current URL/handler/model/settings/test files; historical V1/System Design and Git documentation commits. **CURRENT IMPLEMENTED** means source is tracked and inspected; relevant local tests and disposable-database checks are documented above. Live API, persistent/deployed database, and deployment remain **UNVERIFIED**. **PROPOSED** extra endpoint families: none.
+
+## Current V2 Business Decision Additions Referenced
+
+- Canonical decisions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions) and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: any future Accounting handler must enforce the Accounting-specific Company/Branch action boundary and keep Income/Expense reads distinct from actual Receipt/Payment movements. No existing API contract is changed or implemented by this reference.
+
+## Current V2 Business Decision Additions Referenced — 2026-11-03
+
+- Current decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: Accounting OFF commands need an explicit pre-existing-obligation check; report filters use Asia/Kolkata period boundaries; opening movements accept either sign; any test-time editable inputs remain Income/Expense records and the result is derived.
+- These are future API contract requirements only; they do not implement or change a route, API, schema, or permission in the current repository.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 read and permission contract
+
+- Canonical additions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: future Accounting Result is a scoped read-only projection over committed Income/Expense records; zero Opening Balance is rejected without posting; Owner mutation is denied. These references implement no route or API.
+- Accounting cross-Branch correction is resolved only for Company-level Accountants in the same Company; no other module receives this permission.
+- In the older target-status table, the cross-Branch correction part of the Manual Loss/correction BDR row is superseded for Phase 4 Accounting by the canonical Company-level Accountant rule. Manual Loss actor/impact and non-Accounting correction scope remain BDR/default-deny.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 cash event API rules
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: add separate typed Receipt/Payment correction contracts and application-only reallocation; accept signed nonzero Opening Balance; reject future actual Receipt/Payment/Transfer. These are target contracts only; no current API is implemented.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 correction and archive API rules
+
+- Canonical decisions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: every supported correction request must declare reversal-only or reversal-and-replacement, enforce same-kind and Branch scope, and fail closed for post-OFF root records. Account archive requires both zero derived balance and no historical event/movement. These are proposed Phase 4 contracts, not current endpoints or behavior.
+
+## Phase 4 API implementation checkpoint — 2026-11-03
+
+**VERIFIED FROM REPOSITORY:** Django mounts Accounting resources under the Company-scoped `tenants/{company_id}/accounting/` prefix. Implemented resource families include branches, accounts/archive, categories/archive, events/detail/correction, Income, Expense, Receipt/correction, Payment/correction, Opening Balance/correction, Transfer/reversal/correction, application reallocation, and Accounting Result. DRF views parse contracts; domain services own validation, permission/module-state gates, transactions, idempotency, and response construction. React consumes these through the shared Accounting client/query layer.
+
+Company/Branch scope and role checks are server-side. The tested local API is not evidence of staging/production deployment or production database grants. This checkpoint supersedes only preceding statements that these Phase 4 endpoint contracts remain proposed or unimplemented; earlier API history remains historical.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 OFF and correction request contracts
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: preserve normal OFF settlement endpoints and create their event/movement/application atomically; apply revision-identity root eligibility only to correction/reallocation. A correction child may be its own target inside that atomic chain. Income/Expense replacement omits `effective_at`; Receipt/Payment and Transfer typed replacement may correct actual date; Opening Balance retains its original instant. No live API is claimed.
+
+## Current V2 Business Decision Additions Referenced — Phase 5 Monthly Interim amount
+
+- Canonical decisions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Technical impact: any future API contract for setting the Investor Monthly Interim amount must scope the Investor to the actor's Company and authorize only a Company-level Accountant. No Phase 5 endpoint or API contract is asserted as implemented here.
+
+## Current V2 Business Decision Additions Referenced — Interim advance as Paid
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Technical impact: a future reconciliation read contract must return earned Profit separately from actual confirmed Interim payments shown as Paid. This reference defines no endpoint, API implementation, or unresolved period-allocation behavior.

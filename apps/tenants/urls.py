@@ -1,4 +1,6 @@
-from django.urls import path
+from django.urls import include, path
+
+from apps.accounting.urls import urlpatterns as accounting_urlpatterns
 
 from .views import CompanyBranchDetail, CompanyBranchList, TenantDetail, TenantList
 from .views.module_state import CompanyModuleStatesView
@@ -21,4 +23,11 @@ urlpatterns = [
         CompanyBranchDetail.as_view(),
         name="company-branch-detail",
     ),
+]
+
+urlpatterns += [
+    path(
+        "<uuid:company_id>/accounting/",
+        include((accounting_urlpatterns, "accounting")),
+    )
 ]

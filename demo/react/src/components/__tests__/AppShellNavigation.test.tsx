@@ -78,6 +78,18 @@ describe('AppShell role-filtered navigation', () => {
     expect(quickNavigation).not.toHaveTextContent('Inventory');
   });
 
+  it('keeps long sidebar flyouts inside the viewport and scrollable', () => {
+    renderShell(['owner']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Company Accounting' }));
+
+    const flyout = screen.getByRole('region', { name: 'Company Accounting submenu' });
+    expect(flyout.style.maxHeight).toMatch(/^max\(0px, calc\(100dvh - \d+px\)\)$/);
+    expect(flyout.style.overflowY).toBe('auto');
+    expect(flyout).not.toHaveAttribute('tabindex');
+    expect(flyout).toHaveClass('hide-scrollbar');
+  });
+
   it('keeps unsupported Inventory hidden from Accountant navigation', () => {
     renderShell(['accountant']);
 
@@ -145,13 +157,24 @@ describe('AppShell role-filtered navigation', () => {
     expect(screen.getByRole('navigation', { name: 'Quick section navigation' }).children).toHaveLength(0);
   });
 
-  it('renders server-provided Branch roles as context without adding Company-wide navigation', () => {
+  it('shows Branch Accountant only the supported Accounting navigation', () => {
     renderShell([], [{ id: 'd4c80f18-2255-4f68-b835-83b6a08103a1', name: 'North Branch', roles: ['accountant'] }]);
 
     fireEvent.click(screen.getByRole('button', { name: /All Garages/ }));
     expect(screen.getByText(/North Branch/)).toBeInTheDocument();
     expect(screen.getByText(/North Branch · Roles: accountant/)).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Main Navigation Rail' }).children).toHaveLength(0);
+
+    const rail = screen.getByRole('navigation', { name: 'Main Navigation Rail' });
+    expect(within(rail).getByRole('button', { name: 'Company Accounting' })).toBeInTheDocument();
+    expect(within(rail).queryByRole('button', { name: 'Vehicles' })).not.toBeInTheDocument();
+    expect(within(rail).queryByRole('button', { name: 'Investment Management' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(rail).getByRole('button', { name: 'Company Accounting' }));
+    expect(screen.getByText('Company Income')).toBeInTheDocument();
+    expect(screen.getByText('Company Expenses')).toBeInTheDocument();
+    expect(screen.getByText('Transactions')).toBeInTheDocument();
+    expect(screen.getByText('Audit & Corrections')).toBeInTheDocument();
+    expect(screen.queryByText('Running Capital')).not.toBeInTheDocument();
   });
 
   it('marks the prototype avatar initials as decorative inside the context filter', () => {

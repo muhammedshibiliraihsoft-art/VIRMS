@@ -17,24 +17,34 @@ const routeKeys = (roles: readonly string[] | undefined) =>
   getRoleNavigation(roles).flatMap((group) => group.children.map((child) => child.routeKey));
 
 describe('role-based navigation presentation', () => {
-  it('defaults all business screens and detail routes to Demo until a backend contract is wired', () => {
+  it('marks only the Accounting routes with wired Company Accounting contracts as backend', () => {
+    const backendRoutes = new Set([
+      'Company Income',
+      'Company Expenses',
+      'Transactions',
+      'Audit & Corrections',
+    ]);
+
     for (const group of navigationRegistry) {
       expect(group.dataSourceStatus).toBe('demo');
       for (const child of group.children) {
-        expect(getRouteDataSourceStatus(child.routeKey)).toBe('demo');
+        expect(getRouteDataSourceStatus(child.routeKey)).toBe(
+          backendRoutes.has(child.routeKey) ? 'backend' : 'demo'
+        );
       }
     }
 
     expect(getRouteDataSourceStatus('Vehicle Detail')).toBe('demo');
     expect(getRouteDataSourceStatus('Garage Job Detail')).toBe('demo');
     expect(getRouteDataSourceStatus('Overview')).toBe('demo');
+    expect(getRouteDataSourceStatus('Accounting')).toBe('backend');
   });
 
   it('resolves every mutation form to its owning module source status', () => {
     const formTypes = [
       'vehicle', 'job', 'jobWork', 'jobExpense', 'vehicleExpense', 'customerCharge',
       'customerReceipt', 'purchase', 'issue', 'sale', 'collection', 'saleCorrection',
-      'refund', 'fundCredit', 'investor', 'companyExpense', 'otherIncome', 'recovery',
+      'refund', 'fundCredit', 'investor', 'recovery',
       'capitalRecovery', 'garage', 'garageEdit',
     ];
     const originalGroupStatuses = navigationRegistry.map((group) => group.dataSourceStatus);
@@ -51,6 +61,8 @@ describe('role-based navigation presentation', () => {
       for (const formType of formTypes) {
         expect(getFormDataSourceStatus(formType), formType).toBe('backend');
       }
+      expect(getFormDataSourceStatus('companyExpense')).toBe('demo');
+      expect(getFormDataSourceStatus('otherIncome')).toBe('demo');
     } finally {
       navigationRegistry.forEach((group, groupIndex) => {
         group.dataSourceStatus = originalGroupStatuses[groupIndex];
@@ -148,6 +160,9 @@ describe('role-based navigation presentation', () => {
       'Accounting',
       'Reports',
     ]);
+    expect(isRoleRouteVisible(ownerNavigation, 'Accounting', ['owner'])).toBe(true);
+    expect(isRoleRouteVisible(getRoleNavigation(undefined, ['accountant']), 'Accounting')).toBe(true);
+    expect(isRoleRouteVisible(getRoleNavigation(['media']), 'Accounting', ['media'])).toBe(false);
     expect(getRoleQuickSections(getRoleNavigation(['media']))).toEqual([]);
   });
 

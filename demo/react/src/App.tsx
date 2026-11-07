@@ -39,6 +39,11 @@ const DashboardAnalyticsView = React.lazy(
 const DashboardFinancialView = React.lazy(
   () => import('./components/dashboard/DashboardFinancialView')
 );
+const CompanyAccountingView = React.lazy(() =>
+  import('./components/shared/CompanyAccountingView').then((module) => ({
+    default: module.CompanyAccountingView,
+  }))
+);
 import { AllVehiclesView } from './components/AllVehiclesView';
 import { VehicleDetailView } from './components/VehicleDetailView';
 import { GarageJobsView } from './components/GarageJobsView';
@@ -83,8 +88,9 @@ export interface AppProps {
 export function App({ onLogout, loginId, companyName, companyWideRoles, branchContexts, branchesTruncated }: AppProps = {}) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [themePalette, setThemePalette] = useState<string>(getStoredThemePalette);
+  const branchScopedRoles = branchContexts?.flatMap((branch) => branch.roles) ?? [];
   const [activeRoute, setActiveRoute] = useState<string>(() =>
-    getRoleNavigation(companyWideRoles)[0]?.children[0]?.routeKey ?? ''
+    getRoleNavigation(companyWideRoles, branchScopedRoles)[0]?.children[0]?.routeKey ?? ''
   );
   const [activeTab, setActiveTab] = useState<string>('Overview');
   const [selectedGarage, setSelectedGarage] = useState<string>('all');
@@ -177,7 +183,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
     isOpen: false,
     type: null,
   });
-  const roleNavigation = getRoleNavigation(companyWideRoles);
+  const roleNavigation = getRoleNavigation(companyWideRoles, branchScopedRoles);
   const activeRouteAllowed = isRoleRouteVisible(roleNavigation, activeRoute, companyWideRoles);
   const investorOnly = isInvestorOnlyRole(companyWideRoles);
   const allowedDashboardViews = getRoleDashboardViews(companyWideRoles);
@@ -417,7 +423,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
         if (tab === 'Overview') {
           handleSelectRoute('Dashboard');
         } else if (tab === 'Accounting') {
-          handleSelectRoute('Garage Revenue');
+          handleSelectRoute('Accounting');
         } else if (tab === 'Inventory') {
           handleSelectRoute('Items & Purchases');
         } else if (tab === 'Reports') {
@@ -760,20 +766,26 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
           descriptionOverride="Investor-specific Fund data is not connected. Other Investors’ sample balances are hidden."
           stateOverride="Waiting for Investor-scoped Fund data; no other Investor sample records are shown."
         />
+      ) : activeRoute === 'Company Income' ||
+        activeRoute === 'Company Expenses' ||
+        activeRoute === 'Transactions' ||
+        activeRoute === 'Audit & Corrections' ||
+        activeRoute === 'Accounting' ? (
+        <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 p-4 text-xs text-gray-500 dark:border-zinc-800">Loading Accounting workspace…</div>}>
+          <CompanyAccountingView
+            routeKey={activeRoute}
+            onSuccess={(message) => showStatusMessage('success', message, 'Saved to Company Accounting.', 3500)}
+          />
+        </React.Suspense>
       ) : activeRoute === 'Investor Fund' ||
         activeRoute === 'Vehicle Sales' ||
         activeRoute === 'Collections' ||
         activeRoute === 'Sale Corrections & Refunds' ||
         activeRoute === 'Garage Revenue' ||
-        activeRoute === 'Company Income' ||
-        activeRoute === 'Company Expenses' ||
-        activeRoute === 'Running Capital' ||
-        activeRoute === 'Transactions' ||
-        activeRoute === 'Audit & Corrections' ||
-        activeRoute === 'Accounting' ? (
+        activeRoute === 'Running Capital' ? (
         /* Financial Ledgers & Registers */
         <FinancialLedgerView
-          routeKey={activeRoute === 'Accounting' ? 'Garage Revenue' : activeRoute}
+          routeKey={activeRoute}
           data={data}
           garages={garages}
           selectedGarage={selectedGarage}

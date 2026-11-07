@@ -2,7 +2,11 @@
 
 > Correction audit: current scoped lifecycle, same-row temporal authorization, bounded uniform login admission, safe required lifecycle reasons and audit Branch scope are recorded in [docs/phase1-audit-corrections.md](../docs/phase1-audit-corrections.md). Earlier completion/test-count statements below are historical snapshots.
 
+> HISTORICAL SNAPSHOT — 2026-11-02. Its Phase 1/2 and Phase 3-not-started statements record the state then and are superseded by the current checkpoint below.
+
 > Local integration and roadmap reconciliation — 2026-11-02: the current `codex/audit` integration line contains accepted Phase 1 and Phase 2 source, tests, and the final role/mock-boundary corrections. Phase 1 passed 210/210 account/tenant tests on disposable PostgreSQL; Phase 2 passed 74/74 React tests, configured lint/build, and isolated browser acceptance. No business-domain models or APIs exist in the inspected application. The verified roadmap assigns Phase 3 to Main Operations Foundation (not started); Garage Jobs is Phase 6 and depends on Phase 4 Accounting plus Phase 5 Vehicle/Investment ownership contracts. A separate Garage architecture candidate that placed Garage in Phase 3 remains outside this integration because its model ownership depended on future Phase 4/5 contracts. Its confirmed Garage business rules are recorded in `docs-final-v2/`; implementation design must be revisited at the Phase 6 gate. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md).
+
+> Current branch status — 2026-11-03: codex/audit and origin/codex/audit were fetched and verified at 73797b16aa35db776b5601fe1483c2be8de6c100. Phase 3 Company module-state foundation is committed and pushed. Django passed 232/232 and React passed 89/89; lint/build/migration checks passed locally. GitHub CI status/runs were empty at inspection. Staging/production database access, deployed behavior, and the actual runtime database role/grants are UNVERIFIED.
 
 ## 2026-10-31 verified Phase 1 implementation
 
@@ -10,7 +14,7 @@ The one-Company-per-normal-business-account rule is implemented with the Postgre
 
 P1-11 through P1-19 implementation and final local validation are recorded in `docs/phase1-execution-progress.md`. This changes the current implementation classification below; dated 2026-10-19 verification headers and tables remain historical snapshots. No financial or Phase 2 behavior was implemented.
 
-## 0. Verification header
+## 0. Historical verification header — 2026-10-19 baseline
 
 - Repository/worktree: `D:/VIRMS`, dirty `staging`; reviewed 2026-10-19. Tracked documentation HEAD `b4a40772edec567297e96d72bf037df73ea0cae6`. Backend and architecture files inspected locally are untracked.
 - **CURRENT APPROVED/TARGET:** the intended V2 architecture in `/docs-final-v2/`, per explicit current user direction and `docs-final-v2/01`'s statement that `/docs-final/` is a previous baseline. This does **not** fill V2's open business decisions or claim formal final-lock status.
@@ -35,13 +39,13 @@ Folder names, DRAFT/FINAL labels and commit recency alone do not determine the c
 | Topic | CURRENT APPROVED/TARGET V2 | CURRENT IMPLEMENTED / tests | HISTORICAL / SUPERSEDED or stale text | Classification/action |
 |---|---|---|---|---|
 | Authority | V2 intended target; 01 says previous `/docs-final/` is historical baseline; 02/04/05/09/10 own V2 meanings | Code cannot choose product authority | `AGENTS.md`, README and older governance docs now distinguish V2 target, implementation and historical V1; System Design body remains historical/unreconciled | `CONFLICT-001` resolved by documentation; V2 BDRs remain open |
-| Isolation | Platform→Company/Tenant→Branch; Company hard boundary, Branch within Company; module/action/object/field scope | Phase 1 implements Company membership/grants, Branch assignment, account and read scopes; finance/module handlers remain absent | V1 Garage=Tenant, Tenant-scoped Garage operations | Phase 1 foundation scope implemented; `CONFLICT-002` remains for unbuilt modules |
+| Isolation | Platform→Company/Tenant→Branch; Company hard boundary, Branch within Company; module/action/object/field scope | Phase 1 implements Company membership/grants and Branch assignment/read scope. Phase 3 implements versioned Company module state and a Company-scoped metadata read; no business-operation endpoint exists yet to enforce module gates | V1 Garage=Tenant, Tenant-scoped Garage operations | Company/Branch and module-state foundations are implemented; business-module controls remain future-phase work |
 | Company account identity | Each ordinary business User UUID belongs to one Company; the same human in another Company has a separate account. Platform technical identities are distinct | `accounts.0007` PostgreSQL guard, provisioning policy and Admin protections enforce one Company for Company accounts. Disposable raw-SQL and upgrade tests pass; real rows remain unverified | Earlier shared Company account plan assumptions | `CONFLICT-006` implementation complete; migration fails closed on existing multi-Company rows; no automatic split; global login ID/email uniqueness retained |
 | Investor/Vehicle | Fund relationship at Company level across Branches; one Investor per funded Stock Vehicle; external customer Vehicle requires none | No Investor, Fund, Vehicle or Garage model/API | V1 global cross-Garage Investor/Fund, one Investor for every Vehicle | `RULE_SUPERSEDED` for target; `CONFLICT-003` compatibility review |
 | Money and Owner | Actual Company Running Capital separate; positive Investor/Company Share; Company-level period Owner Distribution; manual Loss | No finance tables/routes/tests | V1 per-deal Owner Pool, formula Loss/Owner contribution, no Company Accounting/Running Capital | `RULE_SUPERSEDED`; V2 `BUSINESS DECISION REQUIRED` in affected areas |
 | Protected rates | Platform Back Office changes Investor agreements, monthly rate, Owner split and sensitive defaults; Accountant confirms authorized transactions | No protected financial configuration | V1 Accountant could change Investor-specific percentage | `RULE_SUPERSEDED`; actor boundary implementation gap |
-| API and frontend | V2 Company/Branch/module-scoped backend, Garage independent of Investment, source-linked Accounting; React target | Phase 1 account/tenant suite passed 210 tests on disposable PostgreSQL; Phase 2 React integration passed 74 tests plus configured lint/build/browser acceptance; no business API | V1-derived System Design routes/diagrams and roadmap | Phase 1/2 locally integrated; Phase 3 Main Operations not started; Garage is Phase 6 |
-| Existing production history | V2 text says no production V1 cutover needed | No tracked app code or live DB inspected | README describes replaced starter migrations | `UNVERIFIED`, `CONFLICT-005`; cannot infer live data state |
+| API and frontend | V2 Company/Branch/module-scoped backend, Garage independent of Investment, source-linked Accounting; React target | Phase 1/2 account and React foundations passed their documented tests; Phase 3 Company module-state model, Admin path, metadata read, and shared React query passed 232 backend and 89 React tests locally; no business API | V1-derived System Design routes/diagrams and roadmap | Phase 1–3 foundations are locally verified; Phase 3 commit 73797b16aa35db776b5601fe1483c2be8de6c100 is pushed; Garage remains Phase 6 |
+| Existing production history | V2 text says no production V1 cutover needed | Current app source is tracked; no live database or deployed history was inspected | README describes replaced starter migrations | `UNVERIFIED`, `CONFLICT-005`; cannot infer live data state |
 
 No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidence proving one. The present business-target mismatch is primarily **missing implementation**, not proof the V2 target is wrong.
 
@@ -57,10 +61,10 @@ No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidenc
 
 ### CONFLICT-002 — Company/Branch/module target versus Tenant-backed Phase 1 foundation
 
-- **Classification/area:** Phase 1 implements Company membership, CompanyRoleGrant, Branch assignment, account lifecycle/provisioning scope, Company/Branch reads and Django Admin adapters. The V2 enabled-module gate and product resource/object/field rules have no modules to govern yet.
+- **Classification/area:** Phase 1 implements Company membership, CompanyRoleGrant, Branch assignment, account lifecycle/provisioning scope, Company/Branch reads and Django Admin adapters. Phase 3 adds versioned Company module state, scoped configuration/audit, and Company-scoped metadata read. Business-operation module gates and product resource/object/field rules remain for the owning future module.
 - **Historical influence:** V1 Garage=Tenant design may have shaped the foundation, but generic `Tenant` code alone does not prove a V1 business implementation.
 - **Why it matters:** a future financial/Job route built on Tenant membership alone could cross Branch/module boundaries or misassign Company money.
-- **Resolution:** P1-11 through P1-19 verified the account/scope foundation on disposable PostgreSQL. Add module-specific gates with their owning V2 module in a later authorized phase; no financial behavior was introduced here. **Status:** Phase 1 foundation resolved; product-module implementation remains outside Phase 1.
+- **Resolution:** P1-11 through P1-19 and the approved Phase 3 module-state foundation were verified locally on disposable PostgreSQL. Module-specific enforcement belongs at future business-operation call sites. **Status:** Platform/account, Branch-scope, and Phase 3 module-state foundations are implemented; finance and other business modules remain unimplemented.
 
 ### CONFLICT-003 — V1-derived finance/design assumptions versus V2 economics
 
@@ -107,7 +111,7 @@ No `SYSTEM_DEFECT` or `TEST_STALE` is declared without code/runtime/test evidenc
 |---|---|---|
 | `architecture/diagrams/virms-foundation-and-delivery-flow.mmd`, V1 roadmaps | Phase sequence may be useful, but labels/source basis point to V1 | Treat business/module conclusions as HISTORICAL / SUPERSEDED until reconciled. |
 | `system-design/01` context, `/03` tenancy, `/05` finance, `/07` API | Technical design derived from V1, not a V2 contract | Do not copy global Fund, Garage Tenant or per-deal Owner/Loss semantics into V2. |
-| `apps/accounts/tests/test_users.py`, `apps/tenants/tests/test_tenants.py` | Selected account/Tenant assertions present; execution UNVERIFIED; no V2 Branch/module/finance tests | `PARTIAL_IMPLEMENTATION`, not automatic `TEST_STALE` or V2 coverage. |
+| Account/Tenant/Branch/module test coverage | Selected account, Tenant, Branch, and module-state tests exist; finance tests are not applicable because financial modules are not implemented | PARTIAL_IMPLEMENTATION for later business modules |
 | Current Account/Tenant model plus future Company/Branch sources | Risk of treating generic Tenant membership as complete Company/Branch permission | One authoritative Company/Branch scope path; no duplicate grants from caller IDs. |
 | Investment, Garage and Accounting views of the same money | V2 defines separate module ownership with source links | One actual economic event; Company ledger references source without double posting. |
 | Monthly interim, ordinary deal Profit and period reconciliation | V2 distinct streams; precise reconciliation still BDR | Do not relabel an interim advance as earned deal Profit or count a payment twice. |
@@ -116,7 +120,7 @@ No test execution or runtime defect was performed/proven here. `CONFLICT-001` wa
 
 ## 6. Security and ownership conflict guard
 
-V2 hard boundary is Company. Branch is within-Company scope/attribution and module state gates ordinary actions. A Platform administrator's cross-Company platform capability does not automatically include private Company finance. Protected configuration permission does not confer Accountant posting permission. Media cannot read internal finance; Investor self-view cannot read another Investor; Owner is read-only. Current Tenant-only API coverage is narrower than those target controls. `CONFLICT-002/004` govern any affected route. Public views must use safe publication fields and never serialize internal Vehicle/Investor records.
+V2 hard boundary is Company. Phase 1 implements Company/Branch scope, and Phase 3 implements versioned Company module-state metadata. Future business operations still need their module-specific authorization checks and approved history/open-obligation rules. A Platform administrator cross-Company capability does not automatically include private Company finance. Protected configuration permission does not confer Accountant posting permission. Media cannot read internal finance; Investor self-view cannot read another Investor; Owner is read-only. The current foundation APIs do not constitute the full V2 business contract. CONFLICT-002/004 govern affected future routes. Public views must use safe publication fields and never serialize internal Vehicle/Investor records.
 
 ## 7. Business decisions required and verification status
 
@@ -129,3 +133,50 @@ V2 hard boundary is Company. Branch is within-Company scope/attribution and modu
 7. Module OFF: minimum permitted settlement actions for already-open obligations (`/02`, `/06`).
 
 These are **BUSINESS DECISION REQUIRED** for the affected behavior, not evidence V2 ceases to be current target. Governance authority wording is reconciled; V1-derived System Design body content remains historical and unreconciled. **UNVERIFIED:** actual tests, database, deployment, production V1 data/cutover. **CURRENT IMPLEMENTED:** only local source-inspected foundation. **PROPOSED** additional architecture: none. Evidence includes all V2 documents, old V1/legacy documents, governance/design files, current code/tests and the Git commits above.
+
+## Current V2 Business Decision Additions Referenced
+
+- Canonical decisions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions) and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: the resolved cross-Branch permission is Accounting-specific. It does not resolve or widen Garage, Vehicle, Investment, Sales, or other-module correction authority. Unrelated BDRs remain in force.
+
+## Current V2 Business Decision Additions Referenced — 2026-11-03
+
+- Current decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Technical impact: the Accounting-specific OFF obligation actions are resolved; minimum OFF actions for other modules remain BDRs. Profit period timezone and negative opening movement are now specified. No module ownership or other-module permission changes follow from these decisions.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 locked topics
+
+- Canonical additions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Superseded only for Phase 4: the bounded Accounting Result is defined, Owner ordinary Accounting posting is denied, and Company-level Accountant cross-Branch Accounting correction is resolved. The broad correction BDR, other-module cross-Branch boundaries, full Company Profit source recognition, distributable Profit, period close, and Investor reconciliation remain unchanged.
+- The cross-Branch correction item in `CONFLICT-004` is no longer a BDR for same-Company Accounting actions by Company-level Accountants; its manual Loss and non-Accounting portions remain open or default-deny.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 cash correction distinction
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- The earlier blanket exclusion of Receipt/Payment correction is superseded only for wrong cash facts; wrong-target-only reallocation preserves cash. Real refund/recovery remains a separate future/BDR workflow. No unrelated business conflict is resolved.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 correction and archive safety
+
+- Canonical decisions: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- The prior archive-by-zero-balance contract is superseded: any account movement/event history blocks archive. Correction choices and OFF eligibility are narrowed as specified in those canonical additions. No non-Accounting Branch authority or unrelated BDR changes.
+
+## Current V2 Business Decision Additions Referenced — Phase 4 settlement and correction reconciliation
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Phase 4 Accounting's same-Company Company-level correction permission and its pre-OFF settlement/correction distinctions are resolved. This does not resolve cross-Branch authority for manual Loss or other modules, nor other modules' OFF rules. Full Company Profit and Investor/Owner settlement BDRs remain.
+
+## Phase 4 implementation status and remaining boundaries — 2026-11-03
+
+The bounded Company Accounting Foundation is implemented in the current local worktree and verified against a disposable PostgreSQL database and the existing React application. It adds Accounting-owned persistence and APIs; it does not create a second source of truth in React. See [Phase 4 execution evidence](../docs/phase4-execution-progress.md).
+
+This supersedes only older map statements that Phase 4 Accounting models/endpoints/data flow are unimplemented. Vehicle, Investment, Garage, Sales, and other future modules do not yet originate Accounting source events; their integration remains future vertical work. Final Company Share/Garage Revenue/common Expense recognition, distributable Profit, period close/carryforward, Investor Profit, Owner Distribution, and unrelated-module permission rules remain outside this slice. No staging/production state or deployment is asserted.
+
+## Current V2 Business Decision Additions Referenced — Phase 5 Monthly Interim amount
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- The fixed per-Investor amount supersedes only the rate/eligible-principal calculation BDR and the former PBO-only authority for that field. Principal-withdrawal limits and period-reconciliation deal/payout behavior remain unresolved; no other module ownership or permission boundary changes.
+
+## Current V2 Business Decision Additions Referenced — Interim advance as Paid
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- The question of whether a confirmed Interim advance is Paid against Investor Profit is resolved. The remaining BDR concerns which deals belong to a period and how ordinary deal-level payouts interact; the data-flow target must not duplicate an economic event.

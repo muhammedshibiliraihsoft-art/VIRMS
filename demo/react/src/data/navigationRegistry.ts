@@ -185,14 +185,16 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Company Income',
         routeKey: 'Company Income',
         status: 'implemented',
-        description: 'Other company receipts & income sources',
+        dataSourceStatus: 'backend',
+        description: 'Company Income records and separate actual Receipts',
       },
       {
         id: 'company-expenses',
         label: 'Company Expenses',
         routeKey: 'Company Expenses',
         status: 'implemented',
-        description: 'Direct workshop & operating expenses',
+        dataSourceStatus: 'backend',
+        description: 'Company Expense records and separate actual Payments',
       },
       {
         id: 'running-capital',
@@ -213,6 +215,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Transactions',
         routeKey: 'Transactions',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Company-wide source event register',
       },
       {
@@ -227,6 +230,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Audit & Corrections',
         routeKey: 'Audit & Corrections',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Linked corrections & immutable action audit log',
       },
     ],
@@ -350,8 +354,6 @@ const FORM_ROUTE_KEYS: Record<string, string> = {
   refund: 'Sale Corrections & Refunds',
   fundCredit: 'Investor Fund',
   investor: 'Investor Fund',
-  companyExpense: 'Company Expenses',
-  otherIncome: 'Company Income',
   recovery: 'Investor Fund',
   capitalRecovery: 'Investor Fund',
   garage: 'Garages / Branches',
@@ -364,6 +366,7 @@ const FORM_ROUTE_KEYS: Record<string, string> = {
  * this navigation registry.
  */
 export function getRouteDataSourceStatus(routeKey: string): DataSourceStatus {
+  if (routeKey === 'Accounting') return 'backend';
   const group = navigationRegistry.find(
     (candidate) =>
       candidate.primaryRouteKey === routeKey ||

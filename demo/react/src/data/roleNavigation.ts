@@ -105,11 +105,30 @@ const QUICK_SECTIONS: QuickSectionDefinition[] = [
   { key: 'Reports', label: 'Reports', groupId: 'reports' },
 ] as const;
 
-export function getRoleNavigation(companyWideRoles?: readonly string[]): NavGroup[] {
+export function getRoleNavigation(
+  companyWideRoles?: readonly string[],
+  branchScopedRoles?: readonly string[],
+): NavGroup[] {
   const roles = (companyWideRoles ?? []).filter(
     (role): role is BusinessRole => Object.hasOwn(ROLE_NAVIGATION, role)
   );
-  if (!roles.length) return [];
+  if (!roles.length) {
+    if (!(branchScopedRoles ?? []).includes('accountant')) return [];
+    const accountingGroup = navigationRegistry.find((group) => group.id === 'company-accounting');
+    if (!accountingGroup) return [];
+    const accountingRoutes = new Set([
+      'Company Income',
+      'Company Expenses',
+      'Transactions',
+      'Audit & Corrections',
+    ]);
+    const children = accountingGroup.children
+      .filter((child) => accountingRoutes.has(child.routeKey))
+      .map((child) => ({ ...child }));
+    return children.length
+      ? [{ ...accountingGroup, primaryRouteKey: children[0].routeKey, children }]
+      : [];
+  }
 
   const allowedRoutesByGroup = new Map<string, Set<string>>();
   for (const role of roles) {
@@ -174,6 +193,7 @@ export function isRoleRouteVisible(
   const visibleRouteKeys = new Set(navigation.flatMap((group) => group.children.map((child) => child.routeKey)));
   const visibleGroupIds = new Set(navigation.map((group) => group.id));
   if (routeKey === 'Overview') return visibleRouteKeys.has('Dashboard');
+  if (routeKey === 'Accounting') return visibleGroupIds.has('company-accounting');
   if (routeKey === 'Vehicles' || routeKey === 'All Vehicles') return visibleGroupIds.has('vehicles');
   if (routeKey === 'Settings') return visibleGroupIds.has('settings');
   if (routeKey === 'Vehicle Detail') {

@@ -1,6 +1,8 @@
 """Authoritative new scoped policy; legacy route readers cut over only in P1-17."""
 
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
+from django.utils import timezone
 
 from apps.tenants.models import BranchAssignment, TenantMembership
 from apps.tenants.selectors import current_interval
@@ -38,6 +40,28 @@ PLATFORM_SCOPED_LIFECYCLE_ACTIONS = {
 }
 READ_ACTIONS = {"core.company.read", "core.branch.read"}
 SELF_ACTIONS = {"self.password", "self.me", "self.logout"}
+ACCOUNTING_READ_ACTIONS = {
+    "accounting.event.read",
+    "accounting.report.read",
+}
+ACCOUNTING_WRITE_ACTIONS = {
+    "accounting.income.create",
+    "accounting.expense.create",
+    "accounting.receipt.create",
+    "accounting.payment.create",
+    "accounting.event.correct",
+    "accounting.account.manage",
+    "accounting.category.manage",
+    "accounting.opening_balance.create",
+    "accounting.transfer.create",
+}
+ACCOUNTING_COMPANY_ONLY_ACTIONS = {
+    "accounting.account.manage",
+    "accounting.category.manage",
+    "accounting.opening_balance.create",
+    "accounting.transfer.create",
+}
+ACCOUNTING_ACTIONS = ACCOUNTING_READ_ACTIONS | ACCOUNTING_WRITE_ACTIONS
 
 
 def require_action(
@@ -88,6 +112,8 @@ def require_action(
         if scope is None and hasattr(resource, "membership_id"):
             scope = resource.membership.tenant_id
         if scope != company.pk:
+            if action in ACCOUNTING_ACTIONS:
+                raise Http404("Not found")
             deny()
         from apps.tenants.models import Branch
 
@@ -96,10 +122,19 @@ def require_action(
             if isinstance(resource, Branch)
             else getattr(resource, "branch_id", None)
         )
-        if resource_branch is not None and (
+        if action not in ACCOUNTING_ACTIONS and resource_branch is not None and (
             branch is None or branch.pk != resource_branch
         ):
             deny()
+    if action in ACCOUNTING_ACTIONS:
+        return _require_accounting_action(
+            current,
+            membership=membership,
+            company=company,
+            action=action,
+            branch=branch,
+            resource=resource,
+        )
     if action in PLATFORM_ACTIONS:
         if not platform:
             deny()
@@ -135,4 +170,74 @@ def require_action(
         grants = grants.filter(Q(branch__isnull=True) | Q(branch=branch))
     if not grants.exists():
         deny()
+    return current
+
+
+def _require_accounting_action(
+    current, *, membership, company, action, branch, resource
+):
+    """Apply the finite Accounting action allowlist without changing other modules."""
+    from apps.tenants.models import BranchAssignment
+
+    if current.account_kind != User.AccountKind.COMPANY:
+        raise PermissionDenied("Accounting access required.")
+
+    at = timezone.now()
+    grants = CompanyRoleGrant.objects.filter(
+        membership=membership,
+        role__in=(CompanyRoleGrant.Role.OWNER, CompanyRoleGrant.Role.ACCOUNTANT),
+    ).filter(current_interval(at))
+    company_grants = grants.filter(branch__isnull=True)
+    company_accountant = company_grants.filter(
+        role=CompanyRoleGrant.Role.ACCOUNTANT
+    ).exists()
+
+    if action in ACCOUNTING_READ_ACTIONS:
+        eligible_roles = {CompanyRoleGrant.Role.OWNER, CompanyRoleGrant.Role.ACCOUNTANT}
+    else:
+        eligible_roles = {CompanyRoleGrant.Role.ACCOUNTANT}
+        if action in ACCOUNTING_COMPANY_ONLY_ACTIONS and not company_accountant:
+            raise PermissionDenied("Company Accountant access required.")
+
+    if company_grants.filter(role__in=eligible_roles).exists():
+        return current
+    target_branch_ids = set()
+    if branch is not None:
+        if branch.tenant_id != company.pk:
+            raise Http404("Branch not found")
+        target_branch_ids.add(branch.pk)
+    if resource is not None:
+        resource_branch_id = getattr(resource, "branch_id", None)
+        if resource_branch_id is not None:
+            target_branch_ids.add(resource_branch_id)
+    if not target_branch_ids:
+        # A branch-only actor may list their own records without a filter;
+        # the request handler must apply the returned Branch scope.
+        branch_grants = grants.filter(
+            branch__tenant=company,
+            role__in=eligible_roles,
+        )
+        assigned = BranchAssignment.objects.filter(
+            membership=membership,
+            branch_id__in=branch_grants.values("branch_id"),
+        ).filter(current_interval(at))
+        if branch_grants.exists() and assigned.exists():
+            return current
+        raise PermissionDenied("Accounting access required.")
+    has_action_scope = grants.filter(
+        role__in=eligible_roles,
+        branch__tenant=company,
+    ).exists()
+    if not has_action_scope:
+        raise PermissionDenied("Accounting access required.")
+    for branch_id in target_branch_ids:
+        branch_grants = grants.filter(
+            branch_id=branch_id,
+            role__in=eligible_roles,
+        )
+        if not branch_grants.exists() or not BranchAssignment.objects.filter(
+            membership=membership,
+            branch_id=branch_id,
+        ).filter(current_interval(at)).exists():
+            raise Http404("Branch not found")
     return current

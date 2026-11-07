@@ -60,7 +60,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   branchesTruncated,
 }) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const navigationGroups = getRoleNavigation(companyWideRoles);
+  const branchScopedRoles = branchContexts?.flatMap((branch) => branch.roles) ?? [];
+  const navigationGroups = getRoleNavigation(companyWideRoles, branchScopedRoles);
   const showDemoPageBadge =
     activeRoute !== 'Dashboard' &&
     activeRoute !== 'Overview' &&

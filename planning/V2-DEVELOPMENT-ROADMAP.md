@@ -28,7 +28,7 @@ Establish and accept the platform/authentication backend first. Then complete th
 
 Before each phase, read the relevant V2 documents and current architecture truth, create or reconcile only that phase's architecture, and resolve its dependencies and business-decision boundaries. Close the phase with integration and verification before selecting the next one. Do not build all backend first or all frontend first.
 
-This roadmap now describes the local `codex/audit` integration line. Phase 1 and Phase 2 acceptance evidence below is from the isolated integration snapshot; no remote push or staging update is claimed. The original dirty audit worktree and the separately dirty `staging` worktree are preserved. Current source still has no business-domain APIs/models for Main Operations, Garage, Accounting, Investment, Sales or Inventory.
+Current branch snapshot (verified 2026-11-03): codex/audit and origin/codex/audit match at 73797b16aa35db776b5601fe1483c2be8de6c100. Phase 1 and Phase 2 acceptance details below are dated snapshots; Phase 3 status is current in this roadmap. The current local worktree also contains the uncommitted Phase 4 Company Accounting Foundation documented below. Git publication does not establish staging/production deployment or database-role permissions. The separate staging worktree was not modified during this documentation review. Main Operations business workflows, Vehicle/Investment, Garage, Sales, and Inventory domain APIs/models remain future work; Accounting is the Phase 4 exception described below.
 
 ## Roadmap
 
@@ -50,7 +50,7 @@ This roadmap now describes the local `codex/audit` integration line. Phase 1 and
 
 **Ends when:** Real login/password/logout/session handling, Company/Branch context, safe route/cache/error states and responsive/security validation pass; unsupported mock business data and real dashboards remain deferred.
 
-**Status:** ACCEPTED on the local audit integration line, 2026-11-02. The React suite passed 74/74, production build and configured lint passed, and browser smoke covered login/context/logout/expiry and 320/390/768/1024/1440 widths on the isolated candidate. Business data remains mock-backed because no business API exists. Production origin/proxy/cookie behavior remains unverified; no staging or remote integration is claimed.
+**Status:** ACCEPTED on the local audit integration line, 2026-11-02. The React suite passed 74/74, production build and configured lint passed, and browser smoke covered login/context/logout/expiry and 320/390/768/1024/1440 widths on the isolated candidate. Business data remains mock-backed because no business API exists. Production origin/proxy/cookie behavior remains unverified; no staging integration or deployment is claimed.
 
 **Decision boundary:** No new Phase 2 business decision is introduced. V2 financial/access decisions remain open for their owning future modules.
 
@@ -62,9 +62,9 @@ This roadmap now describes the local `codex/audit` integration line. Phase 1 and
 
 **Ends when:** The core operational workspace can host authorized business capabilities and their vertical user flows.
 
-**Status:** COMPLETE — approved Company module-state foundation implemented and verified locally; staging/production remain unverified.
+**Status:** COMPLETE — the approved Company module-state foundation is committed and pushed on codex/audit at 73797b16aa35db776b5601fe1483c2be8de6c100; fetched local and origin heads matched on 2026-11-03. Staging/production runtime and deployed PostgreSQL role permissions remain UNVERIFIED. No GitHub CI run/status was present at inspection.
 
-The approved Phase 3 slice establishes versioned Company module state, scoped Platform Back Office administration, an authenticated Company-scoped read API and the React shared query boundary. The approved 14-code catalog includes Audit and Corrections; audit capture remains cross-cutting. On the local `codex/audit` worktree, React passed 89/89 tests, lint and production build; Django passed 232/232 account/tenant tests on disposable PostgreSQL 15, system checks and migration drift checks. Fresh migration apply, empty-state reverse/reapply and populated-history reverse protection were verified. No business workflows or financial APIs were added. This is not staging/production runtime evidence and no deployment is claimed. The preserved Garage design candidate is not Phase 3 under this roadmap; Garage remains Phase 6 after Phases 4 and 5.
+The approved Phase 3 slice establishes versioned Company module state, scoped Platform Back Office administration, an authenticated Company-scoped read API, and the React shared query boundary. The approved 14-code catalog includes Audit and Corrections; audit capture remains cross-cutting. React passed 89/89 tests, lint, and production build; Django passed 232/232 account/tenant tests on disposable PostgreSQL 15, system checks, and migration drift checks. Fresh migration apply, empty-state reverse/reapply, and populated-history reverse protection were verified. No business workflows or financial APIs were added. This is not staging/production runtime or deployed-role evidence. Garage remains Phase 6 after Phases 4 and 5.
 
 ### Phase 4 — Accounting Foundation
 
@@ -74,9 +74,11 @@ The approved Phase 3 slice establishes versioned Company module state, scoped Pl
 
 **Ends when:** Implemented business events can be represented and reconciled in Company accounting without duplicate economic entries.
 
-**Status:** NOT STARTED
+**Status:** COMPLETE — bounded Company Accounting Foundation implemented and verified in the current local `codex/audit` worktree on 2026-11-03. These Phase 4 changes are uncommitted and are not present in the current HEAD/origin baseline `73797b16aa35db776b5601fe1483c2be8de6c100`. Staging/production deployment and database-role permissions remain UNVERIFIED.
 
-**Decision boundary:** `BLOCKED BY BUSINESS DECISION` — Company distributable-Profit basis and period close/carryforward; foundational accounting work can proceed within the defined source-event boundaries.
+**Decision boundary:** The remaining Company Share/Garage Revenue/common Expense recognition, distributable-Profit basis, and period close/carryforward decisions do not block this bounded Accounting Foundation. They continue to block only the dependent source integrations or final Profit/close behavior; Investor Profit remains Investment-owned.
+
+**Implementation boundary:** Django Accounting persistence, Company/Branch authorization, append-only corrections and cash movements, Accounting APIs, and the existing React Accounting surface are integrated and locally verified. Future Vehicle/Investment/Garage/Sales modules do not yet create their own source events in Accounting; those vertical integrations remain in their roadmap phases. The implementation and verification evidence is in [the Phase 4 execution report](../docs/phase4-execution-progress.md).
 
 ### Phase 5 — Investment, Vehicle, and Running Capital
 
@@ -213,3 +215,11 @@ When starting any roadmap phase:
 9. Update roadmap status only after evidence exists.
 
 Historical or deleted pre-V2 documents are not current authority and must not be restored as current requirements.
+
+## Phase 5 Monthly Interim business-decision update — 2026-11-04
+
+The Monthly Interim amount is now approved as a fixed, individually configured amount per Investor, set or edited only by that Company's Company-level Accountant. This supersedes the eligible-principal calculation question and the former Platform Back Office-only authority for this field. Permitted active-cycle principal withdrawals and the Investor reconciliation-period deal/payout relationship remain BUSINESS DECISION REQUIRED. Phase 5 remains NOT STARTED; this roadmap note does not lock a code architecture or authorize implementation. See the [canonical Investor finance decision](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions) and [role decision](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions).
+
+## Phase 5 Interim-as-Paid reconciliation decision — 2026-11-04
+
+Confirmed Monthly Interim payments are included as Paid against Investor Profit at reconciliation; earned Profit remains separately displayed and is not rewritten by the advance. This resolves only the treatment/display of Interim advances. Period deal inclusion and ordinary deal-level payout interaction remain BUSINESS DECISION REQUIRED. Phase 5 remains NOT STARTED. See the [canonical Investor finance addition](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
