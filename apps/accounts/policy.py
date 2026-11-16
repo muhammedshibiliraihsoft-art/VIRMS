@@ -62,6 +62,44 @@ ACCOUNTING_COMPANY_ONLY_ACTIONS = {
     "accounting.transfer.create",
 }
 ACCOUNTING_ACTIONS = ACCOUNTING_READ_ACTIONS | ACCOUNTING_WRITE_ACTIONS
+BUSINESS_READ_ACTIONS = {
+    "investment.profile.read",
+    "investment.interim.read",
+    "investment.fund.read",
+    "vehicle.read",
+}
+BUSINESS_WRITE_ACTIONS = {
+    "investment.profile.manage",
+    "investment.interim.manage",
+    "investment.fund.credit",
+    "investment.fund.credit.correct",
+    "investment.fund.return",
+    "investment.fund.use",
+    "vehicle.create",
+    "vehicle.edit",
+    "vehicle.branch.move",
+    "vehicle.purchase.create",
+    "vehicle.purchase.pay",
+    "vehicle.expense.create",
+    "vehicle.expense.pay",
+    "vehicle.expense.refund",
+    "vehicle.expense.fund",
+    "vehicle.purchase.refund",
+    "vehicle.purchase.correct",
+    "vehicle.expense.correct",
+    "vehicle.sale.create",
+    "vehicle.sale.receipt",
+    "vehicle.sale.refund",
+    "vehicle.sale.correct",
+}
+BUSINESS_COMPANY_ONLY_ACTIONS = {
+    "investment.interim.manage",
+    "investment.fund.use",
+    "vehicle.branch.move",
+    "vehicle.expense.fund",
+    "vehicle.purchase.correct",
+}
+BUSINESS_ACTIONS = BUSINESS_READ_ACTIONS | BUSINESS_WRITE_ACTIONS
 
 
 def require_action(
@@ -134,6 +172,14 @@ def require_action(
             action=action,
             branch=branch,
             resource=resource,
+        )
+    if action in BUSINESS_ACTIONS:
+        return _require_business_action(
+            current,
+            membership=membership,
+            company=company,
+            action=action,
+            branch=branch,
         )
     if action in PLATFORM_ACTIONS:
         if not platform:
@@ -240,4 +286,55 @@ def _require_accounting_action(
             branch_id=branch_id,
         ).filter(current_interval(at)).exists():
             raise Http404("Branch not found")
+    return current
+
+
+def _require_business_action(current, *, membership, company, action, branch):
+    """Apply explicit read/write rules for the Phase 5 domain APIs."""
+    from apps.tenants.models import BranchAssignment
+
+    if current.account_kind != User.AccountKind.COMPANY:
+        raise PermissionDenied("Company business access required.")
+    at = timezone.now()
+    grants = CompanyRoleGrant.objects.filter(
+        membership=membership,
+        role__in=(CompanyRoleGrant.Role.OWNER, CompanyRoleGrant.Role.ACCOUNTANT),
+    ).filter(current_interval(at))
+    company_accountant = grants.filter(
+        role=CompanyRoleGrant.Role.ACCOUNTANT, branch__isnull=True
+    ).exists()
+    allowed_roles = (
+        (CompanyRoleGrant.Role.OWNER, CompanyRoleGrant.Role.ACCOUNTANT)
+        if action in BUSINESS_READ_ACTIONS
+        else (CompanyRoleGrant.Role.ACCOUNTANT,)
+    )
+    if action in BUSINESS_COMPANY_ONLY_ACTIONS and not company_accountant:
+        raise PermissionDenied("Company-level Accountant access required.")
+
+    if branch is None:
+        if grants.filter(role__in=allowed_roles, branch__isnull=True).exists():
+            return current
+        branch_grants = grants.filter(
+            role__in=allowed_roles, branch__tenant=company, branch__isnull=False
+        )
+        assigned = BranchAssignment.objects.filter(
+            membership=membership,
+            branch_id__in=branch_grants.values("branch_id"),
+        ).filter(current_interval(at))
+        if branch_grants.exists() and assigned.exists():
+            return current
+        raise PermissionDenied("Company business access required.")
+
+    if branch.tenant_id != company.pk:
+        raise PermissionDenied("Branch not found.")
+    if grants.filter(
+        role__in=allowed_roles, branch__isnull=True
+    ).exists():
+        return current
+    if not grants.filter(role__in=allowed_roles, branch=branch).exists() or not (
+        BranchAssignment.objects.filter(membership=membership, branch=branch)
+        .filter(current_interval(at))
+        .exists()
+    ):
+        raise PermissionDenied("Branch access required.")
     return current

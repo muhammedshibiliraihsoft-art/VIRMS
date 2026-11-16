@@ -42,3 +42,33 @@ Run these upgrade procedures only against an explicitly isolated local database 
 Local file storage is confined to `.local-media/`. Non-local environments require private S3-compatible object storage configuration for the approved Cloudflare R2 boundary. No Vehicle image workflow is implemented yet.
 
 The Dockerfile is optional packaging. It starts Gunicorn without applying migrations. Render staging configuration and production hosting resources are not created here.
+
+## Current local Phase checkpoint — 2026-11-07
+
+Phase 4 Company Accounting Foundation is now recorded in local commit 50fb67c1c2256f6a164344344c8c2a12e04407f8 on the isolated Phase 5 base line. Phase 4 verification is documented in docs/phase4-execution-progress.md. This current checkpoint supersedes only the earlier statement above that the Phase 4 implementation remains dirty/uncommitted on this local line. No remote push, staging/production deployment, or hosted database verification is asserted.
+
+Phase 5 is being prepared in a separate worktree. Its code-level design is currently PHASE_5_CODE_ARCHITECTURE_BLOCKED by the unresolved seller-payment timing decision Q39; no Phase 5 application code or database migration has been applied in this worktree at this checkpoint.
+
+## Phase 5 implementation checkpoint — 2026-11-07
+
+This later local checkpoint supersedes only the preceding Phase 5 statement that no Phase 5 code or migration had been applied. On isolated branch `codex/phase5-investment-foundation` at base commit `50fb67c1c2256f6a164344344c8c2a12e04407f8`, the unlocked backend slices now include Company-scoped Investor/interim records, Branch-attributed Fund credits and principal returns, Company-wide Vehicle identity and Branch movement, and typed Accounting links for actual capital Cash/Bank movements. The current work is local and uncommitted.
+
+**Historical implementation snapshot as of 2026-11-07:** Phase 5 was partial and blocked by Q39; deactivation depended on authoritative Garage/Sales/financial lifecycle sources; React Vehicle/Investor/Fund screens still used mock state. The latest architecture/decision checkpoint below supersedes the Q39 blocker statement. No React UI, route, or visual layout had been changed at that earlier snapshot. Investor Profit, Loss offsets, Exit settlement, automatic mock import, and staging/production integration were not implemented or verified at that time. See [Phase 5 execution evidence](docs/phase5-execution-progress.md) and the [Phase 5 code architecture](architecture/phase-05-investment-vehicle-running-capital/PHASE-05-INVESTMENT-VEHICLE-RUNNING-CAPITAL-ARCHITECTURE.md). The disposable PostgreSQL test instance used no persistent mount; `virms-local-8002-pgdata` was not accessed.
+
+## Phase 5 decision and architecture checkpoint — 2026-11-11
+
+Q124–Q132 are now recorded in the canonical V2 rules and Phase 5 architecture. The code-level target contract is `READY_FOR_IMPLEMENTATION`; the application remains **PARTIAL** until the approved Purchase, Vehicle Expense, Sale/Receipt, and React API slices are implemented and verified. This supersedes the prior Q39-only blocker statement above. Vehicle deactivation remains deferred until the Garage/financial dependency records exist. Automatic mock-data import, offline financial writes, and additional automation/approval workflows are outside the current core slice. Q130/Q132 routes excess Vehicle Expense refunds to Company Income only when the Accountant explicitly classifies it: a separate Income event and the same actual Receipt are linked; no second Cash/Bank movement or edit of a prior Income event is allowed.
+
+## Phase 5 local implementation and verification checkpoint — 2026-11-15
+
+The approved Phase 5 core scope is implemented and locally verified in `D:/VIRMS/tmp/phase5-investment-foundation-20261107` on `codex/phase5-investment-foundation`, based on Phase 4 checkpoint `50fb67c1c2256f6a164344344c8c2a12e04407f8`. This checkpoint supersedes the earlier partial/not-started status statements above; those dated sections remain historical. Phase 5 code and documentation remain uncommitted and unpushed.
+
+Verification on disposable PostgreSQL only: full Django `apps` suite 330/330 passed, followed by 2 targeted Vehicle Purchase concurrency/module-OFF race tests; fresh schema migration apply, `manage.py check`, `makemigrations --check --dry-run`, `migrate --check`, and reverse/reapply of `investment.0007_fund_credit_attribution_correction` passed. React suite passed 132/132 across 22 files; configured lint and production build passed. Vite reports a 614.10 kB main-chunk advisory. A local browser workflow created Investors and a Fund Credit, corrected its Investor attribution, then reloaded and confirmed the corrected owner and append-only correction history persisted.
+
+Phase 5 includes Investor/Fund, Vehicle identity/movement, Purchase and seller payable/installments/refunds/corrections, direct Stock Vehicle expenses and settlements/refunds/corrections, Sale and Buyer receipts/refunds/corrections, typed Accounting links, Company Running Capital allocations, and incremental React API integration. Q133–Q134 preserve prior use/return rows and actual cash movements; when those linked rows exist, the UI flags manual review and does not automatically recalculate historical Profit/settlement.
+
+Vehicle deactivation/registration reuse remains deliberately deferred until authoritative Garage Job and Investor settlement providers exist. Investor Profit/Exit settlement, offline financial writes/sync, additional automation, staging/production database/runtime, and deployment remain outside or unverified. `virms-local-8002-pgdata` was not accessed.
+
+## Phase 5 audit-candidate checkpoint — 2026-11-16
+
+This checkpoint supersedes the earlier uncommitted Phase 5 status above. The approved Phase 5 core scope and the four audit fixes are verified locally. The full backend suite passed 343/343; focused Purchase/Expense/Sale tests passed 24/24; React passed 137/137; migration/system checks, configured lint, and build passed. The Phase 5 candidate is locally committed on `codex/phase5-investment-foundation` for audit-branch review. No remote push, merge, or deployment occurred. Review the [Phase 5 execution record](docs/phase5-execution-progress.md), [implementation audit](output/PHASE-05-IMPLEMENTATION-AUDIT-2026-11-16.md), and [code architecture](architecture/phase-05-investment-vehicle-running-capital/PHASE-05-INVESTMENT-VEHICLE-RUNNING-CAPITAL-ARCHITECTURE.md).

@@ -45,3 +45,96 @@ Use familiar compact forms, fields, tables, search, filters, transaction pages, 
 ## Security boundary
 
 Never fetch another Company's private data into a UI merely to hide it. Investor views contain only that Investor's authorized private data; Media/public views receive no internal finance. Company/Branch/module/backend authorization remains authoritative even when a UI control is absent.
+
+## Approved Business Decision Additions — post-Exit repayment editing
+
+- Provide an edit action for a saved post-Exit repayment entry using the existing UI patterns. The normal entry/list view shows the latest value and need not show earlier values.
+- Keep the original and correction history in the backend audit trail; a correction note may be entered. Editing the entry must not change the actual Cash/Bank Receipt or movement.
+- Enforce Q76's existing Company/Branch authorization. This is a presentation and correction-flow rule, not a new permission.
+
+### ADDITION — excess post-Exit repayment choices
+
+- In the saved repayment edit flow, let the authorized Accountant choose whether an excess above the open amount stays open as due back to the Investor or is returned through a separately recorded actual refund.
+- Keep the displayed Cash/Bank Receipt at the full amount actually received. Show the selected excess disposition and current balance; normal views may show the latest value only while preserving prior corrections in backend audit history.
+- Never mark a refund paid before its actual Cash/Bank outflow. Do not show the excess as Company Income/Profit.
+
+### ADDITION — partial excess refunds
+
+- If an excess amount remains due back to the Investor, let the authorized Accountant enter partial refunds more than once.
+- Show each actual refund separately and the remaining amount due back. Update the balance only after the corresponding Cash/Bank outflow succeeds.
+
+### ADDITION — Purchase/Sale installment balance and warning
+
+- Show the full Purchase cost or agreed Sale price separately from paid/received-to-date and the current remaining payable, receivable or refund amount.
+- Accept a valid installment below the current balance and show a small inline warning/status with the amount still outstanding; do not treat a valid partial payment as an error.
+- Block an amount above the current outstanding balance with a clear inline validation message. Apply the same pattern to partial refunds and show their remaining refundable amount; update only after the actual cash movement succeeds.
+- Reuse this UI pattern in another module only when its full source amount, typed obligation, and permissions are defined.
+
+### ADDITION — shared account prefill for Phase 5 installment forms
+
+**Status:** APPROVED BUSINESS DECISION
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- Prefill both Seller installment and direct Vehicle Expense installment forms with the current Accountant's last successfully saved Cash/Bank account in this Company.
+- Keep the account selector editable for each payment. Do not update the remembered selection when a form is abandoned or its save fails.
+
+**Scope**
+- Existing Phase 5 installment forms only; no route or form redesign.
+
+**Preserve unchanged**
+- Display a permitted named account and revalidate it server-side. The preference does not grant access or alter the account stored on prior payments.
+
+**Supersedes**
+- None; this applies the existing Seller-payment preference to the Vehicle Expense installment form.
+
+**Implementation impact**
+- Use the shared preference as a convenience default and preserve the existing selector/error/loading behavior.
+
+### ADDITION — required external reference on Vehicle Expense payment
+
+**Status:** APPROVED BUSINESS DECISION
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- The direct Vehicle Expense installment form requires a bank transaction ID or Cash voucher reference for every actual payment.
+
+**Scope**
+- Existing Phase 5 Vehicle Expense installment form.
+
+**Preserve unchanged**
+- Keep the existing form composition and compact responsive layout. Cash/Bank account remains prefilled from the shared per-Accountant preference and editable. Do not treat the external reference as the payment's identity.
+
+**Supersedes**
+- SUPERSEDES EARLIER UNRESOLVED STATEMENT: whether the Vehicle Expense payment form needs an operator-entered external reference.
+
+**Implementation impact**
+- Add a compact required reference field and show validation beside it; preserve entered data on request failure.
+
+### ADDITION — show duplicate Vehicle Expense reference validation
+
+**Status:** APPROVED BUSINESS DECISION
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- If a Vehicle Expense installment reference duplicates an existing reference for the same Company and Cash/Bank account, show an inline validation error and do not submit/post the payment.
+- Treat leading/trailing spaces and letter case as equivalent.
+
+**Scope**
+- Existing direct Vehicle Expense installment form only.
+
+**Preserve unchanged**
+- Keep the required external reference field, selected Cash/Bank account, entered amount, and other form values visible after validation failure. This does not change reference validation on other forms.
+
+**Supersedes**
+- SUPERSEDES EARLIER Q107 WORDING: duplicate references were allowed/not governed for this payment form.
+
+**Implementation impact**
+- Display the server's duplicate-reference validation beside the reference field; do not show payment success.
+
+### ADDITION — Vehicle Expense refund excess destination and partial cost warnings (Q124–Q131)
+
+- In the refund form, show the full actual amount, the amount that may be applied to the selected Vehicle Expense, and the excess separately. Require the Accountant to choose an eligible destination for the excess; do not default or auto-select Company Income. If there is no eligible destination, explain that the destination record must be created before posting.
+- If the Accountant selects Company Income, require a separate Income category and note before posting, show the Company Profit effect, and link the actual Receipt to that new Income record. Never edit or silently reuse an older Income event.
+- Show a compact, non-blocking warning when a Purchase or Vehicle Expense is only partly paid; keep full cost, paid amount, and remaining payable distinct. Reject an installment above the currently displayed outstanding balance and refresh after a concurrent balance conflict.
+- Show Company-only and Investor-funded source choices only to actors authorized for the corresponding allocation. Do not expose pooled company Fund balances to a Branch Accountant who lacks that scope.

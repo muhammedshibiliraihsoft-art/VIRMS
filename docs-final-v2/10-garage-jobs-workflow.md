@@ -39,3 +39,69 @@ Under 01's automation levels, backend-calculated approved Job totals and custome
 ## Materials, media and current exclusions
 
 Initial parts/materials may be recorded as approved Vehicle or Job costs. Full stock-level Parts Inventory, barcodes, tyre-retail schemes, manufacturing and generic ERP processes are not required. The design may later integrate an approved Inventory module without changing the ownership of existing Job and financial history. Current approved Vehicle media/publication rules in 08 are not automatically expanded into a public gallery of external customer work; private customer records remain protected.
+
+## Approved Business Decision Additions
+
+### ADDITION — Company-wide approval mode governs Garage automation
+
+**Status:** APPROVED BUSINESS DECISION
+
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- The Company-wide Automation Approval setting in 01 governs consequential Garage automation. ON requires an authorized person to approve each proposed state-changing action; OFF allows only already-approved automation to run under existing Garage rules.
+- For calculation-based or materially consequential automation, show compact Details beside Approve; the responsive popup explains business inputs, calculation and result.
+
+**Scope**
+- Garage Job and cost/charge automation, without creating Accounting events by itself.
+
+**Preserve unchanged**
+- Job status, costs and charges remain distinct from actual receipts/payments. Garage automation cannot post money or cross into Investment/Accounting without the owning module's authorized operation.
+
+**Supersedes**
+- None; this applies the Company-wide mode to Garage while preserving the existing automation levels.
+
+**Implementation impact**
+- Keep the approval action within the Garage workflow, call the owning backend operation, and retain the policy revision, approver and outcome. Do not add a global approval queue or redesign Garage UI as part of this rule.
+
+### ADDITION — Pending Garage automation remains pending after mode changes
+
+**Status:** APPROVED BUSINESS DECISION
+
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- Turning Company-wide Automation Approval OFF affects future Garage automation only. Existing pending Job or cost/charge actions remain pending until separately approved or cancelled in the Garage workflow.
+
+**Scope**
+- Pending Garage automation actions.
+
+**Preserve unchanged**
+- Garage actions do not post actual Accounting receipts/payments or cross module ownership boundaries.
+
+**Supersedes**
+- None; this applies the global pending-action rule to Garage.
+
+**Implementation impact**
+- Do not batch-execute or erase pending Garage actions when the Company mode changes.
+
+### ADDITION — Garage automation OFF remains within module ownership
+
+**Status:** APPROVED BUSINESS DECISION
+
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- Company-wide Automation Approval OFF can skip per-action confirmation only for a Garage action explicitly approved for automatic execution. It does not allow Garage to post an Accounting receipt/payment or cross module ownership.
+
+**Scope**
+- Consequential automated Garage Job, cost, or charge actions.
+
+**Preserve unchanged**
+- Actual Company receipts/payments remain Accounting events with real source evidence and their own authorized operation.
+
+**Supersedes**
+- SUPERSEDES EARLIER UNRESOLVED/STALE STATEMENT: Level 4 confirmation for every automated Garage action, only to the extent the action is explicitly approved for automation with the Company mode OFF; Accounting cash events retain Accounting ownership and authorization.
+
+**Implementation impact**
+- Keep Garage automation policy separate from Accounting posting permission; do not invent an automatic receipt or payment.

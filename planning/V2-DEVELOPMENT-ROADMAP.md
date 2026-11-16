@@ -74,7 +74,7 @@ The approved Phase 3 slice establishes versioned Company module state, scoped Pl
 
 **Ends when:** Implemented business events can be represented and reconciled in Company accounting without duplicate economic entries.
 
-**Status:** COMPLETE — bounded Company Accounting Foundation implemented and verified in the current local `codex/audit` worktree on 2026-11-03. These Phase 4 changes are uncommitted and are not present in the current HEAD/origin baseline `73797b16aa35db776b5601fe1483c2be8de6c100`. Staging/production deployment and database-role permissions remain UNVERIFIED.
+**Status:** COMPLETE — bounded Company Accounting Foundation locally implemented and verified. The 2026-11-03 statement below is historical; the work was committed as `50fb67c1` on 2026-11-07 and is the Phase 5 worktree base. Remote publication, staging/production deployment, and deployed database-role permissions remain UNVERIFIED.
 
 **Decision boundary:** The remaining Company Share/Garage Revenue/common Expense recognition, distributable-Profit basis, and period close/carryforward decisions do not block this bounded Accounting Foundation. They continue to block only the dependent source integrations or final Profit/close behavior; Investor Profit remains Investment-owned.
 
@@ -88,9 +88,9 @@ The approved Phase 3 slice establishes versioned Company module state, scoped Pl
 
 **Ends when:** Authorized funding and Vehicle positions can be recorded and connected to the correct Company, Branch, Investor, and accounting sources.
 
-**Status:** NOT STARTED
+**Status:** COMPLETE — locally implemented and verified 2026-11-15; the four follow-up audit findings were fixed and locally reverified 2026-11-16. Current verification: backend 343 tests, React 137 tests, migration/system checks, lint and build passed on disposable/local tooling. Staging/production and deployment remain UNVERIFIED.
 
-**Decision boundary:** `BLOCKED BY BUSINESS DECISION` — Monthly Interim eligible-principal basis and withdrawal limits.
+**Decision boundary:** No unresolved business decision blocks the approved Phase 5 core scope. Vehicle deactivation/registration reuse is deliberately deferred until Garage and Investor settlement state can be checked authoritatively. Investor Profit/Exit settlement remains Phase 8 scope.
 
 ### Phase 6 — Garage, Jobs, and Labour Scope
 
@@ -223,3 +223,19 @@ The Monthly Interim amount is now approved as a fixed, individually configured a
 ## Phase 5 Interim-as-Paid reconciliation decision — 2026-11-04
 
 Confirmed Monthly Interim payments are included as Paid against Investor Profit at reconciliation; earned Profit remains separately displayed and is not rewritten by the advance. This resolves only the treatment/display of Interim advances. Period deal inclusion and ordinary deal-level payout interaction remain BUSINESS DECISION REQUIRED. Phase 5 remains NOT STARTED. See the [canonical Investor finance addition](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+
+## Phase 5 implementation checkpoint — 2026-11-07
+
+This later local implementation checkpoint supersedes only the earlier roadmap notes above that Phase 5 remains `NOT STARTED`. Status is **IMPLEMENTATION PARTIAL / BLOCKED** on local branch `codex/phase5-investment-foundation`, based on Phase 4 checkpoint `50fb67c1c2256f6a164344344c8c2a12e04407f8`; the work is uncommitted and has not been pushed. Investor/interim persistence, Fund credit and principal-return API, Vehicle identity and Branch-movement API, and typed Accounting capital links are implemented and locally verified against disposable PostgreSQL.
+
+Vehicle purchase/funding and Running Capital allocation remain blocked by Q39; safe deactivation and React form/list integration remain blocked by missing authoritative dependencies and incompatible current fields/IDs. Investor Profit/Loss/Exit settlement and mock-data import are not implemented. Phase 5 is not complete, and Phase 6 should not be marked started from this partial checkpoint. See [Phase 5 execution evidence](../docs/phase5-execution-progress.md). No staging/production readiness is inferred.
+
+## Phase 5 local implementation and verification checkpoint — 2026-11-15
+
+This current checkpoint supersedes the 2026-11-07 partial/blocked implementation checkpoint above and the earlier NOT STARTED decision notes. The approved Phase 5 core scope is **COMPLETE on the local worktree** `D:/VIRMS/tmp/phase5-investment-foundation-20261107`, branch `codex/phase5-investment-foundation`; changes remain uncommitted and unpushed. Local evidence: Django `apps` suite 330/330 on disposable PostgreSQL plus 2 targeted Purchase concurrency/module-OFF race tests; React suite 132/132; configured lint/build pass; fresh migration apply, schema/system checks, `investment.0007` reverse/reapply pass; local browser reload preserved Fund Credit attribution correction. Details and limits are in [the Phase 5 execution report](../docs/phase5-execution-progress.md).
+
+The remaining Garage Job and Investor settlement sources block only Vehicle deactivation/registration reuse. Investor Profit/Exit settlement belongs to Phase 8. Offline financial writes, added automation, and staging/production/deployment are not included or verified. Phase 6 may proceed using Phase 5's Vehicle identity and accounting contracts; no claim is made that Phase 6 has started.
+
+## Phase 5 audit-candidate checkpoint — 2026-11-16
+
+This checkpoint supersedes the 2026-11-15 verification counts above and the earlier Phase 4 status statement. The approved Phase 5 core scope, including four audit fixes, is locally verified and committed on `codex/phase5-investment-foundation` for review. The exact commands, results, scope exclusions and external verification limits are recorded in [`docs/phase5-execution-progress.md`](../docs/phase5-execution-progress.md) and [`output/PHASE-05-IMPLEMENTATION-AUDIT-2026-11-16.md`](../output/PHASE-05-IMPLEMENTATION-AUDIT-2026-11-16.md). No remote push or deployment occurred. The Phase 4 base commit is part of this candidate's history; remote branch state must be refreshed before any push.

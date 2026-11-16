@@ -34,4 +34,8 @@ export const authApi = {
       await requestApi<unknown>(`tenants/${encodeURIComponent(companyId)}/branches/?${query.toString()}`, { signal })
     );
   },
+  async phase5Branches(companyId: string, page = 1, signal?: AbortSignal): Promise<BranchPage> {
+    const query = new URLSearchParams({ page: String(page) });
+    return parseBranchPage(await requestApi<unknown>(`tenants/${encodeURIComponent(companyId)}/investment/branches/?${query.toString()}`, { signal }));
+  },
 };

@@ -395,15 +395,19 @@ class CompanyModuleStateMigrationTests(
     def test_migration_cannot_be_reversed_after_module_history_exists(self):
         self.create_revision(company=self.company, actor=self.actor)
 
-        with self.assertRaises(IrreversibleError):
-            MigrationExecutor(connection).migrate(
-                [("tenants", "0002_platform_scope")]
-            )
+        try:
+            with self.assertRaises(IrreversibleError):
+                MigrationExecutor(connection).migrate(
+                    [("tenants", "0002_platform_scope")]
+                )
 
-        self.assertEqual(CompanyModuleState.objects.count(), 1)
-        self.assertEqual(
-            CompanyModuleState.objects.get(tenant=self.company).state, "disabled"
-        )
+            self.assertEqual(CompanyModuleState.objects.count(), 1)
+            self.assertEqual(
+                CompanyModuleState.objects.get(tenant=self.company).state, "disabled"
+            )
+        finally:
+            executor = MigrationExecutor(connection)
+            executor.migrate(executor.loader.graph.leaf_nodes())
 
 
 class CompanyModuleStateReadAPITests(CompanyModuleStateFixtureMixin, TestCase):

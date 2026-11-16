@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import APIException, NotFound, ValidationError
@@ -18,6 +18,7 @@ from apps.accounting.models import (
     AccountingCategory,
     AccountingEvent,
     AccountingIdempotencyRecord,
+    AccountingSourceLink,
     normalize_label,
 )
 from apps.tenants.models import Branch, CompanyModuleCode, CompanyModuleState, Tenant
@@ -237,6 +238,85 @@ def _event_row(
         description=description.strip(),
         source_reference=source_reference.strip(),
     )
+
+
+def record_capital_movement(
+    *,
+    tenant,
+    branch,
+    account_id,
+    amount,
+    actor,
+    accounting_revision,
+    event_type,
+    source_record,
+    description,
+    source_reference,
+    effective_at,
+):
+    """Append one real cash movement for an Investment capital source.
+
+    The caller owns the outer transaction and has already locked/rechecked the
+    Company and all required module revisions. PostgreSQL deferred triggers
+    verify that the source, event and single signed movement agree at commit.
+    """
+    from apps.investment.models import InvestorFundCredit, InvestorPrincipalReturn
+
+    if not connection.in_atomic_block:
+        raise RuntimeError("Capital movements must be part of an outer transaction.")
+    expected_source = {
+        AccountingEvent.EventType.CAPITAL_INFLOW: InvestorFundCredit,
+        AccountingEvent.EventType.CAPITAL_OUTFLOW: InvestorPrincipalReturn,
+    }.get(event_type)
+    if expected_source is None or not isinstance(source_record, expected_source):
+        raise ValidationError("Capital event type does not match its typed source record.")
+    if (
+        source_record.tenant_id != tenant.pk
+        or source_record.branch_id != getattr(branch, "pk", None)
+        or source_record.amount != Decimal(amount)
+    ):
+        raise ValidationError("Capital source scope or amount does not match.")
+    if (
+        accounting_revision is None
+        or accounting_revision.tenant_id != tenant.pk
+        or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED
+    ):
+        _raise_module_disabled()
+    if branch is None or branch.tenant_id != tenant.pk:
+        raise ValidationError({"branch_id": "A same-Company source Branch is required."})
+    account = _get_account(tenant, account_id)
+    event = _event_row(
+        tenant=tenant,
+        branch=branch,
+        event_type=event_type,
+        amount=Decimal(amount),
+        actor=actor,
+        revision=accounting_revision,
+        description=description,
+        source_reference=source_reference,
+        effective_at=effective_at,
+    )
+    delta = Decimal(amount) if event_type == AccountingEvent.EventType.CAPITAL_INFLOW else -Decimal(amount)
+    movement = AccountMovement.objects.create(
+        tenant=tenant,
+        event=event,
+        account=account,
+        delta=delta,
+    )
+    source_fields = (
+        {"investor_fund_credit": source_record}
+        if event_type == AccountingEvent.EventType.CAPITAL_INFLOW
+        else {"investor_principal_return": source_record}
+    )
+    AccountingSourceLink.objects.create(
+        tenant=tenant,
+        event=event,
+        **source_fields,
+    )
+    data = event_data(event)
+    data.update({"account_id": str(account.pk), "movement_id": str(movement.pk)})
+    return event, movement, data
 
 
 def event_data(event):

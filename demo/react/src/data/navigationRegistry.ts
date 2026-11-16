@@ -52,6 +52,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Stock / Investor',
         routeKey: 'Stock / Investor',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Stock vehicle register & purchases',
       },
       {
@@ -124,6 +125,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Investor Fund',
         routeKey: 'Investor Fund',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Investor capital positions, reserves & history',
       },
       {
@@ -131,6 +133,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Vehicle Sales',
         routeKey: 'Vehicle Sales',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Sale agreements & agreed buyer prices',
       },
       {
@@ -138,6 +141,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Collections',
         routeKey: 'Collections',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Actual buyer receipts & customer payments',
       },
       {
@@ -145,6 +149,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Sale Corrections & Refunds',
         routeKey: 'Sale Corrections & Refunds',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Linked price corrections & actual buyer refunds',
       },
       {
@@ -201,6 +206,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Running Capital',
         routeKey: 'Running Capital',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Vehicle-linked company capital contribution & recovery',
       },
       {
@@ -381,6 +387,9 @@ export function getRouteDataSourceStatus(routeKey: string): DataSourceStatus {
 
 /** Resolves a mutation form to its owning module for incremental backend integration. */
 export function getFormDataSourceStatus(formType: string): DataSourceStatus {
+  // Dashboard and the legacy SharedFormModal still use a prototype Sale action.
+  // Phase 5 Sales use typed commands in Phase5WorkspaceView instead.
+  if (formType === 'sale') return 'demo';
   const routeKey = FORM_ROUTE_KEYS[formType];
   return routeKey ? getRouteDataSourceStatus(routeKey) : 'demo';
 }

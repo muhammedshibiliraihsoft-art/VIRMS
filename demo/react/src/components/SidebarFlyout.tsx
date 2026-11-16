@@ -64,7 +64,8 @@ export const SidebarFlyout: React.FC<SidebarFlyoutProps> = ({
     <div
       role="region"
       aria-label={`${group.label} submenu`}
-      className="w-64 bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-[22px] p-3 shadow-xl shadow-black/8 z-50 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100"
+      className="w-64 bg-white dark:bg-zinc-900 border border-gray-200/90 dark:border-zinc-800 rounded-[22px] p-3 shadow-xl shadow-black/8 z-50 flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-100 hide-scrollbar"
+      style={{ maxHeight: 'max(0px, calc(100dvh - 32px))', overflowY: 'auto' }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose();
       }}

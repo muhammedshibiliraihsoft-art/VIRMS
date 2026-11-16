@@ -204,7 +204,10 @@ class ScopeHistoryUpgradeTests(TransactionTestCase):
     ]
 
     def tearDown(self):
-        MigrationExecutor(connection).migrate(self.current)
+        # Historical target is limited to Accounts/Tenants; restore every app
+        # migration so later TransactionTestCases see the current project schema.
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
     def test_upgrade_preserves_history_and_allows_future_end_now(self):

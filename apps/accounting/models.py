@@ -176,6 +176,14 @@ class AccountingEvent(TimestampedUUIDModel):
         PAYMENT = "PAYMENT", "Payment"
         OPENING_BALANCE = "OPENING_BALANCE", "Opening Balance"
         TRANSFER = "TRANSFER", "Transfer"
+        CAPITAL_INFLOW = "CAPITAL_INFLOW", "Capital Inflow"
+        CAPITAL_OUTFLOW = "CAPITAL_OUTFLOW", "Capital Outflow"
+        VEHICLE_PAYMENT = "VEHICLE_PAYMENT", "Vehicle Payment"
+        VEHICLE_RECEIPT = "VEHICLE_RECEIPT", "Vehicle Receipt"
+        VEHICLE_REFUND_IN = "VEHICLE_REFUND_IN", "Vehicle Refund Received"
+        PURCHASE_REFUND_IN = "PURCHASE_REFUND_IN", "Vehicle Purchase Refund Received"
+        VEHICLE_SALE_RECEIPT = "VEHICLE_SALE_RECEIPT", "Vehicle Sale Receipt"
+        VEHICLE_SALE_REFUND = "VEHICLE_SALE_REFUND", "Vehicle Sale Refund"
 
     tenant = models.ForeignKey(
         "tenants.Tenant", on_delete=models.PROTECT, related_name="accounting_events"
@@ -187,7 +195,7 @@ class AccountingEvent(TimestampedUUIDModel):
         on_delete=models.PROTECT,
         related_name="accounting_events",
     )
-    event_type = models.CharField(max_length=16, choices=EventType.choices)
+    event_type = models.CharField(max_length=24, choices=EventType.choices)
     amount = models.DecimalField(max_digits=38, decimal_places=2)
     currency = models.CharField(max_length=3, default="INR")
     effect_sign = models.SmallIntegerField(default=1)
@@ -239,6 +247,14 @@ class AccountingEvent(TimestampedUUIDModel):
                         "PAYMENT",
                         "OPENING_BALANCE",
                         "TRANSFER",
+                        "CAPITAL_INFLOW",
+                        "CAPITAL_OUTFLOW",
+                        "VEHICLE_PAYMENT",
+                        "VEHICLE_RECEIPT",
+                        "VEHICLE_REFUND_IN",
+                        "PURCHASE_REFUND_IN",
+                        "VEHICLE_SALE_RECEIPT",
+                        "VEHICLE_SALE_REFUND",
                     )
                 ),
                 name="acct_event_type_ck",
@@ -263,7 +279,20 @@ class AccountingEvent(TimestampedUUIDModel):
                 condition=(
                     Q(event_type__in=("INCOME", "EXPENSE"), category__isnull=False)
                     | Q(
-                        event_type__in=("RECEIPT", "PAYMENT", "OPENING_BALANCE", "TRANSFER"),
+                        event_type__in=(
+                            "RECEIPT",
+                            "PAYMENT",
+                            "OPENING_BALANCE",
+                            "TRANSFER",
+                            "CAPITAL_INFLOW",
+                            "CAPITAL_OUTFLOW",
+                            "VEHICLE_PAYMENT",
+                            "VEHICLE_RECEIPT",
+                            "VEHICLE_REFUND_IN",
+                            "PURCHASE_REFUND_IN",
+                            "VEHICLE_SALE_RECEIPT",
+                            "VEHICLE_SALE_REFUND",
+                        ),
                         category__isnull=True,
                     )
                 ),
@@ -317,6 +346,182 @@ class AccountingEvent(TimestampedUUIDModel):
 
     def delete(self, *args, **kwargs):
         raise ValueError("Accounting events are append-only.")
+
+
+class FundCreditReferenceKey(models.Model):
+    credit = models.OneToOneField("investment.InvestorFundCredit", primary_key=True, on_delete=models.PROTECT, related_name="reference_key")
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.PROTECT)
+    account = models.ForeignKey("accounting.AccountingAccount", on_delete=models.PROTECT)
+    normalized_reference = models.TextField()
+
+    class Meta:
+        db_table = "accounting_fund_credit_reference_key"
+        constraints = [models.UniqueConstraint(fields=("tenant", "account", "normalized_reference"), name="fund_credit_reference_uq")]
+
+
+class AccountingSourceLink(TimestampedUUIDModel):
+    """Typed same-Company relationship from a capital event to its source fact."""
+
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.PROTECT, related_name="accounting_source_links"
+    )
+    event = models.OneToOneField(
+        AccountingEvent, on_delete=models.PROTECT, related_name="source_link"
+    )
+    investor_fund_credit = models.OneToOneField(
+        "investment.InvestorFundCredit",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    investor_principal_return = models.OneToOneField(
+        "investment.InvestorPrincipalReturn",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    vehicle_purchase_payment = models.OneToOneField(
+        "vehicles.VehiclePurchasePayment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    vehicle_expense_payment = models.OneToOneField(
+        "vehicles.VehicleExpensePayment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    vehicle_expense_refund = models.OneToOneField(
+        "vehicles.VehicleExpenseRefund",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    vehicle_purchase_refund = models.OneToOneField(
+        "vehicles.VehiclePurchaseRefund",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    vehicle_sale_receipt = models.OneToOneField(
+        "vehicles.VehicleSaleReceipt",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    vehicle_sale_refund = models.OneToOneField(
+        "vehicles.VehicleSaleRefund",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        investor_fund_credit__isnull=False,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=False,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=False,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=False,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=False,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=False,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=False,
+                        vehicle_sale_refund__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=False,
+                    )
+                ),
+                name="acct_source_exactly_one_ck",
+            )
+        ]
+        indexes = [models.Index(fields=("tenant", "id"), name="acct_source_scope_idx")]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValueError("Accounting source links are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Accounting source links are retained.")
 
 
 class AccountMovement(TimestampedUUIDModel):

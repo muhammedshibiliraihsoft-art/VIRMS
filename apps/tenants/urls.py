@@ -1,6 +1,8 @@
 from django.urls import include, path
 
 from apps.accounting.urls import urlpatterns as accounting_urlpatterns
+from apps.investment.urls import urlpatterns as investment_urlpatterns
+from apps.vehicles.urls import urlpatterns as vehicle_management_urlpatterns
 
 from .views import CompanyBranchDetail, CompanyBranchList, TenantDetail, TenantList
 from .views.module_state import CompanyModuleStatesView
@@ -29,5 +31,13 @@ urlpatterns += [
     path(
         "<uuid:company_id>/accounting/",
         include((accounting_urlpatterns, "accounting")),
-    )
+    ),
+    path(
+        "<uuid:company_id>/investment/",
+        include((investment_urlpatterns, "investment")),
+    ),
+    path(
+        "<uuid:company_id>/vehicle-management/",
+        include((vehicle_management_urlpatterns, "vehicle-management")),
+    ),
 ]

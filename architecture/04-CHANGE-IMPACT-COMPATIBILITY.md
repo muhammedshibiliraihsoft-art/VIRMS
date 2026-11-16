@@ -169,3 +169,203 @@ Accounting migrations `0001`–`0003` now guard reverse operations when Accounti
 
 - Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
 - Compatibility impact: a future Investor Profit view shows earned Profit and confirmed Interim payments separately and derives the remaining position without duplicating payment history. No existing Phase 1–4 flow changes; Phase 5 remains NOT STARTED. Period deal inclusion and ordinary payout interaction remain open.
+
+## Current V2 Business Decision Additions Referenced — Phase 5 compatibility
+
+- Canonical Phase 5 additions: [01 Business Rules](../docs-final-v2/01-business-rules.md#phase-5-approved-business-decision-additions--investor-fund-vehicle-periods-and-loss), [02 Permissions](../docs-final-v2/02-user-roles-permissions.md#phase-5-approved-business-decision-additions--investor-and-vehicle-permissions), [04 Relationships](../docs-final-v2/04-data-model-relationships.md#phase-5-approved-business-decision-additions--investment-and-vehicle-relationships), [05 Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#phase-5-approved-business-decision-additions--fund-vehicle-investor-periods-and-exit), and [09 Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#phase-5-approved-business-decision-additions--investment-source-linkage).
+- Compatibility impact: future Phase 5 adds isolated Investment/Vehicle APIs and typed capital-event source links while retaining existing Phase 4 event/movement semantics, Company/Branch boundaries, module-state lock ordering, routes and UI compositions. Existing mock UUID-like labels must not be treated as database IDs.
+
+## Phase 5 local compatibility checkpoint — 2026-11-07
+
+This checkpoint supersedes only the future-tense claim above that Phase 5 APIs/source links are not yet implemented. The local branch adds Investment and Vehicle APIs/models and typed Accounting capital links without editing React pages, routes, navigation identities or visual composition. The `apps` Django suite has been rerun on disposable PostgreSQL after the Phase 5 backend changes; focused concurrency tests prove a pooled source-credit return cannot overdraw its Branch-attributed credit and produces one return/cash effect. Fresh migrations and empty-schema reverse/reapply passed. Exact test results and the outstanding React test failure are in [Phase 5 execution evidence](../docs/phase5-execution-progress.md).
+
+Compatibility is incomplete: React still uses mutable mock state for these modules, Vehicle purchase is Q39-blocked, and deactivation is dependency-blocked. No persistent 8002, staging or production database was used or migrated; no commit, push or deployment occurred.
+- Q39 gates purchase posting; deactivation waits for authoritative Garage/Sales/financial state. No Phase 1–4 compatibility contract is superseded.
+
+## Current V2 Business Decision Additions Referenced — seller payable scope
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: the earlier Q39 business gate above is superseded, but purchase API/UI integration remains blocked by technical source-link, correction, concurrency, migration and form-contract work. Seller payable is in scope; lender finance and EMI are not. Existing React UI/routes remain protected.
+
+## Current V2 Business Decision Additions Referenced — purchase funding allocation timing
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: Fund/Running Capital allocations are recorded at purchase creation, even before seller payment. Existing UI still needs a safe mapping to the purchase allocation and seller-payment sequence; no routes or layouts are changed by this reference.
+
+## Current V2 Business Decision Additions Referenced — purchase correction after seller payment
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: preserve original seller payments and cash movements; a reduced cost needs a real, recorded refund. Existing UI/routes remain unchanged; purchase correction API and form contract remain unimplemented.
+
+## Current V2 Business Decision Additions Referenced — purchase correction source allocation
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: source allocations remain history-backed and proportional; no existing route or UI changes. Specify paise rounding before exposing correction.
+
+## Current V2 Business Decision Additions Referenced — purchase-source paise rounding
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: use the exact balanced-paise rule and stable source order; existing routes and UI remain unchanged.
+
+## Current V2 Business Decision Additions Referenced — Company-wide automation approval
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions).
+- Compatibility impact: add a compact in-context Approve/Details interaction and responsive popup without changing route identity or page composition. The current Settings action is prototype/local-only, so backend persistence is required.
+
+## Current V2 Business Decision Additions Referenced — pending actions across automation mode changes
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions).
+- Compatibility impact: preserve existing pending cards/actions after OFF; only newly generated actions switch to auto-run. Existing UI routes remain unchanged.
+
+## Current V2 Business Decision Additions Referenced — auto-posting in approval OFF mode
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions).
+- Compatibility impact: only explicitly configured workflows can skip per-action confirmation while OFF; route, UI, and actual-event ownership boundaries remain.
+
+## Current V2 Business Decision Additions Referenced — manual Purchase refund and correction
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: preserve prior installments, Cash/Bank history, and source-allocation history; corrections add linked audit records without changing existing route identity or initiating a refund automatically.
+
+## Current V2 Business Decision Additions Referenced — Sale form Save confirms Sold
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: keep the existing Sale form and route; successful save confirms the recorded Sale without adding a separate Confirm control. Buyer collection remains separate.
+
+## Current V2 Business Decision Additions Referenced — Buyer refund Branch scope
+
+- Canonical decision: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: preserve the existing form/route; any refund action uses the linked Sale's Branch for authorization and adds no generic cross-Branch control.
+
+## Current V2 Business Decision Additions Referenced — Sale and Buyer Receipt Branch scope
+
+- Canonical decision: [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: keep the existing Sale and Collection routes; enforce the same Sale-Branch boundary in their backend commands without adding generic cross-Branch controls.
+
+## Current V2 Business Decision Additions Referenced — Buyer Receipt while Vehicle Management is OFF
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: retain the existing Collection UI but reject its submit when Vehicle Management is OFF; do not show false success or alter the outstanding Sale balance.
+
+## Current V2 Business Decision Additions Referenced — Seller refund while Vehicle Management is OFF
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: preserve existing Purchase/payment forms; block refund submission while Vehicle Management is OFF and leave all displayed balances unchanged.
+
+## Current V2 Business Decision Additions Referenced — Buyer refund while Vehicle Management is OFF
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: reject Buyer refund submission while Vehicle Management is OFF, preserve the displayed Sale/refund balance, and show no success state or movement.
+
+## Current V2 Business Decision Additions Referenced — Purchase cost correction while Vehicle Management is OFF
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: keep the Purchase record read-only while Vehicle Management is OFF; do not present a successful correction or change its funding allocation display.
+
+## Current V2 Business Decision Additions Referenced — Fund Credit correction while Investment is OFF
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: disable the correction action while Investment is OFF and keep the existing Fund attribution visible without a false success state.
+
+## Current V2 Business Decision Additions Referenced — standalone unused-principal return while Investment is OFF
+
+- Canonical decision: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: disable standalone principal-return submission while Investment is OFF, but preserve visibility of existing Fund balances and eligible pre-OFF Exit workflow.
+
+## Current V2 Business Decision Additions Referenced — Seller refund cap
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions).
+- Compatibility impact: reject an over-cap refund without changing the Purchase, installments, or Accounting movement history.
+
+## Current V2 Business Decision Additions Referenced — Purchase correction while Investment is OFF
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions).
+- Compatibility impact: preserve the current Purchase and Fund values while blocked; do not show a success state until Investment is ON and the correction commits.
+
+## Current V2 Business Decision Additions Referenced — upward Purchase correction source split
+
+- Canonical decision: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions).
+- Compatibility impact: retain each Purchase's original source split; do not substitute fixed 70:30 values or the Investor Profit-share percentage.
+
+## Current V2 Business Decision Additions Referenced — Phase 5 Q95–Q100
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [02 — User Roles and Permissions](../docs-final-v2/02-user-roles-permissions.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: preserve prior Sale and cash-event history while applying price corrections; enforce the approved role/module gates, refresh derived Investor calculations from sources, and never show a Fund/Profit payment without its own authorized posting.
+
+## Current Phase 5 Technical Contract Referenced — Q101 Purchase installments
+
+- Architecture decision: [Phase 5 Architecture](phase-05-investment-vehicle-running-capital/PHASE-05-INVESTMENT-VEHICLE-RUNNING-CAPITAL-ARCHITECTURE.md#approved-technical-contract-q101--purchase-installments-are-separate-linked-records).
+- Compatibility impact: existing Purchase total remains distinct from each actual payment; valid partial payments remain visible as an outstanding payable, without rewriting prior payments.
+
+## Current V2 Business Decision Addition Referenced — Q102 direct Vehicle expenses
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), and [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions).
+- Compatibility impact: preserve Sale/Purchase/Vehicle Expense source identity and Accounting movement ownership; no duplicate cash posting, and no Garage Job cost flow is introduced in Phase 5.
+
+## Current V2 Business Decision Addition Referenced — Q103 Vehicle cost funding
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: keep Phase 5 Stock Vehicle costs separate from Company Accounting Expenses and Garage Job customer bills; actual cash movement remains one Accounting-owned event.
+
+## Current V2 Business Decision Addition Referenced — Q104 Vehicle Expense gates
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: when Accounting is OFF, preserve the saved Vehicle cost and source allocation without fabricating a payment; actual payment still requires Accounting ON.
+
+## Current V2 Business Decision Addition Referenced — Q105 Vehicle Expense payable
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: partial payments preserve the full Vehicle cost and prior payment history; only the derived payable decreases, with no second cost or cash event.
+
+## Current V2 Business Decision Addition Referenced — Q106 payment account preference
+
+- Canonical decisions: [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), [07 — UI Navigation](../docs-final-v2/07-ui-navigation-structure.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: preserve per-payment account identity and history; reuse only the successful last-used selection across the two approved forms.
+
+## Current V2 Business Decision Addition Referenced — Q107 Vehicle Expense reference
+
+- Canonical decisions: [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), [07 — UI Navigation](../docs-final-v2/07-ui-navigation-structure.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: retain existing Buyer Receipt/Fund Credit reference contracts; add a required per-installment external reference only for direct Vehicle Expense payments.
+
+## Current V2 Business Decision Addition Referenced — Q108 Vehicle Expense reference uniqueness
+
+- Canonical decisions: [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), [07 — UI Navigation](../docs-final-v2/07-ui-navigation-structure.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: keep reference uniqueness specific to direct Vehicle Expense installments; do not alter other existing reference contracts.
+
+## Current V2 Business Decision Addition Referenced — Q109 Vehicle Expense correction
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: retain original expense/payment history; actual returned cash and the later cost correction are distinct records.
+
+## Current V2 Business Decision Addition Referenced — Q110 Vehicle Expense correction allocation
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: keep Q94 Purchase proportions intact; only corrected Vehicle Expenses use Q110's fresh available-Fund-first allocation.
+
+## Current V2 Business Decision Addition Referenced — Q111 Vehicle Expense correction gate
+
+- Canonical decisions: [01 — Business Rules](../docs-final-v2/01-business-rules.md#approved-business-decision-additions), [04 — Data Model Relationships](../docs-final-v2/04-data-model-relationships.md#approved-business-decision-additions), [05 — Vehicle/Investor Finance Workflow](../docs-final-v2/05-vehicle-investor-finance-workflow.md#approved-business-decision-additions), and [09 — Company Accounting](../docs-final-v2/09-company-accounting-owner-distribution.md#approved-business-decision-additions).
+- Compatibility impact: keep Q104 expense creation/payment gates distinct; require all three modules only for the approved correction/reallocation.
+
+### Current V2 Business Decision Addition Referenced — Q103 no-Investor Vehicle cost
+- Canonical rules: `docs-final-v2/01-business-rules.md`, `04-data-model-relationships.md`, `05-vehicle-investor-finance-workflow.md`, and `09-company-accounting-owner-distribution.md`.
+- Compatibility impact: source allocation may be entirely Company Running Capital without a Fund-use record; no change to actual Accounting cash-movement ownership.
+
+### Current V2 Business Decision Additions Referenced — Q112–Q122 Vehicle Expense
+- Canonical decisions: `docs-final-v2/01-business-rules.md`, `02-user-roles-permissions.md`, `04-data-model-relationships.md`, `05-vehicle-investor-finance-workflow.md`, and `09-company-accounting-owner-distribution.md`.
+- Compatibility impact: keep source, payment, refund, and correction records distinct; retain correction audit history and original effective-period reporting. Refund reference/duplicate behavior and excess-refund classification remain unresolved.
+
+### Current V2 Business Decision Additions Referenced — Q118/Q123 Vehicle Expense refund
+- Canonical rules: `docs-final-v2/01-business-rules.md`, `04-data-model-relationships.md`, `05-vehicle-investor-finance-workflow.md`, and `09-company-accounting-owner-distribution.md`.
+- Compatibility impact: retain existing Expense installment reference rules; record each refund movement once and support user-selected excess allocation without automatic Income.
+
+### Approved Q124–Q132 compatibility contract — 2026-11-11
+- Preserve Accounting's append-only Income/Receipt distinction. Explicit Company Income classification uses a separate new Income event and an application of the refund's same actual Receipt; existing Income history stays unchanged.
+- Extend typed source links and constraints without weakening the existing Fund Credit/Principal Return exact-one-link, one-event, one-movement guarantees.
+- Purchase/Expense source funding, actual settlement, Sale/Buyer receipts, and refunds remain distinct records. New writes must commit allocations, Accounting event, one movement, and idempotency response atomically.
+- Preserve routes and UI composition; do not import demo data. Add only approved fields needed for real source identity and settlement.
+- Defer added automation/approval/posting workflows until core workflows are stable. Keep Vehicle deactivation unavailable until Garage and open-finance/settlement records are authoritative.
+
+## Phase 5 current compatibility checkpoint — 2026-11-15
+
+Earlier Phase 1–3 descriptions of Investor/Vehicle business records as mock-only are historical snapshots; approved Phase 5 routes now use backend records while preserving route identities and workspace composition. No automatic mock import was added. Fresh/replay PostgreSQL migrations and local backend/frontend checks passed; the local browser reload confirmed Fund Credit attribution correction from persisted backend state. Existing Phase 1–4 flows remain covered by the 330-test Django suite and 132-test React suite. Vehicle deactivation/registration reuse remains intentionally disabled until Garage and Investor settlement sources are authoritative. No populated-history rollback, hosted database, staging, production or deployment was verified. See [`docs/phase5-execution-progress.md`](../docs/phase5-execution-progress.md).

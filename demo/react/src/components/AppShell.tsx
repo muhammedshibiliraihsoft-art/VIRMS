@@ -9,6 +9,7 @@ import { getRoleNavigation } from '../data/roleNavigation';
 import { getRouteDataSourceStatus } from '../data/navigationRegistry';
 import type { BranchSummary } from '../api/types';
 import { DemoBadge } from './shared/DemoBadge';
+import { BackendBadge } from './shared/BackendBadge';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -62,10 +63,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const branchScopedRoles = branchContexts?.flatMap((branch) => branch.roles) ?? [];
   const navigationGroups = getRoleNavigation(companyWideRoles, branchScopedRoles);
-  const showDemoPageBadge =
-    activeRoute !== 'Dashboard' &&
-    activeRoute !== 'Overview' &&
-    getRouteDataSourceStatus(activeRoute) === 'demo';
+  const showPageDataSourceBadge = activeRoute !== 'Dashboard' && activeRoute !== 'Overview';
+  const activeDataSource = getRouteDataSourceStatus(activeRoute);
 
   return (
     <div data-theme={theme} className={theme === 'dark' ? 'dark' : ''}>
@@ -131,9 +130,9 @@ export const AppShell: React.FC<AppShellProps> = ({
 
             {/* Main Content Area: flex-1 expands to fill available vertical space */}
             <main className="flex-1 min-w-0 flex flex-col gap-3.5 sm:gap-4.5 pt-3 sm:pt-3.5">
-              {showDemoPageBadge && (
+              {showPageDataSourceBadge && (
                 <div className="flex justify-end">
-                  <DemoBadge />
+                  {activeDataSource === 'backend' ? <BackendBadge /> : <DemoBadge />}
                 </div>
               )}
               {children}

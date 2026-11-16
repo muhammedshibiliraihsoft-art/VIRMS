@@ -11,6 +11,8 @@ export default defineConfig({
     'src/components/AppShell.tsx',
     'src/components/TopBar.tsx',
     'src/components/dashboard/DashboardHeader.tsx',
+    'src/components/shared/Phase5WorkspaceView.tsx',
+    'src/components/shared/__tests__/Phase5WorkspaceView.test.tsx',
   ],
   extends: [js.configs.recommended, ...tseslint.configs.recommended],
   plugins: { 'react-hooks': reactHooks },

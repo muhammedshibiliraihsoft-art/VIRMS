@@ -33,4 +33,38 @@ export const queryKeys = {
     month?: number,
     branchId?: string,
   ) => ['companies', userId, companyId, 'accounting', 'result', period, year, month ?? 'all', branchId ?? 'all'] as const,
+  phase5: {
+    vehicles: (userId: string, companyId: string, page: number, branchId?: string, search?: string) =>
+      ['companies', userId, companyId, 'phase5', 'vehicles', page, branchId ?? 'all', search ?? ''] as const,
+    vehicle: (userId: string, companyId: string, vehicleId: string) =>
+      ['companies', userId, companyId, 'phase5', 'vehicle', vehicleId] as const,
+    purchases: (userId: string, companyId: string, page: number, branchId?: string, vehicleId?: string) =>
+      ['companies', userId, companyId, 'phase5', 'purchases', page, branchId ?? 'all', vehicleId ?? 'all'] as const,
+    purchase: (userId: string, companyId: string, purchaseId: string) =>
+      ['companies', userId, companyId, 'phase5', 'purchase', purchaseId] as const,
+    expenses: (userId: string, companyId: string, vehicleId: string, page: number, branchId?: string) =>
+      ['companies', userId, companyId, 'phase5', 'expenses', vehicleId, page, branchId ?? 'all'] as const,
+    expense: (userId: string, companyId: string, expenseId: string) =>
+      ['companies', userId, companyId, 'phase5', 'expense', expenseId] as const,
+    sales: (userId: string, companyId: string, page: number, branchId?: string) =>
+      ['companies', userId, companyId, 'phase5', 'sales', page, branchId ?? 'all'] as const,
+    sale: (userId: string, companyId: string, saleId: string) =>
+      ['companies', userId, companyId, 'phase5', 'sale', saleId] as const,
+    investors: (userId: string, companyId: string, page: number) =>
+      ['companies', userId, companyId, 'phase5', 'investors', page] as const,
+    fundCredits: (userId: string, companyId: string, page: number, branchId?: string, investorId?: string) =>
+      ['companies', userId, companyId, 'phase5', 'fund-credits', page, branchId ?? 'all', investorId ?? 'all'] as const,
+    fundSummary: (userId: string, companyId: string, branchId?: string, investorId?: string) =>
+      ['companies', userId, companyId, 'phase5', 'fund-summary', branchId ?? 'all', investorId ?? 'all'] as const,
+    principalReturns: (userId: string, companyId: string, page: number, branchId?: string, investorId?: string) =>
+      ['companies', userId, companyId, 'phase5', 'principal-returns', page, branchId ?? 'all', investorId ?? 'all'] as const,
+    branches: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'phase5', 'branches'] as const,
+    accounts: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'phase5', 'accounts'] as const,
+    categories: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'phase5', 'income-categories'] as const,
+    paymentPreference: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'phase5', 'payment-account-preference'] as const,
+  },
 };

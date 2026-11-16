@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "eslint src/api src/auth src/main.tsx src/components/AppShell.tsx src/components/TopBar.tsx src/components/dashboard/DashboardHeader.tsx",
+    "lint": "eslint src/api src/auth src/main.tsx src/components/AppShell.tsx src/components/TopBar.tsx src/components/dashboard/DashboardHeader.tsx src/components/shared/Phase5WorkspaceView.tsx src/components/shared/__tests__/Phase5WorkspaceView.test.tsx",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

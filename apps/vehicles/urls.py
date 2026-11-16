@@ -1,0 +1,55 @@
+from django.urls import path
+
+from apps.vehicles.views import (
+    VehicleBranchMovementView,
+    VehicleDetailView,
+    VehicleListCreateView,
+    VehiclePurchaseDetailView,
+    VehiclePurchaseInstallmentView,
+    VehiclePurchaseListCreateView,
+    VehicleExpenseListCreateView,
+    VehicleExpenseDetailView,
+    VehicleExpenseInstallmentView,
+    VehicleExpenseRefundView,
+    VehicleExpenseCorrectionView,
+    VehiclePurchaseRefundView,
+    VehiclePurchaseCorrectionView,
+    VehicleSaleListCreateView,
+    VehicleSaleDetailView,
+    VehicleSaleReceiptView,
+    VehicleSaleRefundView,
+    VehicleSaleCorrectionView,
+    VehiclePaymentAccountPreferenceView,
+)
+
+app_name = "vehicles"
+
+urlpatterns = [
+    path("vehicles/", VehicleListCreateView.as_view(), name="vehicle-list-create"),
+    path("vehicles/<uuid:vehicle_id>/", VehicleDetailView.as_view(), name="vehicle-detail"),
+    path("purchases/", VehiclePurchaseListCreateView.as_view(), name="purchase-list-create"),
+    path("purchases/<uuid:purchase_id>/", VehiclePurchaseDetailView.as_view(), name="purchase-detail"),
+    path("purchases/<uuid:purchase_id>/refunds/", VehiclePurchaseRefundView.as_view(), name="purchase-refund"),
+    path("purchases/<uuid:purchase_id>/corrections/", VehiclePurchaseCorrectionView.as_view(), name="purchase-correction"),
+    path("vehicles/<uuid:vehicle_id>/expenses/", VehicleExpenseListCreateView.as_view(), name="vehicle-expense-list-create"),
+    path("expenses/<uuid:expense_id>/", VehicleExpenseDetailView.as_view(), name="vehicle-expense-detail"),
+    path("expenses/<uuid:expense_id>/installments/", VehicleExpenseInstallmentView.as_view(), name="vehicle-expense-installment"),
+    path("expenses/<uuid:expense_id>/refunds/", VehicleExpenseRefundView.as_view(), name="vehicle-expense-refund"),
+    path("expenses/<uuid:expense_id>/corrections/", VehicleExpenseCorrectionView.as_view(), name="vehicle-expense-correction"),
+    path("sales/", VehicleSaleListCreateView.as_view(), name="sale-list-create"),
+    path("sales/<uuid:sale_id>/", VehicleSaleDetailView.as_view(), name="sale-detail"),
+    path("sales/<uuid:sale_id>/receipts/", VehicleSaleReceiptView.as_view(), name="sale-receipt"),
+    path("sales/<uuid:sale_id>/refunds/", VehicleSaleRefundView.as_view(), name="sale-refund"),
+    path("sales/<uuid:sale_id>/corrections/", VehicleSaleCorrectionView.as_view(), name="sale-correction"),
+    path("payment-account-preference/", VehiclePaymentAccountPreferenceView.as_view(), name="payment-account-preference"),
+    path(
+        "purchases/<uuid:purchase_id>/installments/",
+        VehiclePurchaseInstallmentView.as_view(),
+        name="purchase-installment",
+    ),
+    path(
+        "vehicles/<uuid:vehicle_id>/branch-movements/",
+        VehicleBranchMovementView.as_view(),
+        name="vehicle-branch-movement",
+    ),
+]

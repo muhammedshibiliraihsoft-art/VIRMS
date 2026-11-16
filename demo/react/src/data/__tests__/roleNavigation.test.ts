@@ -17,8 +17,14 @@ const routeKeys = (roles: readonly string[] | undefined) =>
   getRoleNavigation(roles).flatMap((group) => group.children.map((child) => child.routeKey));
 
 describe('role-based navigation presentation', () => {
-  it('marks only the Accounting routes with wired Company Accounting contracts as backend', () => {
+  it('marks only wired Accounting and Phase 5 API routes as backend', () => {
     const backendRoutes = new Set([
+      'Stock / Investor',
+      'Investor Fund',
+      'Vehicle Sales',
+      'Collections',
+      'Sale Corrections & Refunds',
+      'Running Capital',
       'Company Income',
       'Company Expenses',
       'Transactions',
@@ -35,6 +41,7 @@ describe('role-based navigation presentation', () => {
     }
 
     expect(getRouteDataSourceStatus('Vehicle Detail')).toBe('demo');
+    expect(getRouteDataSourceStatus('All Vehicles')).toBe('demo');
     expect(getRouteDataSourceStatus('Garage Job Detail')).toBe('demo');
     expect(getRouteDataSourceStatus('Overview')).toBe('demo');
     expect(getRouteDataSourceStatus('Accounting')).toBe('backend');
@@ -43,7 +50,7 @@ describe('role-based navigation presentation', () => {
   it('resolves every mutation form to its owning module source status', () => {
     const formTypes = [
       'vehicle', 'job', 'jobWork', 'jobExpense', 'vehicleExpense', 'customerCharge',
-      'customerReceipt', 'purchase', 'issue', 'sale', 'collection', 'saleCorrection',
+      'customerReceipt', 'purchase', 'issue', 'collection', 'saleCorrection',
       'refund', 'fundCredit', 'investor', 'recovery',
       'capitalRecovery', 'garage', 'garageEdit',
     ];
@@ -61,6 +68,7 @@ describe('role-based navigation presentation', () => {
       for (const formType of formTypes) {
         expect(getFormDataSourceStatus(formType), formType).toBe('backend');
       }
+      expect(getFormDataSourceStatus('sale')).toBe('demo');
       expect(getFormDataSourceStatus('companyExpense')).toBe('demo');
       expect(getFormDataSourceStatus('otherIncome')).toBe('demo');
     } finally {

@@ -44,6 +44,11 @@ const CompanyAccountingView = React.lazy(() =>
     default: module.CompanyAccountingView,
   }))
 );
+const Phase5WorkspaceView = React.lazy(() =>
+  import('./components/shared/Phase5WorkspaceView').then((module) => ({
+    default: module.Phase5WorkspaceView,
+  }))
+);
 import { AllVehiclesView } from './components/AllVehiclesView';
 import { VehicleDetailView } from './components/VehicleDetailView';
 import { GarageJobsView } from './components/GarageJobsView';
@@ -667,6 +672,10 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
           }}
           onToggleStatus={handleToggleJobStatus}
         />
+      ) : activeRoute === 'Stock / Investor' && !investorOnly ? (
+        <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 p-4 text-xs text-gray-500 dark:border-zinc-800">Loading Vehicle workspace…</div>}>
+          <Phase5WorkspaceView routeKey="Stock / Investor" />
+        </React.Suspense>
       ) : isVehiclesView && investorOnly ? (
         <PendingViewPlaceholder
           routeKey="Stock / Investor"
@@ -766,6 +775,14 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
           descriptionOverride="Investor-specific Fund data is not connected. Other Investors’ sample balances are hidden."
           stateOverride="Waiting for Investor-scoped Fund data; no other Investor sample records are shown."
         />
+      ) : activeRoute === 'Investor Fund' ||
+        activeRoute === 'Vehicle Sales' ||
+        activeRoute === 'Collections' ||
+        activeRoute === 'Sale Corrections & Refunds' ||
+        activeRoute === 'Running Capital' ? (
+        <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 p-4 text-xs text-gray-500 dark:border-zinc-800">Loading Phase 5 workspace…</div>}>
+          <Phase5WorkspaceView routeKey={activeRoute} />
+        </React.Suspense>
       ) : activeRoute === 'Company Income' ||
         activeRoute === 'Company Expenses' ||
         activeRoute === 'Transactions' ||
@@ -777,11 +794,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
             onSuccess={(message) => showStatusMessage('success', message, 'Saved to Company Accounting.', 3500)}
           />
         </React.Suspense>
-      ) : activeRoute === 'Investor Fund' ||
-        activeRoute === 'Vehicle Sales' ||
-        activeRoute === 'Collections' ||
-        activeRoute === 'Sale Corrections & Refunds' ||
-        activeRoute === 'Garage Revenue' ||
+      ) : activeRoute === 'Garage Revenue' ||
         activeRoute === 'Running Capital' ? (
         /* Financial Ledgers & Registers */
         <FinancialLedgerView

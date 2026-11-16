@@ -63,6 +63,13 @@ describe('AppShell role-filtered navigation', () => {
     expect(screen.queryByRole('note', { name: /Demo data and actions/i })).not.toBeInTheDocument();
   });
 
+  it('labels the Investor Fund workspace as Backend API instead of Demo', () => {
+    renderShell(['accountant'], [], 'Investor Fund');
+
+    expect(screen.getByRole('note', { name: 'Backend API data and actions' })).toHaveTextContent('Backend API');
+    expect(screen.queryByRole('note', { name: /Demo data and actions/i })).not.toBeInTheDocument();
+  });
+
   it('applies Owner visibility to both rail and quick tabs', () => {
     renderShell(['owner']);
 
