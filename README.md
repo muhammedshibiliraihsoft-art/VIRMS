@@ -72,3 +72,7 @@ Vehicle deactivation/registration reuse remains deliberately deferred until auth
 ## Phase 5 audit-candidate checkpoint — 2026-11-16
 
 This checkpoint supersedes the earlier uncommitted Phase 5 status above. The approved Phase 5 core scope and the four audit fixes are verified locally. The full backend suite passed 343/343; focused Purchase/Expense/Sale tests passed 24/24; React passed 137/137; migration/system checks, configured lint, and build passed. The Phase 5 candidate is locally committed on `codex/phase5-investment-foundation` for audit-branch review. No remote push, merge, or deployment occurred. Review the [Phase 5 execution record](docs/phase5-execution-progress.md), [implementation audit](output/PHASE-05-IMPLEMENTATION-AUDIT-2026-11-16.md), and [code architecture](architecture/phase-05-investment-vehicle-running-capital/PHASE-05-INVESTMENT-VEHICLE-RUNNING-CAPITAL-ARCHITECTURE.md).
+
+## Phase 5 audit branch publication — 2026-11-16
+
+The candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison verified the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`; the pushed history includes the Phase 4 base commit and the Phase 5 implementation commit. This publication did not deploy to staging/production. The separate local `codex/audit` worktree still has pre-existing dirty changes and was not modified; reconcile them before further local branch operations.

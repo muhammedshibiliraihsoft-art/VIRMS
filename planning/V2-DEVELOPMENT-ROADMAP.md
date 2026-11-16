@@ -239,3 +239,7 @@ The remaining Garage Job and Investor settlement sources block only Vehicle deac
 ## Phase 5 audit-candidate checkpoint — 2026-11-16
 
 This checkpoint supersedes the 2026-11-15 verification counts above and the earlier Phase 4 status statement. The approved Phase 5 core scope, including four audit fixes, is locally verified and committed on `codex/phase5-investment-foundation` for review. The exact commands, results, scope exclusions and external verification limits are recorded in [`docs/phase5-execution-progress.md`](../docs/phase5-execution-progress.md) and [`output/PHASE-05-IMPLEMENTATION-AUDIT-2026-11-16.md`](../output/PHASE-05-IMPLEMENTATION-AUDIT-2026-11-16.md). No remote push or deployment occurred. The Phase 4 base commit is part of this candidate's history; remote branch state must be refreshed before any push.
+
+## Phase 5 audit branch publication — 2026-11-16
+
+The candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison verified the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`. The pushed history includes the Phase 4 base commit and Phase 5 implementation. No staging/production deployment is asserted. The separate local `codex/audit` worktree retains its pre-existing dirty changes and was not modified.

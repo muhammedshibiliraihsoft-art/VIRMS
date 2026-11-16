@@ -1098,6 +1098,15 @@
       "Vehicle deactivation and registration reuse until authoritative Garage Job and Investor settlement providers exist.",
       "Investor Profit and Exit settlement (Phase 8), offline financial writes/sync, and additional automation."
     ],
-    "publication": "Locally committed for audit-branch review; no remote push or deployment. Refresh origin before any push; staging and production remain UNVERIFIED."
+    "publication": "This preparation checkpoint preceded the remote push; staging and production remain UNVERIFIED."
+  },
+  "latestPublicationCheckpoint": {
+    "date": "2026-11-16",
+    "remoteBranch": "origin/codex/audit",
+    "head": "2ddbbce26bf43a25313190bf7266996d43243476",
+    "method": "Normal fast-forward push; no force update.",
+    "verification": "GitHub commit comparison returned identical for codex/audit and the pushed head.",
+    "deployment": "No staging or production deployment was performed.",
+    "separateLocalAuditWorktree": "Pre-existing dirty work was not modified."
   }
 }

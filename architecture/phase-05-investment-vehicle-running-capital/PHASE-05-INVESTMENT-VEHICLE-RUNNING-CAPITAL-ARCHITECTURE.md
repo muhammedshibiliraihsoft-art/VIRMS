@@ -789,3 +789,7 @@ The approved Phase 5 core scope is **implemented and locally verified**. The fou
 Disposable PostgreSQL verification: full Django `apps` suite 343/343 passed; the Purchase, Expense and Sale API suites passed 24/24 after the expense suite moved to `TransactionTestCase`; fresh migration, migration-state, Django system and model/migration-drift checks passed. React passed 137/137 tests; configured lint and TypeScript/Vite build passed. The Vite main-chunk advisory remains at 614.29 kB.
 
 The Phase 5 candidate is locally committed on `codex/phase5-investment-foundation` for audit-branch review. No remote push, merge or deployment is recorded by this checkpoint. Staging/production, hosted runtime grants and backup/restore remain `UNVERIFIED`. `virms-local-8002-pgdata` was not accessed.
+
+## Audit branch publication checkpoint — 2026-11-16
+
+The candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison verified the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`; this pushed history includes the Phase 4 base and Phase 5 implementation commit. No staging/production deployment is asserted. The separate local `codex/audit` worktree retains pre-existing dirty changes and was not modified.

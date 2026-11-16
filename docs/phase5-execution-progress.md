@@ -364,3 +364,7 @@ The approved Phase 5 core scope is locally committed on `codex/phase5-investment
 - React: 137/137 tests passed; configured lint and TypeScript/Vite build passed. The 614.29 kB main-chunk advisory remains.
 - Phase 3 remains complete in its approved foundation scope. Phase 4's bounded Accounting Foundation is the local base commit `50fb67c1`; remote publication has not been reverified. Staging/production, deployment and hosted grants remain `UNVERIFIED`.
 - Vehicle deactivation/registration reuse remains deferred until authoritative Garage and Investor-settlement state exists. Investor Profit/Exit settlement remains Phase 8; offline writes/sync and additional automation remain outside Phase 5.
+
+## Phase 5 audit branch publication checkpoint — 2026-11-16
+
+The Phase 5 candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison confirmed the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`. This history includes the Phase 4 base commit and Phase 5 implementation commit. Staging/production deployment was not performed. The separate local `codex/audit` worktree's 17 pre-existing dirty paths were left untouched.
