@@ -65,3 +65,11 @@ Phase 5 worktree: `codex/phase5-investment-foundation`, HEAD `388ec8bf`; `origin
 - `.github/workflows/phase5-verification.yml` GitHub-hosted runner-ിലെ disposable PostgreSQL-ൽ migration-ഉം `apps` test suite-ഉം പ്രവർത്തിപ്പിക്കുന്നതാണ്. GitHub Actions ഇതുവരെ ഓടിയിട്ടില്ല; അതിനാൽ **remote CI UNVERIFIED** ആണ്. ഇനിയും stage, commit, push, deploy ചെയ്തിട്ടില്ല.
 
 `codex/audit`-ലേക്ക് അംഗീകരിച്ച push നടത്തുകയും CI ഫലം ഉറപ്പാക്കുകയും ചെയ്യുന്നതിന് മുമ്പ് workflow, മുഴുവൻ diff, Git ancestry എന്നിവ വീണ്ടും പരിശോധിക്കണം.
+
+### Publication and CI update — 2026-11-17
+
+- Phase 5 follow-up commit `ea64d54a8109dc60f46609845212cc3c426831f5` `codex/audit`-ലേക്ക് push ചെയ്തു. GitHub commit API-യും അതേ SHA-ക്കുള്ള Actions run-ഉം remote commit സ്ഥിരീകരിച്ചു.
+- Run `44048499536` (`Phase 5 verification`) ആ commit-ിനായി **success** ആയി. `Backend and PostgreSQL` job fresh PostgreSQL migration, Django checks, migration drift check, `python manage.py test apps --verbosity 1` എന്നിവ വിജയിപ്പിച്ചു. `React tests, lint and build` job-ും വിജയിച്ചു.
+- ഈ റിപ്പോർട്ട് അപ്ഡേറ്റ് ആ run-ന് ശേഷമുള്ള documentation-only മാറ്റമാണ്; implementation മാറ്റമില്ല. അതിന്റെ push പുതിയ workflow run ആരംഭിക്കും; ആ പുതിയ run-ന്റെ നില ഈ റിപ്പോർട്ടിൽ മുൻകൂട്ടി success ആയി കണക്കാക്കുന്നില്ല.
+- Worktree-യിൽ `apps/vehicles/tests/test_concurrency.py` മാത്രം unstaged ആയി തുടരുന്നു. Index-ിലുള്ള ഉള്ളടക്കവുമായി normalized diff ഇല്ല; line ending വ്യത്യാസം കാരണം Git അത് modified ആയി കാണിക്കുന്നു. ഈ ഫയൽ commit/push-ിൽ ഉൾപ്പെട്ടിട്ടില്ല.
+- Deployment ചെയ്തിട്ടില്ല. `virms_local_8002`-ൽ Phase 5 migrations ഇതുവരെ നടത്തിയിട്ടില്ല. Browser-ിലെ Phase 5 API ഉപയോഗം പരിശോധിക്കാൻ ഈ database-ിന് backup എടുത്തശേഷം പ്രത്യേകം അനുമതി വാങ്ങി migration നടത്തണം.
