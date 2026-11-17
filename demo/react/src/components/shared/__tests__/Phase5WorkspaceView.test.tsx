@@ -115,6 +115,66 @@ beforeEach(() => {
 });
 
 describe('Phase 5 Vehicle API workspace', () => {
+  it('allows a no-prior-payment refund after explicitly classifying its excess as new Income', async () => {
+    const user = userEvent.setup();
+    const expenseId = '55555555-5555-4555-8555-555555555555';
+    const incomeCategoryId = '77777777-7777-4777-8777-777777777777';
+    mocks.phase5Api.expenses.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{
+        id: expenseId,
+        vehicle_id: ids.vehicle,
+        company_id: ids.company,
+        branch_id: ids.branch,
+        amount: '5000.00',
+        description: 'Brake repair',
+        investor_id: null,
+        investor_fund_amount: '0.00',
+        running_capital_amount: '5000.00',
+        paid_total: '0.00',
+        applied_refund_total: '0.00',
+        net_paid: '0.00',
+        payable: '5000.00',
+        effective_at: '2026-11-01T00:00:00Z',
+        payments: [],
+        refunds: [],
+      }],
+    });
+    mocks.accountingAccounts.mockResolvedValue([{
+      id: '88888888-8888-4888-8888-888888888888',
+      account_type: 'BANK',
+      label: 'Main Bank',
+      is_active: true,
+    }]);
+    mocks.accountingCategories.mockResolvedValue([{
+      id: incomeCategoryId,
+      kind: 'INCOME',
+      label: 'Workshop refund income',
+      is_active: true,
+    }]);
+    mocks.phase5Mutation.mockResolvedValue({ id: '99999999-9999-4999-8999-999999999999' });
+    renderView();
+
+    await user.click(await screen.findByRole('button', { name: 'Open' }));
+    await user.click(await screen.findByRole('button', { name: 'Refund' }));
+    await user.selectOptions(await screen.findByLabelText(/Cash \/ Bank account/), '88888888-8888-4888-8888-888888888888');
+    await user.type(screen.getByLabelText(/Actual refund received/), '500');
+    await user.selectOptions(await screen.findByLabelText(/New Company Income category/), incomeCategoryId);
+    await user.type(screen.getByLabelText(/New Income description/), 'Workshop returned more than paid');
+    expect(await screen.findByRole('status')).toHaveTextContent(/recorded as a new Company Income entry/);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mocks.phase5Mutation).toHaveBeenCalled());
+    expect(mocks.phase5Mutation.mock.calls[0]?.[3]).toBe(`expenses/${expenseId}/refunds/`);
+    expect(mocks.phase5Mutation.mock.calls[0]?.[4]).toMatchObject({
+      amount: '500',
+      excess_income_category_id: incomeCategoryId,
+      excess_income_description: 'Workshop returned more than paid',
+    });
+  });
+
   it('loads Company Branches for a Company Accountant without assigned-Branch summaries', async () => {
     const user = userEvent.setup();
     mocks.useAuth.mockReturnValue({ status: 'authenticated', user: { id: ids.user }, currentCompany: { id: ids.company, branches: [], branches_truncated: false, company_wide_roles: ['accountant'] } });

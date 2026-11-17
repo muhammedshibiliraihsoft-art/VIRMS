@@ -154,12 +154,6 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
     enabled: canRead && moduleOn(ACCOUNTING_MODULE) && needsCashAccount,
     retry: false,
   });
-  const categoriesQuery = useQuery({
-    queryKey: currentCompany && user ? queryKeys.phase5.categories(user.id, currentCompany.id) : ['companies', 'unavailable', ...PHASE5_ROOT, 'income-categories'],
-    queryFn: ({ signal }) => currentCompany ? accountingCategories(currentCompany.id, signal) : Promise.reject(new Error('A Company is required.')),
-    enabled: canRead && moduleOn(ACCOUNTING_MODULE) && formAction?.kind === 'expenseRefund',
-    retry: false,
-  });
   const preferenceQuery = useQuery({
     queryKey: currentCompany && user ? queryKeys.phase5.paymentPreference(user.id, currentCompany.id) : ['companies', 'unavailable', ...PHASE5_ROOT, 'payment-account-preference'],
     queryFn: ({ signal }) => currentCompany ? phase5Api.paymentAccountPreference(currentCompany.id, signal) : Promise.reject(new Error('A Company is required.')),
@@ -215,12 +209,33 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   });
   const investors = investorsQuery.data ?? [];
   const accounts = (accountsQuery.data ?? []) as AccountingAccount[];
-  const incomeCategories = ((categoriesQuery.data ?? []) as AccountingCategory[]).filter((category) => category.kind === 'INCOME' && category.is_active);
   const vehicles = vehiclesQuery.data?.results ?? [];
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null;
   const purchase = purchasesQuery.data?.results[0] ?? null;
   const expenses = expensesQuery.data?.results ?? [];
   const sales = salesQuery.data?.results ?? [];
+  const expenseRefundExpense = formAction?.kind === 'expenseRefund'
+    ? expenses.find((expense) => expense.id === formAction.targetId) ?? null
+    : null;
+  const refundHasExcess = (() => {
+    if (!expenseRefundExpense || formAction?.kind !== 'expenseRefund') return false;
+    try { return moneyCents(formValues.amount ?? '0.00') > moneyCents(expenseRefundExpense.net_paid); } catch { return false; }
+  })();
+  const refundExcessAmount = (() => {
+    if (!refundHasExcess || !expenseRefundExpense) return null;
+    try {
+      return moneyFromCents(moneyCents(formValues.amount ?? '0.00') - moneyCents(expenseRefundExpense.net_paid));
+    } catch {
+      return null;
+    }
+  })();
+  const categoriesQuery = useQuery({
+    queryKey: currentCompany && user ? queryKeys.phase5.categories(user.id, currentCompany.id) : ['companies', 'unavailable', ...PHASE5_ROOT, 'income-categories'],
+    queryFn: ({ signal }) => currentCompany ? accountingCategories(currentCompany.id, signal) : Promise.reject(new Error('A Company is required.')),
+    enabled: canRead && moduleOn(ACCOUNTING_MODULE) && refundHasExcess,
+    retry: false,
+  });
+  const incomeCategories = ((categoriesQuery.data ?? []) as AccountingCategory[]).filter((category) => category.kind === 'INCOME' && category.is_active);
   const allowedInvestorId = purchase?.investor_id ?? expenses.find((expense) => expense.investor_id)?.investor_id ?? '';
   const visibleInvestors = allowedInvestorId ? investors.filter((investor) => investor.id === allowedInvestorId) : investors;
 
@@ -264,6 +279,11 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
     setFormValues(defaults);
   };
   const closeForm = () => { setFormAction(null); setFormValues({}); };
+
+  const refundDestinationBlocked = formAction?.kind === 'expenseRefund' && refundHasExcess && (
+    categoriesQuery.isLoading || Boolean(categoriesQuery.error) || incomeCategories.length === 0 ||
+    !formValues.excess_income_category_id || !formValues.excess_income_description?.trim()
+  );
 
   useEffect(() => {
     if (!formAction || !preferenceQuery.data?.account_id) return;
@@ -354,6 +374,18 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
             <button type="button" aria-label="Close form" onClick={closeForm} className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"><X className="h-4 w-4" /></button>
           </div>
           {mutation.error && <Notice tone="error">{errorText(mutation.error)}</Notice>}
+          {formAction.kind === 'expenseRefund' && refundHasExcess && categoriesQuery.isLoading && (
+            <Notice>Loading Company Income categories…</Notice>
+          )}
+          {formAction.kind === 'expenseRefund' && refundHasExcess && categoriesQuery.error && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Notice tone="error">Could not load Company Income categories. Retry before saving.</Notice>
+              <button type="button" onClick={() => categoriesQuery.refetch()} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[11px] font-semibold dark:border-zinc-700">Retry</button>
+            </div>
+          )}
+          {formAction.kind === 'expenseRefund' && refundHasExcess && !categoriesQuery.isLoading && !categoriesQuery.error && incomeCategories.length === 0 && (
+            <Notice tone="error">Create an active Company Income category before recording the excess as Income.</Notice>
+          )}
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {formFields.map((field) => (
               <label key={field.key} className="flex min-w-0 flex-col gap-1 text-[11px] font-bold text-gray-600 dark:text-gray-300">
@@ -370,12 +402,17 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
               </label>
             ))}
           </div>
+          {formAction.kind === 'expenseRefund' && refundHasExcess && refundExcessAmount && (
+            <p role="status" className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              Excess {formatMoney(refundExcessAmount)} will be recorded as a new Company Income entry with its own category and note. The actual refund remains one Cash/Bank receipt.
+            </p>
+          )}
           {(formAction.kind === 'purchase' || formAction.kind === 'expense') && (
             <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">Company Running Capital is calculated as the full amount minus Investor Fund. Each source must total the recorded cost.</p>
           )}
           <div className="mt-3 flex items-center justify-end gap-2">
             <button type="button" onClick={closeForm} className="h-9 rounded-lg px-3 text-xs font-bold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800">Cancel</button>
-            <button type="submit" disabled={mutation.isPending || !allModuleStatesLoaded} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#18181b] px-3.5 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-60 dark:bg-white dark:text-black">
+            <button type="submit" disabled={mutation.isPending || !allModuleStatesLoaded || Boolean(refundDestinationBlocked)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#18181b] px-3.5 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-60 dark:bg-white dark:text-black">
               {mutation.isPending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}{mutation.isPending ? 'Saving…' : 'Save'}
             </button>
           </div>
@@ -491,7 +528,7 @@ function formTitle(kind: FormKind): string {
 function formHelp(kind: FormKind): string {
   if (kind === 'purchase') return 'The vehicle cost and funding sources are saved once; seller payments are separate records.';
   if (kind === 'expense') return 'Record a vehicle-linked cost. Any actual payment is entered separately.';
-  if (kind === 'expenseRefund') return 'If the actual refund exceeds the remaining vehicle expense, record the excess as a new Income entry with its own category.';
+  if (kind === 'expenseRefund') return 'Record the full money received once. Any excess is a separate Company Income entry with its own category and note.';
   if (kind === 'purchaseCorrection' || kind === 'expenseCorrection' || kind === 'saleCorrection') return 'The server validates paid/refunded amounts and records an audited correction.';
   if (kind === 'fundCredit') return 'One actual bank transfer or cash receipt belongs to one Investor Fund Credit.';
   if (kind === 'fundCreditCorrection') return 'The original credit and Cash/Bank movement stay unchanged. If the credit was used or returned, review the related Investor calculations manually.';
@@ -525,7 +562,15 @@ function fieldsForAction(kind: FormAction, context: {
     case 'purchaseCorrection': return [money('purchase_cost', 'Corrected purchase cost'), text('reason', 'Reason')];
     case 'expense': return [money('amount', 'Total vehicle expense'), text('description', 'Expense description'), ...(context.companyAccountant && context.investmentOn ? [{ key: 'investor_id', label: 'Investor', type: 'select' as const, options: context.investors.map((investor) => ({ value: investor.id, label: investor.name })), help: 'Available Investor Fund is used first; Company Running Capital covers the balance.' }] : []), date()];
     case 'expensePayment': return [...accountFields, money('amount', 'Installment amount'), text('reference', 'External reference (bank ID / cash voucher)'), date()];
-    case 'expenseRefund': return [...accountFields, money('amount', 'Actual refund received'), { key: 'excess_income_category_id', label: 'Income category for any excess', type: 'select', required: refundExcess, options: context.incomeCategories.map((category) => ({ value: category.id, label: category.label })), help: 'Required only when the refund is greater than the expense amount still available to refund.' }, text('excess_income_description', 'Income description for any excess', refundExcess), date()];
+    case 'expenseRefund': {
+      const fields: FieldSpec[] = [...accountFields, money('amount', 'Actual refund received')];
+      if (!refundExcess) return [...fields, date()];
+      fields.push(
+        { key: 'excess_income_category_id', label: 'New Company Income category', type: 'select', required: true, options: context.incomeCategories.map((category) => ({ value: category.id, label: category.label })) },
+        text('excess_income_description', 'New Income description', true, 'The separate Income record is created explicitly; the actual refund remains one Cash/Bank receipt.'),
+      );
+      return [...fields, date()];
+    }
     case 'expenseCorrection': return [money('amount', 'Corrected expense amount'), text('reason', 'Reason')];
     case 'sale': return [money('sale_price', 'Sale price'), text('buyer_name', 'Buyer name'), text('buyer_phone', 'Buyer phone'), date('sold_at', 'Sale date and time')];
     case 'saleReceipt': return [...accountFields, money('amount', 'Buyer payment amount'), text('reference', 'External reference (bank ID / cash voucher)'), date()];
@@ -582,12 +627,22 @@ function buildCommand(action: FormAction, values: Record<string, string>, contex
       } };
     }
     case 'expensePayment': return { module: 'vehicle-management', suffix: `expenses/${action.targetId}/installments/`, body: { account_id: values.account_id, amount, reference: values.reference, effective_at: toIso(values.effective_at) } };
-    case 'expenseRefund': return { module: 'vehicle-management', suffix: `expenses/${action.targetId}/refunds/`, body: {
-      account_id: values.account_id, amount,
-      excess_income_category_id: values.excess_income_category_id || null,
-      excess_income_description: values.excess_income_description || '',
-      effective_at: toIso(values.effective_at),
-    } };
+    case 'expenseRefund': {
+      const expense = context.expenses.find((row) => row.id === action.targetId);
+      const hasExcess = Boolean(expense && moneyCents(amount) > moneyCents(expense.net_paid));
+      const destinationFields = hasExcess
+        ? {
+            excess_income_category_id: values.excess_income_category_id,
+            excess_income_description: values.excess_income_description,
+          }
+        : {};
+      return { module: 'vehicle-management', suffix: `expenses/${action.targetId}/refunds/`, body: {
+        account_id: values.account_id,
+        amount,
+        ...destinationFields,
+        effective_at: toIso(values.effective_at),
+      } };
+    }
     case 'expenseCorrection': return { module: 'vehicle-management', suffix: `expenses/${action.targetId}/corrections/`, body: { amount, reason: values.reason } };
     case 'sale': {
       if (!context.selectedVehicle || context.selectedVehicle.id !== action.targetId) throw new Error('Reload the Vehicle before confirming its Sale.');
@@ -737,7 +792,7 @@ function VehiclePanel(props: {
               </div> : !props.selectedVehicle.is_sold && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 p-3 dark:bg-zinc-950"><div className="text-xs font-bold">No purchase record yet.</div><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite} onClick={() => props.onPurchase(props.selectedVehicle!)} className="h-8 rounded-lg bg-[#18181b] px-3 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Record Purchase</button></div>}
 
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-extrabold text-gray-900 dark:text-white">Direct vehicle expenses</h3><button type="button" disabled={!props.canVehicleWrite} onClick={() => props.onAddExpense(props.selectedVehicle!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700"><Plus className="mr-1 inline h-3 w-3" />Add expense</button></div>
-              {props.expenses.length ? <div className="flex flex-col divide-y divide-[#eee6de] dark:divide-zinc-800">{props.expenses.map((expense) => <div key={expense.id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate text-xs font-bold">{expense.description} · {formatMoney(expense.amount)}</div><div className="mt-0.5 text-[10px] text-gray-500">Paid {formatMoney(expense.paid_total)} · Payable {formatMoney(expense.payable)} · Investor {formatMoney(expense.investor_fund_amount)} · Running Capital {formatMoney(expense.running_capital_amount)}</div></div><div className="flex flex-wrap gap-1.5"><button type="button" disabled={!props.canAccountingWrite || moneyCents(expense.payable) <= 0n} onClick={() => props.onExpensePayment(expense)} className="h-8 rounded-lg border border-[#e2d8ce] px-2 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Pay</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || !props.canInvestmentWrite || moneyCents(expense.net_paid) <= 0n} onClick={() => props.onExpenseRefund(expense)} className="h-8 rounded-lg border border-[#e2d8ce] px-2 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || !props.canInvestmentWrite} onClick={() => props.onExpenseCorrection(expense)} className="h-8 rounded-lg border border-[#e2d8ce] px-2 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct</button></div></div>)}</div> : <Empty>No direct vehicle expenses recorded.</Empty>}
+              {props.expenses.length ? <div className="flex flex-col divide-y divide-[#eee6de] dark:divide-zinc-800">{props.expenses.map((expense) => <div key={expense.id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate text-xs font-bold">{expense.description} · {formatMoney(expense.amount)}</div><div className="mt-0.5 text-[10px] text-gray-500">Paid {formatMoney(expense.paid_total)} · Payable {formatMoney(expense.payable)} · Investor {formatMoney(expense.investor_fund_amount)} · Running Capital {formatMoney(expense.running_capital_amount)}</div></div><div className="flex flex-wrap gap-1.5"><button type="button" disabled={!props.canAccountingWrite || moneyCents(expense.payable) <= 0n} onClick={() => props.onExpensePayment(expense)} className="h-8 rounded-lg border border-[#e2d8ce] px-2 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Pay</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || !props.canInvestmentWrite} onClick={() => props.onExpenseRefund(expense)} className="h-8 rounded-lg border border-[#e2d8ce] px-2 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || !props.canInvestmentWrite} onClick={() => props.onExpenseCorrection(expense)} className="h-8 rounded-lg border border-[#e2d8ce] px-2 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct</button></div></div>)}</div> : <Empty>No direct vehicle expenses recorded.</Empty>}
               <PageControls page={props.detailPage} hasPrevious={props.detailHasPrevious} hasNext={props.detailHasNext} onChange={props.onDetailPage} />
 
               {props.routeKey === 'Running Capital' && !props.detailLoading && props.expenseRunningCapitalTotal !== undefined && <div className="mt-3 rounded-xl border border-dashed border-[#e2d8ce] p-3 text-[11px] text-gray-600 dark:border-zinc-700 dark:text-gray-300"><strong>Vehicle Company Running Capital:</strong> {formatMoney(moneyFromCents(moneyCents(props.purchase?.running_capital_amount ?? '0.00') + moneyCents(props.expenseRunningCapitalTotal)))}. This includes expenses visible under the selected Branch filter.</div>}

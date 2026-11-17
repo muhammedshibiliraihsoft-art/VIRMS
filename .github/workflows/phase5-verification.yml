@@ -1,0 +1,94 @@
+name: Phase 5 verification
+
+on:
+  push:
+    branches: [codex/audit]
+  pull_request:
+    branches: [codex/audit]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-postgres:
+    name: Backend and PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: virms_ci
+          POSTGRES_USER: virms_ci
+          POSTGRES_PASSWORD: virms_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U virms_ci -d virms_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: local
+      DJANGO_SECRET_KEY: phase5-ci-only-placeholder
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: virms_ci
+      DB_USER: virms_ci
+      DB_PASSWORD: virms_ci_only
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Apply migrations to disposable PostgreSQL
+        run: python manage.py migrate --noinput
+
+      - name: Check Django configuration
+        run: python manage.py check
+
+      - name: Check migration state
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run backend tests
+        run: python manage.py test apps --verbosity 1
+
+  react:
+    name: React tests, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: demo/react
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: demo/react/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run React tests
+        run: npm test -- --run
+
+      - name: Run configured lint
+        run: npm run lint
+
+      - name: Build production bundle and type-check
+        run: npm run build

@@ -1327,7 +1327,8 @@ def create_expense_installment(
 
 def create_expense_refund(
     *, actor, company_id, expense_id, key, path, account_id, amount,
-    excess_income_category_id=None, excess_income_description="", effective_at=None,
+    excess_income_category_id=None,
+    excess_income_description="", effective_at=None,
 ):
     amount = _money(amount)
     description = (excess_income_description or "").strip()
@@ -1368,6 +1369,7 @@ def create_expense_refund(
         applied = min(amount, max(Decimal("0.00"), paid - prior_applied))
         excess = amount - applied
         category = None
+        income_event = None
         if excess > 0:
             if not excess_income_category_id or not description:
                 raise ValidationError({
@@ -1397,7 +1399,6 @@ def create_expense_refund(
         from uuid import uuid4
 
         refund_id = uuid4()
-        income_event = None
         if excess > 0:
             income_event = _event_row(
                 tenant=company,

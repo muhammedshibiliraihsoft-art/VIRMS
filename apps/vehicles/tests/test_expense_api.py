@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from django.test import TransactionTestCase
 
-from apps.accounts.models import CompanyRoleGrant
+from apps.accounts.models import AccountSecurityEvent, CompanyRoleGrant
 from apps.accounts.tests.test_users import make_user
 from apps.accounting.models import (
     AccountMovement,
@@ -311,54 +311,73 @@ class VehicleExpenseApiTests(TransactionTestCase):
         self.assertEqual(VehicleExpensePayment.objects.count(), 1)
         self.assertEqual(AccountingEvent.objects.count(), 1)
 
-    def test_refund_reconciles_cash_once_and_explicitly_classifies_excess_as_income(self):
+    def test_refund_excess_creates_separate_income_and_one_actual_cash_receipt(self):
         expense = self.create_expense()
-        paid = self.post(
+        payment = self.post(
             f"expenses/{expense.data['id']}/installments/",
             {"account_id": str(self.cash.pk), "amount": "2000.00", "reference": "PAY-EXP-1"},
             "expense-refund-setup-payment",
             self.branch_accountant,
         )
-        self.assertEqual(paid.status_code, 201, paid.content)
+        self.assertEqual(payment.status_code, 201, payment.content)
         category = AccountingCategory.objects.create(
             tenant=self.company,
             kind=AccountingCategory.Kind.INCOME,
-            label="Vendor adjustment income",
+            label="Workshop refund income",
             created_by=self.company_accountant,
         )
+
+        body = {
+            "account_id": str(self.bank.pk),
+            "amount": "2500.00",
+            "excess_income_category_id": str(category.pk),
+            "excess_income_description": "Accountant classified workshop excess",
+        }
         receipt = self.post(
             f"expenses/{expense.data['id']}/refunds/",
-            {
-                "account_id": str(self.bank.pk),
-                "amount": "2500.00",
-                "excess_income_category_id": str(category.pk),
-                "excess_income_description": "Workshop refunded excess advance",
-            },
+            body,
             "expense-refund-one",
-            self.branch_accountant,
+            self.company_accountant,
         )
         self.assertEqual(receipt.status_code, 201, receipt.content)
         self.assertEqual(receipt.data["applied_amount"], "2000.00")
         self.assertEqual(receipt.data["excess_income_amount"], "500.00")
+
         refund = VehicleExpenseRefund.objects.get(pk=receipt.data["refund_id"])
-        event = AccountingEvent.objects.get(pk=receipt.data["accounting_event_id"])
+        cash_event = AccountingEvent.objects.get(pk=receipt.data["accounting_event_id"])
         income = AccountingEvent.objects.get(pk=receipt.data["excess_income_event_id"])
-        self.assertEqual(event.event_type, "VEHICLE_REFUND_IN")
-        self.assertEqual(AccountMovement.objects.filter(event=event).count(), 1)
-        self.assertEqual(AccountMovement.objects.get(event=event).delta, Decimal("2500.00"))
-        self.assertEqual(AccountMovement.objects.filter(event=income).count(), 0)
-        self.assertEqual(income.event_type, "INCOME")
+        self.assertEqual(cash_event.event_type, "VEHICLE_REFUND_IN")
+        self.assertEqual(AccountMovement.objects.filter(event=cash_event).count(), 1)
+        self.assertEqual(AccountMovement.objects.get(event=cash_event).delta, Decimal("2500.00"))
+        self.assertEqual(income.event_type, AccountingEvent.EventType.INCOME)
         self.assertEqual(income.amount, Decimal("500.00"))
-        self.assertEqual(AccountingSourceLink.objects.get(event=event).vehicle_expense_refund_id, refund.pk)
-        application = AccountingApplication.objects.get(
-            source_event=event,
-            target_event=income,
+        self.assertEqual(income.category_id, category.pk)
+        self.assertEqual(income.description, "Accountant classified workshop excess")
+        self.assertEqual(AccountingEvent.objects.filter(event_type="INCOME").count(), 1)
+        self.assertFalse(AccountMovement.objects.filter(event=income).exists())
+        audit = AccountSecurityEvent.objects.get(action="vehicle.expense.refund")
+        self.assertEqual(audit.metadata["excess_income_event_id"], str(income.pk))
+        self.assertEqual(
+            AccountingSourceLink.objects.get(event=cash_event).vehicle_expense_refund_id,
+            refund.pk,
         )
+        application = AccountingApplication.objects.get(source_event=cash_event, target_event=income)
         self.assertEqual(application.amount, Decimal("500.00"))
         self.assertEqual(application.effect_sign, 1)
-        self.assertEqual(receipt.data["payable"], "5000.00")
 
-    def test_excess_refund_without_income_category_rolls_back_every_write(self):
+        replay = self.post(
+            f"expenses/{expense.data['id']}/refunds/",
+            body,
+            "expense-refund-one",
+            self.company_accountant,
+        )
+        self.assertEqual(replay.status_code, 201, replay.content)
+        self.assertEqual(replay.data["refund_id"], receipt.data["refund_id"])
+        self.assertEqual(VehicleExpenseRefund.objects.count(), 1)
+        self.assertEqual(AccountingEvent.objects.filter(event_type="INCOME").count(), 1)
+        self.assertEqual(AccountMovement.objects.filter(event=cash_event).count(), 1)
+
+    def test_excess_refund_requires_explicit_income_classification_and_rolls_back(self):
         expense = self.create_expense()
         result = self.post(
             f"expenses/{expense.data['id']}/refunds/",
