@@ -8,6 +8,20 @@ An authorized Accountant can trace a Stock Vehicle from its confirmed Sale throu
 
 Phase 8 owns Investor principal recovery, Running Capital recovery, Profit/Loss allocation, Investor settlement, Company result, Owner distribution, and period close. Phase 7 does not post those outcomes from a Sale or an expected collection. Media publication and a reusable Buyer CRM/profile are outside this phase. The approved minimum Buyer record is the name and phone snapshot on the Sale. A separate Buyer identity is not required for the existing Sale and collection flows.
 
+## Phase 7 included scope
+
+- Confirm the Sale of a purchased Stock Vehicle and store the agreed price, Sale date, and Buyer name/phone snapshot.
+- Record actual Buyer receipts in partial amounts and derive the received, remaining receivable, and refund-payable positions from the Sale and its cash records.
+- Correct the agreed Sale price through versioned history with the prior/new price, reason, effective date, recorded time, and backend actor attribution.
+- Record actual Buyer refunds separately, bounded by the current refund-payable amount.
+- Link each actual receipt/refund to its typed Accounting source and one Cash/Bank movement; retain Sale and Vehicle identity across reload.
+- Reuse Phase 6 Stock Vehicle cost links without creating a duplicate Vehicle cost or Sale expense; enforce existing Company, Branch, role, module, idempotency, and concurrency controls.
+
+## Explicitly outside Phase 7
+
+- Investor principal/Running Capital recovery, Profit/Loss allocation, Investor or Owner payouts, Company result, settlement, and period close (Phase 8).
+- Separate Buyer CRM/profile, media publication, and offline financial writes.
+
 ## Verified implementation baseline
 
 - `VehicleSale` has a Company, Vehicle UUID, original Branch, agreed price, Buyer name/phone, Sale date, and actor. The first successful Sale save confirms Sold. A Vehicle can have one confirmed Sale. The server requires a recorded Stock Vehicle Purchase before Sale.
