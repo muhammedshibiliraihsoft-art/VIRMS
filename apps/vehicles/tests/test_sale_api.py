@@ -319,3 +319,110 @@ class VehicleSaleApiTests(TestCase):
         denied = self.receipt(sale.data["id"], key="expense-funded-sale-receipt")
         self.assertEqual(denied.status_code, 403, denied.content)
         self.assertFalse(VehicleSaleReceipt.objects.exists())
+
+    def test_sale_detail_returns_audited_correction_history_after_reload(self):
+        vehicle = self.create_vehicle("KL 11 P 5053")
+        self.create_purchase(vehicle)
+        sale = self.create_sale(vehicle)
+
+        first = self.post(
+            f"sales/{sale.data['id']}/corrections/",
+            {"sale_price": "11000.00", "reason": "Signed sale price corrected"},
+            "sale-history-correction-1",
+        )
+        self.assertEqual(first.status_code, 201, first.content)
+        second = self.post(
+            f"sales/{sale.data['id']}/corrections/",
+            {"sale_price": "10000.00", "reason": "Buyer agreement updated"},
+            "sale-history-correction-2",
+        )
+        self.assertEqual(second.status_code, 201, second.content)
+
+        detail = self.client.get(
+            f"/api/v1/tenants/{self.company.pk}/vehicle-management/sales/{sale.data['id']}/"
+        )
+
+        self.assertEqual(detail.status_code, 200, detail.content)
+        history = detail.data["corrections"]
+        self.assertEqual(
+            [
+                {
+                    "version": row["version"],
+                    "previous_sale_price": row["previous_sale_price"],
+                    "sale_price": row["sale_price"],
+                    "reason": row["reason"],
+                    "effective_at": row["effective_at"],
+                }
+                for row in history
+            ],
+            [
+                {
+                    "version": 1,
+                    "previous_sale_price": "12000.00",
+                    "sale_price": "11000.00",
+                    "reason": "Signed sale price corrected",
+                    "effective_at": sale.data["sold_at"],
+                },
+                {
+                    "version": 2,
+                    "previous_sale_price": "11000.00",
+                    "sale_price": "10000.00",
+                    "reason": "Buyer agreement updated",
+                    "effective_at": sale.data["sold_at"],
+                },
+            ],
+        )
+        self.assertTrue(all(row["recorded_at"] for row in history))
+        self.assertEqual(detail.data["sale_price"], "10000.00")
+
+    def test_phase6_stock_job_cost_and_phase7_sale_keep_one_vehicle_source(self):
+        vehicle = self.create_vehicle("KL 11 P 5054")
+        self.create_purchase(vehicle)
+        self.add_revision("garage", 1)
+        self.client.force_authenticate(user=self.branch_accountant)
+        job = self.client.post(
+            f"/api/v1/tenants/{self.company.pk}/garage/jobs/",
+            {
+                "branch_id": str(self.branch.pk),
+                "vehicle_id": str(vehicle.pk),
+                "context": "STOCK",
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="phase7-stock-job",
+        )
+        self.assertEqual(job.status_code, 201, job.content)
+
+        expense = self.post(
+            f"vehicles/{vehicle.pk}/expenses/",
+            {"amount": "1500.00", "description": "Garage service cost"},
+            "phase7-stock-expense",
+            self.branch_accountant,
+        )
+        self.assertEqual(expense.status_code, 201, expense.content)
+        stock_cost_path = f"/api/v1/tenants/{self.company.pk}/garage/jobs/{job.data['id']}/stock-costs/"
+        linked_cost = self.client.post(
+            stock_cost_path,
+            {"expense_id": expense.data["id"]},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="phase7-link-stock-cost",
+        )
+        self.assertEqual(linked_cost.status_code, 201, linked_cost.content)
+        self.client.force_authenticate(user=self.branch_accountant)
+
+        sale = self.create_sale(vehicle)
+        self.client.force_authenticate(user=self.branch_accountant)
+        sale_detail = self.client.get(
+            f"/api/v1/tenants/{self.company.pk}/vehicle-management/sales/{sale.data['id']}/"
+        )
+        expenses = self.client.get(
+            f"/api/v1/tenants/{self.company.pk}/vehicle-management/vehicles/{vehicle.pk}/expenses/"
+        )
+        stock_costs = self.client.get(stock_cost_path)
+
+        self.assertEqual(sale_detail.status_code, 200, sale_detail.content)
+        self.assertEqual(sale_detail.data["vehicle_id"], str(vehicle.pk))
+        self.assertEqual(expenses.data["count"], 1)
+        self.assertEqual(expenses.data["results"][0]["id"], expense.data["id"])
+        self.assertEqual(stock_costs.data["count"], 1)
+        self.assertEqual(stock_costs.data["results"][0]["expense_id"], expense.data["id"])
+        self.assertEqual(AccountingEvent.objects.count(), 0)

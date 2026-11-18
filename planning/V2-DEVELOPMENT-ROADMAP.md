@@ -112,7 +112,7 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** Sales and collection positions remain separately traceable and provide verified source events for downstream financial flows.
 
-**Status:** NOT STARTED
+**Status:** COMPLETE LOCALLY — integrated implementation and local automated/browser verification passed 2026-11-18. GitHub CI, staging/production runtime, and deployment remain UNVERIFIED; see the [Phase 7 implementation architecture and evidence](../architecture/phase-07-sales-buyers-collection/PHASE-07-SALES-BUYERS-COLLECTION-ARCHITECTURE.md).
 
 ### Phase 8 — Integrated Finance, Settlement, Corrections, and Company Accounting
 
@@ -251,3 +251,9 @@ Phase 6's approved Garage, Customer Job and Labour scope is **COMPLETE LOCALLY**
 Verification on disposable PostgreSQL: 131 Garage/Accounting tests and 278 Accounts/Tenants/Investment/Vehicle regression tests passed; Django system and migration-drift checks passed; React passed 198 tests across 35 files, lint and production build. The local browser E2E recorded a ₹50 partial cost payment and a ₹70 workshop refund, allocated ₹50 to the cost and ₹20 to a separately selected Income record, then reloaded and verified persisted payment/refund history. Direct database queries confirmed exactly one cash movement for the payment and one for the refund, plus one ₹20 Income application with no extra cash movement. The same refund remained visible at 390px and 320px without horizontal document overflow.
 
 This checkpoint does not establish CI, staging, production or deployment readiness, and no persistent user database was migrated. Final Company Profit recognition and period-close behavior remain outside Phase 6 under V2 `09`; Investor Profit/Exit settlement remains Phase 8. No commit, push or deployment was performed.
+
+## Phase 7 local implementation and verification checkpoint — 2026-11-18
+
+Phase 7 is **COMPLETE LOCALLY** on worktree `D:/VIRMS/tmp/phase5-investment-foundation-20261107`, branch `codex/phase5-investment-foundation`. The pre-existing Sale/receipt/refund/correction flows were integrated with Phase 6 Stock Vehicle costs; this completion adds saved Sale correction history to the API response and React views so the audit trail remains visible after reload. No business rule, permission, route, database schema, or migration changed.
+
+On disposable PostgreSQL, `python manage.py test apps.vehicles.tests.test_sale_api apps.garage.tests.test_api --verbosity 1` passed 57 tests and `python manage.py test apps.vehicles.tests.test_sale_concurrency --verbosity 1` passed 3 Sale concurrency tests for concurrent receipts, refunds, and correction versions. Django system/schema-drift checks passed; React passed 200 tests across 35 files, lint, and production build. A local browser workflow verified Sale, partial receipt, price correction, partial refund, persisted history after reload, and a 390 px viewport without horizontal overflow. Direct disposable-database inspection confirmed one cash movement each for the actual receipt and refund. Full evidence and limits are in the [Phase 7 architecture record](../architecture/phase-07-sales-buyers-collection/PHASE-07-SALES-BUYERS-COLLECTION-ARCHITECTURE.md). CI, staging/production, and deployment remain UNVERIFIED. No persistent user database was modified and no commit or push was performed.

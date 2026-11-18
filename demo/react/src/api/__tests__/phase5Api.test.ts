@@ -65,6 +65,87 @@ describe('Phase 5 API contracts', () => {
     );
   });
 
+  it('validates typed Sale price-correction history', async () => {
+    requestMock.mockResolvedValueOnce({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{
+        id: ids.sale,
+        company_id: ids.company,
+        vehicle_id: ids.vehicle,
+        vehicle_registration: 'KL 11 P 5050',
+        vehicle_model: 'Hatchback',
+        branch_id: ids.branch,
+        branch_name: 'Central',
+        sale_price: '11000.00',
+        investor_funded: false,
+        buyer_name: 'Maya',
+        buyer_phone: '9876543210',
+        sold_at: '2026-11-11T08:00:00Z',
+        received_total: '0.00',
+        refunded_total: '0.00',
+        net_received: '0.00',
+        receivable: '11000.00',
+        refund_payable: '0.00',
+        refund_available: '0.00',
+        correction_version: 1,
+        receipts: [],
+        refunds: [],
+        corrections: [{
+          id: ids.vehicle,
+          version: 1,
+          previous_sale_price: '12000.00',
+          sale_price: '11000.00',
+          reason: 'Signed amount corrected.',
+          effective_at: '2026-11-11T08:00:00Z',
+          recorded_at: '2026-11-12T08:00:00Z',
+        }],
+      }],
+    });
+
+    const result = await phase5Api.sales(ids.company, { page: 1 });
+
+    expect(result.results[0]?.corrections[0]).toMatchObject({
+      previous_sale_price: '12000.00',
+      sale_price: '11000.00',
+      reason: 'Signed amount corrected.',
+    });
+    expect(result.results[0]?.corrections[0]?.recorded_at).toBe('2026-11-12T08:00:00Z');
+
+    requestMock.mockResolvedValueOnce({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{
+        id: ids.sale,
+        company_id: ids.company,
+        vehicle_id: ids.vehicle,
+        vehicle_registration: 'KL 11 P 5050',
+        vehicle_model: 'Hatchback',
+        branch_id: ids.branch,
+        branch_name: 'Central',
+        sale_price: '11000.00',
+        investor_funded: false,
+        buyer_name: 'Maya',
+        buyer_phone: '9876543210',
+        sold_at: '2026-11-11T08:00:00Z',
+        received_total: '0.00',
+        refunded_total: '0.00',
+        net_received: '0.00',
+        receivable: '11000.00',
+        refund_payable: '0.00',
+        refund_available: '0.00',
+        correction_version: 1,
+        receipts: [],
+        refunds: [],
+        corrections: [{ id: 'invalid-id' }],
+      }],
+    });
+
+    await expect(phase5Api.sales(ids.company, { page: 1 })).rejects.toThrow('Invalid Sale correction id response.');
+  });
+
   it('parses typed Fund Credit attribution correction history and manual-review state', async () => {
     const investor = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     const correctedInvestor = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';

@@ -99,8 +99,19 @@ export interface Phase5Sale {
   refund_payable: string;
   refund_available: string;
   correction_version: number;
+  corrections: Phase5SaleCorrection[];
   receipts: Phase5Payment[];
   refunds: Phase5Refund[];
+}
+
+export interface Phase5SaleCorrection {
+  id: string;
+  version: number;
+  previous_sale_price: string;
+  sale_price: string;
+  reason: string;
+  effective_at: string;
+  recorded_at: string;
 }
 
 export interface Phase5FundCredit {
@@ -252,6 +263,19 @@ function parseExpense(value: unknown): Phase5Expense {
   return { ...row, payments: row.payments.map(parsePayment), refunds: row.refunds.map(parseExpenseRefund) } as unknown as Phase5Expense;
 }
 
+function parseSaleCorrection(value: unknown): Phase5SaleCorrection {
+  const row = requireRecord(value, 'Sale correction');
+  requireUuid(row.id, 'Sale correction id');
+  requireMoney(row.previous_sale_price, 'Sale correction previous price');
+  requireMoney(row.sale_price, 'Sale correction price');
+  if (
+    !Number.isInteger(row.version) || row.version as number < 1 ||
+    typeof row.reason !== 'string' || !row.reason.trim() ||
+    typeof row.effective_at !== 'string' || typeof row.recorded_at !== 'string'
+  ) throw new Error('Invalid Sale correction response.');
+  return row as unknown as Phase5SaleCorrection;
+}
+
 function parseSale(value: unknown): Phase5Sale {
   const row = requireRecord(value, 'Vehicle Sale');
   for (const field of ['id', 'company_id', 'vehicle_id', 'branch_id']) requireUuid(row[field], `Sale ${field}`);
@@ -262,9 +286,16 @@ function parseSale(value: unknown): Phase5Sale {
     typeof row.vehicle_registration !== 'string' || typeof row.vehicle_model !== 'string' || typeof row.branch_name !== 'string' ||
     typeof row.buyer_name !== 'string' || typeof row.buyer_phone !== 'string' || typeof row.sold_at !== 'string' ||
     typeof row.investor_funded !== 'boolean' ||
-    !Array.isArray(row.receipts) || !Array.isArray(row.refunds) || !Number.isInteger(row.correction_version)
+    !Array.isArray(row.receipts) || !Array.isArray(row.refunds) || !Number.isInteger(row.correction_version) ||
+    !(row.corrections === undefined || Array.isArray(row.corrections))
   ) throw new Error('Invalid Vehicle Sale response.');
-  return { ...row, refund_payable: refundPayable, receipts: row.receipts.map(parsePayment), refunds: row.refunds.map(parseRefund) } as unknown as Phase5Sale;
+  return {
+    ...row,
+    refund_payable: refundPayable,
+    corrections: (row.corrections ?? []).map(parseSaleCorrection),
+    receipts: row.receipts.map(parsePayment),
+    refunds: row.refunds.map(parseRefund),
+  } as unknown as Phase5Sale;
 }
 
 function apiBase(companyId: string, module: 'investment' | 'vehicle-management' | 'garage' | 'labour'): string {

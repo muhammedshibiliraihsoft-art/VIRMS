@@ -364,7 +364,7 @@ def _vehicle_data(vehicle):
 
 
 def _sale_data(sale):
-    corrections = list(sale.corrections.all())
+    corrections = sorted(sale.corrections.all(), key=lambda row: (row.version, str(row.pk)))
     correction = max(corrections, key=lambda row: (row.version, str(row.pk)), default=None)
     price = correction.sale_price if correction else sale.sale_price
     receipts = sorted(sale.receipts.all(), key=lambda row: (row.effective_at, str(row.pk)))
@@ -397,6 +397,18 @@ def _sale_data(sale):
         "refund_available": format(refund_payable, ".2f"),
         "correction_version": correction.version if correction else 0,
         "created_at": sale.created_at.isoformat(),
+        "corrections": [
+            {
+                "id": str(row.pk),
+                "version": row.version,
+                "previous_sale_price": format(row.previous_sale_price, ".2f"),
+                "sale_price": format(row.sale_price, ".2f"),
+                "reason": row.reason,
+                "effective_at": row.effective_at.isoformat(),
+                "recorded_at": row.created_at.isoformat(),
+            }
+            for row in corrections
+        ],
         "receipts": [
             {
                 "id": str(row.pk),

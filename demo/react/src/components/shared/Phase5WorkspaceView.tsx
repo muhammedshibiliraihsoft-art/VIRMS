@@ -6,7 +6,7 @@ import { accountingAccounts, accountingCategories, AccountingAccount, Accounting
 import { authApi } from '../../api/authApi';
 import { queryKeys } from '../../api/queryKeys';
 import { useCompanyModuleStates, hasCompanyBranchReadRole } from '../../api/queries';
-import { phase5Api, phase5Mutation, Phase5Expense, Phase5FundCredit, Phase5FundSummary, Phase5Investor, Phase5PrincipalReturn, Phase5Purchase, Phase5Sale, Phase5Vehicle } from '../../api/phase5Api';
+import { phase5Api, phase5Mutation, Phase5Expense, Phase5FundCredit, Phase5FundSummary, Phase5Investor, Phase5PrincipalReturn, Phase5Purchase, Phase5Sale, Phase5SaleCorrection, Phase5Vehicle } from '../../api/phase5Api';
 import { BranchListItem, BranchSummary } from '../../api/types';
 import type { CompanyModuleCode } from '../../api/types';
 
@@ -49,6 +49,11 @@ function formatMoney(value: string | number | null | undefined): string {
 function displayDate(value: string): string {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(parsed);
+}
+
+function displayDateTime(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
 }
 
 function errorText(error: unknown): string {
@@ -797,7 +802,7 @@ function VehiclePanel(props: {
 
               {props.routeKey === 'Running Capital' && !props.detailLoading && props.expenseRunningCapitalTotal !== undefined && <div className="mt-3 rounded-xl border border-dashed border-[#e2d8ce] p-3 text-[11px] text-gray-600 dark:border-zinc-700 dark:text-gray-300"><strong>Vehicle Company Running Capital:</strong> {formatMoney(moneyFromCents(moneyCents(props.purchase?.running_capital_amount ?? '0.00') + moneyCents(props.expenseRunningCapitalTotal)))}. This includes expenses visible under the selected Branch filter.</div>}
 
-              {props.sale && <div className="mt-3 rounded-xl border border-[#eee6de] p-3 dark:border-zinc-800"><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[10px] font-bold uppercase text-gray-400">Confirmed Sale · {props.sale.buyer_name}</div><div className="mt-1 text-xs font-extrabold">Sale {formatMoney(props.sale.sale_price)} · Received {formatMoney(props.sale.net_received)} · Receivable {formatMoney(props.sale.receivable)}</div><div className="mt-1 text-[10px] text-gray-500">Buyer refund payable {formatMoney(props.sale.refund_payable)} · Buyer {props.sale.buyer_phone}</div></div><div className="flex flex-wrap gap-1.5"><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || (Boolean(props.sale.investor_funded) && !props.canInvestmentWrite) || moneyCents(props.sale.receivable) <= 0n} onClick={() => props.onSaleReceipt(props.sale!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Receipt</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || moneyCents(props.sale.refund_payable) <= 0n} onClick={() => props.onSaleRefund(props.sale!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite} onClick={() => props.onSaleCorrection(props.sale!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct Sale</button></div></div></div>}
+              {props.sale && <div className="mt-3 rounded-xl border border-[#eee6de] p-3 dark:border-zinc-800"><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[10px] font-bold uppercase text-gray-400">Confirmed Sale · {props.sale.buyer_name}</div><div className="mt-1 text-xs font-extrabold">Sale {formatMoney(props.sale.sale_price)} · Received {formatMoney(props.sale.net_received)} · Receivable {formatMoney(props.sale.receivable)}</div><div className="mt-1 text-[10px] text-gray-500">Buyer refund payable {formatMoney(props.sale.refund_payable)} · Buyer {props.sale.buyer_phone}</div></div><div className="flex flex-wrap gap-1.5"><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || (Boolean(props.sale.investor_funded) && !props.canInvestmentWrite) || moneyCents(props.sale.receivable) <= 0n} onClick={() => props.onSaleReceipt(props.sale!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Receipt</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || moneyCents(props.sale.refund_payable) <= 0n} onClick={() => props.onSaleRefund(props.sale!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite} onClick={() => props.onSaleCorrection(props.sale!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct Sale</button></div></div><SaleCorrectionHistory corrections={props.sale.corrections} /></div>}
               {!props.selectedVehicle.is_sold && props.purchase && !runningView && <button type="button" disabled={!props.canVehicleWrite} onClick={() => props.onSale(props.selectedVehicle!)} className="mt-3 h-9 rounded-lg bg-[#18181b] px-3.5 text-xs font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Confirm Sale</button>}
             </>
           )}
@@ -819,13 +824,31 @@ function SalesPanel(props: {
         <span className="text-[10px] text-gray-500">{props.sales.length} sale records on this page</span>
       </div>
       <div className="rounded-2xl border border-[#eee6de] bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900 sm:p-3">
-        {props.sales.length ? <div className="flex flex-col gap-1.5">{props.sales.map((sale) => <div key={sale.id} className="rounded-xl border border-transparent p-2.5 hover:border-[#eee6de] dark:hover:border-zinc-800"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate text-xs font-extrabold">{sale.vehicle_registration} · {sale.vehicle_model}</div><div className="mt-1 truncate text-[10px] text-gray-500">{sale.buyer_name} · {sale.buyer_phone} · {sale.branch_name} · {displayDate(sale.sold_at)}</div><div className="mt-1 text-xs font-bold">Sale {formatMoney(sale.sale_price)} · Received {formatMoney(sale.net_received)} · Due {formatMoney(sale.receivable)} · Refund payable {formatMoney(sale.refund_payable)}</div></div><div className="flex shrink-0 flex-wrap gap-1.5">{props.routeKey === 'Collections' && <button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || (Boolean(sale.investor_funded) && !props.canInvestmentWrite) || moneyCents(sale.receivable) <= 0n} onClick={() => props.onReceipt(sale)} className="h-8 rounded-lg bg-[#18181b] px-2.5 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Add Receipt</button>}{props.routeKey === 'Sale Corrections & Refunds' && <><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || moneyCents(sale.refund_payable) <= 0n} onClick={() => props.onRefund(sale)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Buyer Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite} onClick={() => props.onCorrection(sale)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct Price</button></>}</div></div></div>)}</div> : <Empty>No confirmed Sale records are available in this view.</Empty>}
+        {props.sales.length ? <div className="flex flex-col gap-1.5">{props.sales.map((sale) => <div key={sale.id} className="rounded-xl border border-transparent p-2.5 hover:border-[#eee6de] dark:hover:border-zinc-800"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate text-xs font-extrabold">{sale.vehicle_registration} · {sale.vehicle_model}</div><div className="mt-1 truncate text-[10px] text-gray-500">{sale.buyer_name} · {sale.buyer_phone} · {sale.branch_name} · {displayDate(sale.sold_at)}</div><div className="mt-1 text-xs font-bold">Sale {formatMoney(sale.sale_price)} · Received {formatMoney(sale.net_received)} · Due {formatMoney(sale.receivable)} · Refund payable {formatMoney(sale.refund_payable)}</div></div><div className="flex shrink-0 flex-wrap gap-1.5">{props.routeKey === 'Collections' && <button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || (Boolean(sale.investor_funded) && !props.canInvestmentWrite) || moneyCents(sale.receivable) <= 0n} onClick={() => props.onReceipt(sale)} className="h-8 rounded-lg bg-[#18181b] px-2.5 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Add Receipt</button>}{props.routeKey === 'Sale Corrections & Refunds' && <><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || moneyCents(sale.refund_payable) <= 0n} onClick={() => props.onRefund(sale)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Buyer Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite} onClick={() => props.onCorrection(sale)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct Price</button></>}</div></div><SaleCorrectionHistory corrections={sale.corrections} /></div>)}</div> : <Empty>No confirmed Sale records are available in this view.</Empty>}
         <PageControls page={props.page} hasPrevious={props.hasPrevious} hasNext={props.hasNext} onChange={props.onPage} />
       </div>
       {!props.canVehicleWrite && <Notice>Vehicle Management is OFF. New sales, receipts, refunds and corrections are disabled according to the current module gates.</Notice>}
       {!props.canAccountingWrite && <Notice>Accounting is OFF. Actual receipts and refunds cannot be posted.</Notice>}
       {props.canVehicleWrite && props.canAccountingWrite && !props.canInvestmentWrite && props.sales.some((sale) => Boolean(sale.investor_funded)) && <Notice>Investment is OFF. Receipts for Investor-funded Vehicles are paused; Sale corrections and buyer refunds remain available. Phase 5 does not refresh Investor Profit calculations or post Investor settlements; have an Accountant review affected records manually.</Notice>}
     </>
+  );
+}
+
+function SaleCorrectionHistory({ corrections }: { corrections: Phase5SaleCorrection[] }) {
+  if (!corrections.length) return null;
+  return (
+    <details className="mt-2 rounded-lg border border-[#eee6de] bg-gray-50 px-2.5 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+      <summary className="cursor-pointer text-[10px] font-bold text-gray-600 dark:text-gray-300">Price correction history ({corrections.length})</summary>
+      <ol className="mt-2 flex flex-col gap-2">
+        {corrections.map((correction) => (
+          <li key={correction.id} className="border-t border-[#eee6de] pt-2 first:border-0 first:pt-0 dark:border-zinc-800">
+            <div className="text-[10px] font-bold">v{correction.version} · {formatMoney(correction.previous_sale_price)} → {formatMoney(correction.sale_price)}</div>
+            <p className="mt-0.5 text-[10px] text-gray-700 dark:text-gray-300">{correction.reason}</p>
+            <p className="mt-0.5 text-[9px] text-gray-500">Effective {displayDateTime(correction.effective_at)} · Recorded {displayDateTime(correction.recorded_at)}</p>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 

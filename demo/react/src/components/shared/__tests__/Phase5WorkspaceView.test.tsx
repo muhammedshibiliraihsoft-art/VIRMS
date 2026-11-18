@@ -64,7 +64,7 @@ const baseVehicles = {
   }],
 };
 
-function renderView(routeKey: 'Stock / Investor' | 'Investor Fund' | 'Running Capital' = 'Stock / Investor') {
+function renderView(routeKey: 'Stock / Investor' | 'Investor Fund' | 'Running Capital' | 'Vehicle Sales' | 'Collections' | 'Sale Corrections & Refunds' = 'Stock / Investor') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
@@ -115,6 +115,54 @@ beforeEach(() => {
 });
 
 describe('Phase 5 Vehicle API workspace', () => {
+  it('shows audited Sale price corrections in the Sales history after loading backend data', async () => {
+    const user = userEvent.setup();
+    mocks.phase5Api.sales.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{
+        id: '55555555-5555-4555-8555-555555555555',
+        company_id: ids.company,
+        vehicle_id: ids.vehicle,
+        vehicle_registration: 'KL 11 P 5050',
+        vehicle_model: 'Hatchback',
+        branch_id: ids.branch,
+        branch_name: 'Central',
+        sale_price: '11000.00',
+        investor_funded: false,
+        buyer_name: 'Maya',
+        buyer_phone: '9876543210',
+        sold_at: '2026-11-11T08:00:00Z',
+        received_total: '2000.00',
+        refunded_total: '0.00',
+        net_received: '2000.00',
+        receivable: '9000.00',
+        refund_payable: '0.00',
+        refund_available: '0.00',
+        correction_version: 1,
+        receipts: [],
+        refunds: [],
+        corrections: [{
+          id: '66666666-6666-4666-8666-666666666666',
+          version: 1,
+          previous_sale_price: '12000.00',
+          sale_price: '11000.00',
+          reason: 'Signed amount corrected.',
+          effective_at: '2026-11-11T08:00:00Z',
+          recorded_at: '2026-11-12T08:00:00Z',
+        }],
+      }],
+    });
+
+    renderView('Sale Corrections & Refunds');
+
+    await user.click(await screen.findByText('Price correction history (1)'));
+    expect(screen.getByText('Signed amount corrected.')).toBeInTheDocument();
+    expect(screen.getByText(/12,000.*11,000/)).toBeInTheDocument();
+    expect(screen.getByText(/Recorded/)).toBeInTheDocument();
+  });
+
   it('allows a no-prior-payment refund after explicitly classifying its excess as new Income', async () => {
     const user = userEvent.setup();
     const expenseId = '55555555-5555-4555-8555-555555555555';
