@@ -77,6 +77,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Garage Jobs',
         routeKey: 'Garage Jobs',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Work orders, job costs & stage tracking',
       },
     ],
@@ -389,7 +390,9 @@ export function getRouteDataSourceStatus(routeKey: string): DataSourceStatus {
 export function getFormDataSourceStatus(formType: string): DataSourceStatus {
   // Dashboard and the legacy SharedFormModal still use a prototype Sale action.
   // Phase 5 Sales use typed commands in Phase5WorkspaceView instead.
-  if (formType === 'sale') return 'demo';
+  // Legacy Garage forms and Vehicle Detail also remain prototypes; the separate
+  // Garage workspace uses its own API-backed forms, not SharedFormModal.
+  if (['sale', 'job', 'jobWork', 'jobExpense', 'vehicleExpense', 'customerCharge', 'customerReceipt'].includes(formType)) return 'demo';
   const routeKey = FORM_ROUTE_KEYS[formType];
   return routeKey ? getRouteDataSourceStatus(routeKey) : 'demo';
 }

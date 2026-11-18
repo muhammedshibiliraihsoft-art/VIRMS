@@ -2,6 +2,12 @@
 
 Status: DRAFT V2 — Garage operations source after approval
 
+### ADDITION — Customer Job cost payment (approved 2026-11-18)
+
+- An actual payment to the workshop for a Customer Job cost may be recorded in instalments linked to that Job cost; show the remaining amount.
+- Accounting owns each actual payment and records its cash effect once. A Job cost is not itself an actual payment.
+- This decision does not determine final Company Profit recognition or authorize automatic payment.
+
 ## Scope and separation
 
 The Garage Module operates within a Company and its Branches. A Branch/Garage is not a Tenant. Vehicle Management owns the single Company-wide Vehicle aggregate, stable identity, lifecycle, current Branch/location and movement history. Garage supports Stock Vehicle work and external-customer work as distinct per-Job contexts. Garage owns Job work/status/history, approved Job cost source, customer charge and Branch attribution; Investment owns Investor/Fund and financial events; Accounting owns actual Company receipts/payments and Garage Revenue. The Garage Module must function when Investment is OFF.
@@ -105,3 +111,45 @@ Initial parts/materials may be recorded as approved Vehicle or Job costs. Full s
 
 **Implementation impact**
 - Keep Garage automation policy separate from Accounting posting permission; do not invent an automatic receipt or payment.
+
+### ADDITION — external-customer Job service contact requiredness
+
+**Status:** APPROVED BUSINESS DECISION (2026-11-17)
+
+**Rule**
+- When creating an external-customer Garage Job, service-contact **Name is required** and **Phone is optional**.
+- Name and Phone remain context on that Job. Phone is not a unique identity or proof of Vehicle ownership or payer identity.
+
+**Scope**
+- External-customer Garage Job input and validation only. Stock Vehicle Job contact requirements are not changed.
+
+**Supersedes**
+- The earlier unresolved sentence in “External customer Vehicle work” about whether Name and Phone are mandatory.
+
+**Implementation impact**
+- Validate a nonblank Name on external-customer Job creation. Permit an absent Phone. Preserve the existing no-CRM/no-deduplication boundary.
+
+### ADDITION — External-customer Job cost refunds and excess allocation (2026-11-18)
+
+**Status:** APPROVED BUSINESS DECISION (Q123, Q124, Q132)
+
+**Rule**
+- When a workshop or other supplier returns money for an already-recorded external-customer Job cost, record the actual amount received once through Accounting and link it to that Job cost. This is money received by the Company; it is not a refund paid to the customer and does not create customer credit.
+- Apply only the amount supported by the cost's remaining net actual payments after prior applied refunds. The rest must be assigned to a separate suitable Accounting record. If no eligible destination exists, the Accountant must explicitly create/select one before the refund can be completed.
+- If the Accountant chooses a new Company Income record for the excess, require an active Income category and explanatory note. Create a separate Income event linked to the refund receipt; do not create a second cash movement or classify the excess automatically.
+- The full actual receipt creates exactly one positive Cash/Bank movement. The applied cost portion and the Income classification are typed Accounting relationships; neither creates another movement.
+- The payable balance is derived as current Job cost minus valid payments plus applied refunds. Future cost payments may not exceed that balance. A payment correction may not reduce net payments below previously applied refunds.
+
+**Scope and module gates**
+- Applies to costs on an external-customer Garage Job only. Garage and Accounting must be ON when the refund is recorded. Investment is not required for this Customer Job cost flow.
+- Use the Job's Company and Branch scope and the existing authorized Branch/Company Accountant rules. Keep actual Cash/Bank ownership in Accounting.
+
+**Preserve unchanged**
+- A Garage cost refund is not generic Company Income by default and does not authorize customer refunds or credits. No refund edit/reversal workflow is added by this decision.
+- Preserve the original cost, payments, refund, optional Income event, audit evidence and idempotent retry behavior.
+
+**Supersedes**
+- SUPERSEDES the earlier broad “do not add automatic refund or customer-credit behavior” statement only for an explicit incoming workshop/supplier refund linked to an external-customer Job cost. The exclusion on customer refunds/credit remains.
+
+**Implementation impact**
+- Recalculate under the locked Job transaction at posting time; reject a missing or stale Income classification rather than creating unclassified Income. Enforce exactly one refund source, one Cash/Bank movement and an exact excess Income application in PostgreSQL.

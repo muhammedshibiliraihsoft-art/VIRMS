@@ -301,4 +301,41 @@ describe('authentication route gate', () => {
     expect(authApi.me).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument();
   });
+
+  it('renders Platform Back Office landing page for authenticated back_office user', async () => {
+    const platformUser: AuthMe = {
+      id: 'platform-user-1',
+      login_id: 'ops-admin',
+      must_change_password: false,
+      roles: ['back_office'],
+      tenant_ids: [],
+      companies: [],
+      company_context_truncated: false,
+    };
+    vi.mocked(authApi.me).mockResolvedValue(platformUser);
+
+    renderRoutes('/');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Platform Back Office' })).toBeInTheDocument();
+    expect(screen.getByText('ops-admin')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Companies\b/ })).toHaveAttribute('href', '/admin/tenants/tenant/');
+  });
+
+  it('gates a platform user to temporary password change before reaching Back Office', async () => {
+    const platformUser: AuthMe = {
+      id: 'platform-user-1',
+      login_id: 'ops-admin',
+      must_change_password: true,
+      roles: ['back_office'],
+      tenant_ids: [],
+      companies: [],
+      company_context_truncated: false,
+    };
+    vi.mocked(authApi.me).mockResolvedValue(platformUser);
+
+    renderRoutes('/');
+
+    expect(await screen.findByRole('heading', { name: 'Change your temporary password' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Platform Back Office' })).not.toBeInTheDocument();
+  });
 });

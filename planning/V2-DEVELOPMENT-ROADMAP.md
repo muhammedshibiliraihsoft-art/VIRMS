@@ -98,11 +98,11 @@ The approved Phase 3 slice establishes versioned Company module state, scoped Pl
 
 **Starts when:** Phase 5 establishes Vehicle identity and Company/Branch boundaries.
 
-Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected and reused; Garage must not create parallel Vehicle, Investor or receipt identity owners. Locked Garage business rules are recorded in `docs-final-v2/`; detailed Garage implementation planning is deferred until these roadmap dependencies are accepted.
+Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected and reused; Garage must not create parallel Vehicle, Investor or receipt identity owners. Locked Garage business rules are recorded in `docs-final-v2/`. The implementation architecture and local verification evidence are recorded in [the Phase 6 audit](../architecture/phase-06-garage-jobs/PHASE-06-GARAGE-JOBS-ARCHITECTURE.md).
 
 **Ends when:** Garage work can operate with Investment enabled or disabled and approved costs/revenue link to their authoritative sources.
 
-**Status:** NOT STARTED
+**Status:** COMPLETE LOCALLY — implementation and local automated/browser verification passed 2026-11-18. CI, staging/production runtime and deployment remain UNVERIFIED; see the local implementation checkpoint at the end of this roadmap.
 
 ### Phase 7 — Sales, Buyers, and Collection
 
@@ -243,3 +243,11 @@ This checkpoint supersedes the 2026-11-15 verification counts above and the earl
 ## Phase 5 audit branch publication — 2026-11-16
 
 The candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison verified the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`. The pushed history includes the Phase 4 base commit and Phase 5 implementation. No staging/production deployment is asserted. The separate local `codex/audit` worktree retains its pre-existing dirty changes and was not modified.
+
+## Phase 6 local implementation and verification checkpoint — 2026-11-18
+
+Phase 6's approved Garage, Customer Job and Labour scope is **COMPLETE LOCALLY** on worktree `D:/VIRMS/tmp/phase5-investment-foundation-20261107`, branch `codex/phase5-investment-foundation`, based on `26e509a1e80ca43a6ae360863b2eeddb24a06e0c`. The worktree remains dirty and changes are uncommitted/unpushed. Implementation includes Company/Branch-scoped Garage Jobs and history, Stock Vehicle cost links, external-customer charges/receipts/costs/payments/refunds and corrections, Labour records/payments, typed Accounting links, module/role enforcement, idempotency and transaction guards.
+
+Verification on disposable PostgreSQL: 131 Garage/Accounting tests and 278 Accounts/Tenants/Investment/Vehicle regression tests passed; Django system and migration-drift checks passed; React passed 198 tests across 35 files, lint and production build. The local browser E2E recorded a ₹50 partial cost payment and a ₹70 workshop refund, allocated ₹50 to the cost and ₹20 to a separately selected Income record, then reloaded and verified persisted payment/refund history. Direct database queries confirmed exactly one cash movement for the payment and one for the refund, plus one ₹20 Income application with no extra cash movement. The same refund remained visible at 390px and 320px without horizontal document overflow.
+
+This checkpoint does not establish CI, staging, production or deployment readiness, and no persistent user database was migrated. Final Company Profit recognition and period-close behavior remain outside Phase 6 under V2 `09`; Investor Profit/Exit settlement remains Phase 8. No commit, push or deployment was performed.

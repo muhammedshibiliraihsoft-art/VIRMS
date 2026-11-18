@@ -17,8 +17,9 @@ const routeKeys = (roles: readonly string[] | undefined) =>
   getRoleNavigation(roles).flatMap((group) => group.children.map((child) => child.routeKey));
 
 describe('role-based navigation presentation', () => {
-  it('marks only wired Accounting and Phase 5 API routes as backend', () => {
+  it('marks wired Accounting, Phase 5 and Garage workspace routes as backend', () => {
     const backendRoutes = new Set([
+      'Garage Jobs',
       'Stock / Investor',
       'Investor Fund',
       'Vehicle Sales',
@@ -65,8 +66,9 @@ describe('role-based navigation presentation', () => {
         for (const child of group.children) child.dataSourceStatus = 'backend';
       }
 
+      const legacyGarageForms = new Set(['job', 'jobWork', 'jobExpense', 'vehicleExpense', 'customerCharge', 'customerReceipt']);
       for (const formType of formTypes) {
-        expect(getFormDataSourceStatus(formType), formType).toBe('backend');
+        expect(getFormDataSourceStatus(formType), formType).toBe(legacyGarageForms.has(formType) ? 'demo' : 'backend');
       }
       expect(getFormDataSourceStatus('sale')).toBe('demo');
       expect(getFormDataSourceStatus('companyExpense')).toBe('demo');

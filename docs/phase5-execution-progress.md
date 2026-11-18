@@ -368,3 +368,15 @@ The approved Phase 5 core scope is locally committed on `codex/phase5-investment
 ## Phase 5 audit branch publication checkpoint — 2026-11-16
 
 The Phase 5 candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison confirmed the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`. This history includes the Phase 4 base commit and Phase 5 implementation commit. Staging/production deployment was not performed. The separate local `codex/audit` worktree's 17 pre-existing dirty paths were left untouched.
+
+## Local persistent database verification — 2026-11-17
+
+The local Django server on `127.0.0.1:8001` was verified to run from `D:/VIRMS/tmp/phase5-investment-foundation-20261107`. Its configured persistent local database is the PostgreSQL 15 `virms_local_8002` database in container `virms-local-8002-codex-session` (host port 55476); no staging or production database was used.
+
+Before migration, the database contained 3 Accounts users, 1 Tenant, and 1 Branch, while Phase 5 Fund Credit, Vehicle Purchase, and Accounting Event counts were each 0. A fresh custom-format backup was written outside the repository to `C:/Users/Admin/AppData/Local/VIRMS/backups/virms_local_8002_pre_phase5_20261117_153842.dump` (SHA-256 `596D8E1CA5A5EC820BB41B01CB4FAAF12BA3F0DBE9C0AF55F83B77DFFCA53E03`) and validated with PostgreSQL 15 `pg_restore --list`.
+
+That backup was restored into a uniquely named database in the disposable PostgreSQL container and the Phase 5 migration graph was applied there first. Restore rehearsal preserved the 3/1/1 user/Tenant/Branch counts; `migrate`, `check`, and `makemigrations --check --dry-run` succeeded. The same pending Phase 5 migrations were then applied to `virms_local_8002`; `python manage.py check` and `python manage.py migrate --check` succeeded. Post-migration counts remain 3/1/1, and the checked Fund Credit, Vehicle Purchase, and Accounting Event tables remain empty.
+
+On that disposable restored copy, migration reversal to `accounting.0003_relation_integrity` un-applied the Phase 5 Vehicle/Investment/Accounting extensions successfully and preserved the 3/1/1 Accounts user/Tenant/Branch counts. Reapplying the current migration graph, Django `check`, and `migrate --check` succeeded. The rollback rehearsal had no Phase 5 financial or Vehicle history; it does not prove rollback safety with populated Phase 5 records. No rollback was attempted on the persistent local database.
+
+Runtime verification after migration: `/health/live/` and `/health/ready/` both returned HTTP 200. In the local browser, the Investor Fund view loaded through the Backend API and displayed the expected empty-state records with Investment/Vehicle Management/Accounting OFF; it no longer displayed the temporary-service error. Browser error/warning log query returned no entries. No financial record or login credential was created or changed. The full test suite was not rerun in this update; staging/production, hosted migration, and deployment remain UNVERIFIED.

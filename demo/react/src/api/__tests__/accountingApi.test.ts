@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { accountingCorrectionPath, accountingMutation } from '../accountingApi';
+import { accountingCorrectionPath, accountingMutation, parseAccountingEventsPage } from '../accountingApi';
 import { requestApi } from '../client';
 
 vi.mock('../client', () => ({ requestApi: vi.fn() }));
@@ -45,6 +45,16 @@ describe('Accounting correction resource routing', () => {
   it('rejects an invalid event identity', () => {
     expect(() => accountingCorrectionPath('RECEIPT', 'not-a-uuid', 'REVERSE_ONLY'))
       .toThrow('A valid Accounting event identity is required.');
+  });
+
+  it('accepts a Garage source receipt without routing correction to transfers', () => {
+    const row = { id: eventId, company_id: eventId, branch_id: null, branch_name: null,
+      event_type: 'GARAGE_RECEIPT', amount: '200.00', currency: 'INR', category_id: null,
+      category_name: null, description: 'Garage customer receipt', source_reference: 'voucher-1',
+      effective_at: '2026-11-17T00:00:00Z', recorded_at: '2026-11-17T00:00:00Z', actor_id: eventId,
+      effect_sign: 1, reversal_of_id: null, replaces_event_id: null };
+    expect(parseAccountingEventsPage({ count: 1, next: null, previous: null, results: [row] }).results[0].event_type).toBe('GARAGE_RECEIPT');
+    expect(() => accountingCorrectionPath('GARAGE_RECEIPT', eventId, 'REVERSE_ONLY')).toThrow('owning workflow');
   });
 });
 

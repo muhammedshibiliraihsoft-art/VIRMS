@@ -6,7 +6,10 @@ export type AccountingEventType =
   | 'RECEIPT'
   | 'PAYMENT'
   | 'OPENING_BALANCE'
-  | 'TRANSFER';
+  | 'TRANSFER'
+  | 'CAPITAL_INFLOW' | 'CAPITAL_OUTFLOW' | 'VEHICLE_PAYMENT' | 'VEHICLE_RECEIPT'
+  | 'VEHICLE_REFUND_IN' | 'PURCHASE_REFUND_IN' | 'VEHICLE_SALE_RECEIPT' | 'VEHICLE_SALE_REFUND'
+  | 'GARAGE_RECEIPT' | 'GARAGE_COST_PAYMENT' | 'GARAGE_COST_REFUND' | 'LABOUR_PAYMENT';
 
 export interface AccountingEventRow {
   id: string;
@@ -96,6 +99,8 @@ export interface AccountingResult {
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const eventTypes = new Set<AccountingEventType>([
   'INCOME', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER',
+  'CAPITAL_INFLOW', 'CAPITAL_OUTFLOW', 'VEHICLE_PAYMENT', 'VEHICLE_RECEIPT',
+  'VEHICLE_REFUND_IN', 'PURCHASE_REFUND_IN', 'VEHICLE_SALE_RECEIPT', 'VEHICLE_SALE_REFUND', 'GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'GARAGE_COST_REFUND', 'LABOUR_PAYMENT',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -149,9 +154,9 @@ export function accountingCorrectionPath(
   if (eventType === 'RECEIPT') return `receipts/${id}/corrections/`;
   if (eventType === 'PAYMENT') return `payments/${id}/corrections/`;
   if (eventType === 'OPENING_BALANCE') return `opening-balances/${id}/corrections/`;
-  return outcome === 'REVERSE_ONLY'
-    ? `transfers/${id}/reversals/`
-    : `transfers/${id}/corrections/`;
+  if (eventType === 'TRANSFER') return outcome === 'REVERSE_ONLY'
+    ? `transfers/${id}/reversals/` : `transfers/${id}/corrections/`;
+  throw new Error('This source event must be corrected through its owning workflow.');
 }
 
 export function parseAccountingEventsPage(value: unknown): AccountingPage<AccountingEventRow> {

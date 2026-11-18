@@ -51,7 +51,7 @@ const Phase5WorkspaceView = React.lazy(() =>
 );
 import { AllVehiclesView } from './components/AllVehiclesView';
 import { VehicleDetailView } from './components/VehicleDetailView';
-import { GarageJobsView } from './components/GarageJobsView';
+import { GarageWorkspaceView } from './components/shared/GarageWorkspaceView';
 import { GarageJobDetailView } from './components/GarageJobDetailView';
 import { PendingViewPlaceholder } from './components/PendingViewPlaceholder';
 import { NoticeView } from './components/shared/NoticeView';
@@ -623,55 +623,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
           onToggleJobStatus={handleToggleJobStatus}
         />
       ) : isGarageJobsView ? (
-        /* Work Queue List View */
-        <GarageJobsView
-          jobs={jobs}
-          vehicles={vehicles}
-          garages={garages}
-          selectedGarage={selectedGarage}
-          onSelectJob={(j) => {
-            setSelectedJobId(j.id);
-            setJobDetailOrigin('garage-jobs');
-            setActiveRoute('Garage Job Detail');
-          }}
-          onNewJob={() => {
-            setFormModalState({
-              isOpen: true,
-              type: 'job',
-            });
-          }}
-          onAddWork={(j) => {
-            setFormModalState({
-              isOpen: true,
-              type: 'jobWork',
-              context: { jobId: j.id, vehicleId: j.vehicleId },
-            });
-          }}
-          onAddCostOrCharge={(j) => {
-            const v = vehicles.find((veh) => veh.id === j.vehicleId);
-            if (v?.type === 'Customer') {
-              setFormModalState({
-                isOpen: true,
-                type: 'customerCharge',
-                context: { jobId: j.id, vehicleId: j.vehicleId },
-              });
-            } else {
-              setFormModalState({
-                isOpen: true,
-                type: 'jobExpense',
-                context: { jobId: j.id, vehicleId: j.vehicleId },
-              });
-            }
-          }}
-          onReceive={(j) => {
-            setFormModalState({
-              isOpen: true,
-              type: 'customerReceipt',
-              context: { jobId: j.id },
-            });
-          }}
-          onToggleStatus={handleToggleJobStatus}
-        />
+        <GarageWorkspaceView />
       ) : activeRoute === 'Stock / Investor' && !investorOnly ? (
         <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 p-4 text-xs text-gray-500 dark:border-zinc-800">Loading Vehicle workspace…</div>}>
           <Phase5WorkspaceView routeKey="Stock / Investor" />

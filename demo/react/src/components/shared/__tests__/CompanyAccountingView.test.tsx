@@ -47,14 +47,15 @@ vi.mock('../../../api/accountingApi', async (importOriginal) => {
 });
 
 function eventRow(type: AccountingEventType): AccountingEventRow {
-  const rowId = {
+  const rowIds: Partial<Record<AccountingEventType, string>> = {
     INCOME: ids.income,
     EXPENSE: ids.expense,
     RECEIPT: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     PAYMENT: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     OPENING_BALANCE: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     TRANSFER: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-  }[type];
+  };
+  const rowId = rowIds[type] ?? 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   return {
     id: rowId,
     company_id: ids.company,
@@ -167,6 +168,13 @@ beforeEach(() => {
 });
 
 describe('CompanyAccountingView backend mutations', () => {
+  it.each(['GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'LABOUR_PAYMENT'] as const)('filters Accounting tools by %s', async (type) => {
+    const user = userEvent.setup();
+    renderView('Accounting');
+    await openTools(user);
+    await user.selectOptions(screen.getByLabelText('Event type filter'), type);
+    expect(mocks.useAccountingEvents).toHaveBeenCalledWith(expect.objectContaining({ eventType: type }));
+  });
   it.each([
     ['Add account', 'Account type'],
     ['Add category', 'Category type'],

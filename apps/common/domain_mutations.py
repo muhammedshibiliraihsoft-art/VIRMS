@@ -57,6 +57,7 @@ def execute_domain_mutation(
     idempotency_model,
     operation,
     branch_id=None,
+    authorize_replay=None,
 ):
     """Serialize a Phase 5 domain write with company module-state revisions."""
     if not key or len(key) > 128:
@@ -99,6 +100,9 @@ def execute_domain_mutation(
                 company=company,
                 branch=branch,
             )
+
+            if authorize_replay is not None:
+                authorize_replay(locked_actor, company, branch)
 
             existing = idempotency_model.objects.filter(
                 tenant=company, actor=locked_actor, key=key

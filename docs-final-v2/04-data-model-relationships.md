@@ -1746,3 +1746,13 @@ Do not hard-delete a Sold Vehicle, finalized Sale, confirmed payment, financial 
 - Allowed excess destinations must be typed same-Company relationships, not a free-form source ID. If the Accountant classifies an excess as Company Income, create a separate Income event with the selected category/note and link the actual Receipt to it; preserve all existing Income events unchanged. Never auto-classify or silently create an Income event.
 - Investor Fund allocations and Company Running Capital allocations are separate typed source records linked to Vehicle Purchase/Expense costs. Their total must equal the approved cost; actual Cash/Bank movement is a different record and is created only for money actually received or paid.
 - Company Running Capital is recorded as a Vehicle-linked exact shortfall without a pre-funded pool. Company-only Purchase does not require an Investor record. Investor-linked Expense and pooled-Fund Purchase/Expense allocation require a Company-level Accountant; Company-only Purchase/Expense may be recorded by a Branch Accountant within their authorized Branch.
+
+### ADDITION — External-customer Garage cost refund relationships (Q123, Q124, Q132)
+
+**Status:** APPROVED BUSINESS DECISION; local typed implementation added 2026-11-18
+
+- `GarageCustomerCostRefund` links one external-customer Job cost to exactly one `GARAGE_COST_REFUND` Accounting event. The event owns the actual received amount and exactly one positive Cash/Bank movement.
+- The amount applied to the Job cost cannot exceed its remaining net actual payments after prior refunds. Any excess must be explicitly classified separately; the approved local option creates a new Company Income event only after the Accountant selects an active Income category and supplies a note. That Income application creates no second Cash/Bank movement.
+- Preserve the Job cost, its payments, refund event, optional Income event and audit/idempotency records. Do not create customer credit, auto-classify Income or add a refund edit/reversal workflow.
+- This relationship applies to external-customer Garage Job cost only and requires Garage + Accounting ON. Investment is not required. Existing Company/Branch and authorized Accountant scope continues to apply.
+- This is a domain-specific typed source relationship, not a free-form polymorphic source ID.

@@ -267,7 +267,7 @@ function parseSale(value: unknown): Phase5Sale {
   return { ...row, refund_payable: refundPayable, receipts: row.receipts.map(parsePayment), refunds: row.refunds.map(parseRefund) } as unknown as Phase5Sale;
 }
 
-function apiBase(companyId: string, module: 'investment' | 'vehicle-management'): string {
+function apiBase(companyId: string, module: 'investment' | 'vehicle-management' | 'garage' | 'labour'): string {
   requireUuid(companyId, 'Company id');
   return `tenants/${encodeURIComponent(companyId)}/${module}/`;
 }
@@ -300,10 +300,11 @@ async function bodySignature(value: string): Promise<string> {
 export async function phase5Mutation<T>(
   companyId: string,
   userId: string,
-  module: 'investment' | 'vehicle-management',
+  module: 'investment' | 'vehicle-management' | 'garage' | 'labour',
   suffix: string,
   body: unknown,
   method: Extract<ApiMethod, 'POST' | 'PATCH'> = 'POST',
+  validate?: (value: unknown) => T,
 ): Promise<T> {
   requireUuid(userId, 'User id');
   const base = apiBase(companyId, module);
@@ -319,7 +320,15 @@ export async function phase5Mutation<T>(
   } catch {
     throw new Error('This change cannot be saved because safe retry storage is unavailable.');
   }
-  const result = await requestApi<T>(path, { method, body, headers: { 'Idempotency-Key': key } });
+  const response = await requestApi<unknown>(path, { method, body, headers: { 'Idempotency-Key': key } });
+  // Keep the key until the caller confirms the response is usable. The server may
+  // have committed even when a malformed response cannot safely be displayed.
+  let result: T;
+  try {
+    result = validate ? validate(response) : response as T;
+  } catch {
+    throw new Error('The response could not be verified. The change may have been saved; refresh the records before trying again.');
+  }
   try {
     if (sessionStorage.getItem(storageKey) === key) sessionStorage.removeItem(storageKey);
   } catch {

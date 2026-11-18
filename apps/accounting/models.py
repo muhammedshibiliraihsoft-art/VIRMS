@@ -184,6 +184,10 @@ class AccountingEvent(TimestampedUUIDModel):
         PURCHASE_REFUND_IN = "PURCHASE_REFUND_IN", "Vehicle Purchase Refund Received"
         VEHICLE_SALE_RECEIPT = "VEHICLE_SALE_RECEIPT", "Vehicle Sale Receipt"
         VEHICLE_SALE_REFUND = "VEHICLE_SALE_REFUND", "Vehicle Sale Refund"
+        GARAGE_RECEIPT = "GARAGE_RECEIPT", "Garage Receipt"
+        GARAGE_COST_PAYMENT = "GARAGE_COST_PAYMENT", "Garage Cost Payment"
+        GARAGE_COST_REFUND = "GARAGE_COST_REFUND", "Garage Cost Refund"
+        LABOUR_PAYMENT = "LABOUR_PAYMENT", "Labour Payment"
 
     tenant = models.ForeignKey(
         "tenants.Tenant", on_delete=models.PROTECT, related_name="accounting_events"
@@ -255,6 +259,10 @@ class AccountingEvent(TimestampedUUIDModel):
                         "PURCHASE_REFUND_IN",
                         "VEHICLE_SALE_RECEIPT",
                         "VEHICLE_SALE_REFUND",
+                        "GARAGE_RECEIPT",
+                        "GARAGE_COST_PAYMENT",
+                        "GARAGE_COST_REFUND",
+                        "LABOUR_PAYMENT",
                     )
                 ),
                 name="acct_event_type_ck",
@@ -292,6 +300,10 @@ class AccountingEvent(TimestampedUUIDModel):
                             "PURCHASE_REFUND_IN",
                             "VEHICLE_SALE_RECEIPT",
                             "VEHICLE_SALE_REFUND",
+                            "GARAGE_RECEIPT",
+                            "GARAGE_COST_PAYMENT",
+                            "GARAGE_COST_REFUND",
+                            "LABOUR_PAYMENT",
                         ),
                         category__isnull=True,
                     )

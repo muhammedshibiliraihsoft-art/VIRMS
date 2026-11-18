@@ -1,22 +1,25 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import App from '../App';
 import { useCompanyModuleStates } from '../api/queries';
 import { AuthLoadingPage, AuthUnavailablePage, FirstPasswordPage, LoginPage } from './AuthPages';
 import { authScopeFingerprint, AuthProvider, isPlatformUser, useAuth } from './AuthContext';
+import { BackOfficePage } from './BackOfficePage';
 
 export const AppRoutes: React.FC<{ protectedApp?: React.ReactNode }> = ({ protectedApp }) => {
   const auth = useAuth();
   const navigate = useNavigate();
 
-  if (auth.status === 'loading') return <AuthLoadingPage />;
-  if (auth.status === 'error') return <AuthUnavailablePage />;
-  if (auth.status === 'authenticated' && isPlatformUser(auth.user)) return <PlatformAdminRedirect />;
-
   const handleLogout = async () => {
     await auth.logout();
     navigate('/login', { replace: true });
   };
+
+  if (auth.status === 'loading') return <AuthLoadingPage />;
+  if (auth.status === 'error') return <AuthUnavailablePage />;
+  if (auth.status === 'authenticated' && isPlatformUser(auth.user)) {
+    return <BackOfficePage onLogout={handleLogout} />;
+  }
 
   const protectedContent = protectedApp ?? (
     <>
@@ -81,10 +84,3 @@ export const AuthenticatedApplication: React.FC<{ protectedApp?: React.ReactNode
     <AppRoutes protectedApp={protectedApp} />
   </AuthProvider>
 );
-
-const PlatformAdminRedirect: React.FC = () => {
-  useEffect(() => {
-    window.location.replace('/admin/');
-  }, []);
-  return <AuthLoadingPage />;
-};

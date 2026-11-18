@@ -2,6 +2,8 @@ from django.urls import include, path
 
 from apps.accounting.urls import urlpatterns as accounting_urlpatterns
 from apps.investment.urls import urlpatterns as investment_urlpatterns
+from apps.garage.urls import urlpatterns as garage_urlpatterns
+from apps.garage.labour_urls import urlpatterns as labour_urlpatterns
 from apps.vehicles.urls import urlpatterns as vehicle_management_urlpatterns
 
 from .views import CompanyBranchDetail, CompanyBranchList, TenantDetail, TenantList
@@ -28,6 +30,8 @@ urlpatterns = [
 ]
 
 urlpatterns += [
+    path("<uuid:company_id>/garage/", include((garage_urlpatterns, "garage"))),
+    path("<uuid:company_id>/labour/", include((labour_urlpatterns, "labour"))),
     path(
         "<uuid:company_id>/accounting/",
         include((accounting_urlpatterns, "accounting")),

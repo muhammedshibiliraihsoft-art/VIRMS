@@ -577,7 +577,7 @@ export const CompanyAccountingView: React.FC<{
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold text-gray-900 dark:text-white">All Accounting events</h3>
                 <select aria-label="Event type filter" className={inputClass + ' w-auto'} value={toolsEventType ?? ''} onChange={(event) => { setToolsEventType((event.target.value || undefined) as AccountingEventType | undefined); setToolsPage(1); setSelectedEventId(null); }}>
-                  <option value="">All types</option>{(['INCOME', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER'] as AccountingEventType[]).map((type) => <option key={type} value={type}>{type.replace('_', ' ')}</option>)}
+                  <option value="">All types</option>{(['INCOME', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER', 'GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'LABOUR_PAYMENT'] as AccountingEventType[]).map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}
                 </select>
               </div>
               {toolsEventsQuery.isPending ? <p className="py-6 text-xs text-gray-500">Loading events…</p> : toolsEventsQuery.isError ? <p role="alert" className="py-6 text-xs text-red-600">Event history could not be loaded.</p> : (
@@ -756,7 +756,7 @@ function EventActions({ event, canAccount, onAction }: {
     {event.movements.length > 0 && <div className="text-[11px] text-gray-600 dark:text-gray-300">{event.movements.map((movement) => <p key={movement.id}>{movement.account_label}: {movement.delta}</p>)}</div>}
     {canAccount && current && <div className="flex flex-wrap gap-2">
       {(event.event_type === 'INCOME' || event.event_type === 'EXPENSE') && <button type="button" onClick={() => onAction(event.event_type === 'INCOME' ? 'RECEIPT' : 'PAYMENT')} className="rounded-full border border-[#e2d8ce] px-3 py-1.5 text-[11px] font-bold dark:border-zinc-700">Record {event.event_type === 'INCOME' ? 'Receipt' : 'Payment'}</button>}
-      <button type="button" onClick={() => onAction('CORRECTION')} className="rounded-full bg-[#18181b] px-3 py-1.5 text-[11px] font-bold text-white">Correct</button>
+      {['INCOME', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER'].includes(event.event_type) && <button type="button" onClick={() => onAction('CORRECTION')} className="rounded-full bg-[#18181b] px-3 py-1.5 text-[11px] font-bold text-white">Correct</button>}
     </div>}
     {canAccount && current && active.length > 0 && <div><h4 className="mb-1 text-[11px] font-bold">Active cash applications</h4>{active.map((application) => <div key={application.id} className="flex flex-wrap items-center justify-between gap-2 py-1 text-[10px]"><span>{application.source_event_id === event.id ? 'Applied to' : 'Paid / received from'} {application.target_event_id} · {formatINR(application.amount)}</span><button type="button" onClick={() => onAction('REALLOCATION', application.id)} className="font-bold text-[var(--theme-primary)]">Reallocate</button></div>)}</div>}
     {!current && <p className="text-[11px] text-gray-500">Historical record. Its correction chain is preserved; select the current replacement to make a further correction.</p>}

@@ -2002,3 +2002,26 @@ Eligible normal Investor Profit paid while Active remains valid history and cann
 
 **Implementation impact**
 - Store an audited typed correction and expose that linked use/return history remains unchanged and requires Accountant review. Keep the existing Investment module gate and source-Branch authorization. No automatic Profit/settlement calculation or posting is part of Phase 5.
+
+### ADDITION — Q100 Investor calculation refresh timing — 2026-11-17
+
+**Status:** APPROVED BUSINESS DECISION — SCOPE RESOLUTION
+**Effective documentation state:** Current V2 addition
+
+**Rule**
+- Phase 5 records approved Sale corrections, actual Buyer refunds, and their Accounting source events under their existing module gates. It does not calculate or refresh Investor Profit entitlements or periods.
+- Defer Q100's derived Investor calculation refresh for those Sale changes to Phase 8. Phase 5 must not create an Investor Profit payment, settlement, or additional Cash/Bank event as a side effect.
+- In Phase 8, derive affected Investor calculations from authoritative Sale, receipt, refund, and Accounting source history, keeping effective dates and correction-recorded timestamps distinct.
+
+**Scope**
+- Implementation timing for the calculation-only refresh described by Q100 after Q98 Sale-price corrections and Q99 Buyer refunds.
+
+**Preserve unchanged**
+- Q98/Q99 Sale correction, Buyer refund, module-gate, and actual Accounting movement rules remain in effect in Phase 5.
+- Q133–Q134 manual review after a used/returned Fund Credit attribution correction remains separate and unchanged.
+
+**Supersedes**
+- SUPERSEDES the earlier Q100 Phase 5 implementation timing only. It does not remove the Phase 8 calculation requirement or change the source-record and cash-movement rules.
+
+**Implementation impact**
+- Do not add Investor agreement snapshots, Investor Profit result screens, or automatic calculation refresh to Phase 5. The current Phase 5 message that Profit calculations are not refreshed remains accurate.

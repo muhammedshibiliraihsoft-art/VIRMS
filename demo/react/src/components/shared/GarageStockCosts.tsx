@@ -1,0 +1,40 @@
+import React, { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { garageApi, GarageJob, GarageStockCost } from '../../api/garageApi';
+import { phase5Api } from '../../api/phase5Api';
+
+interface Props { companyId: string; userId: string; job: GarageJob; canWrite: boolean; canChooseInvestor: boolean; onBusyChange: (busy: boolean) => void }
+
+export const GarageStockCosts: React.FC<Props> = ({ companyId, userId, job, canWrite, canChooseInvestor, onBusyChange }) => {
+  const client = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [form, setForm] = useState<'create' | 'link' | null>(null);
+  const [expensePage, setExpensePage] = useState(1);
+  const [investorPage, setInvestorPage] = useState(1);
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [expenseId, setExpenseId] = useState('');
+  const [investorId, setInvestorId] = useState('');
+  const costs = useQuery({ queryKey: ['garage', userId, companyId, 'stock-costs', job.id, page], queryFn: ({ signal }) => garageApi.stockCosts(companyId, job.id, page, signal), retry: false });
+  const expenses = useQuery({ queryKey: ['garage', userId, companyId, 'available-expenses', job.vehicle_id, job.branch_id, expensePage], queryFn: ({ signal }) => phase5Api.expenses(companyId, job.vehicle_id, { branchId: job.branch_id, page: expensePage }, signal), enabled: form === 'link', retry: false });
+  const investors = useQuery({ queryKey: ['garage', userId, companyId, 'investors', investorPage], queryFn: ({ signal }) => phase5Api.investors(companyId, investorPage, signal), enabled: form === 'create' && canChooseInvestor, retry: false });
+  const mutation = useMutation({ mutationFn: async (): Promise<GarageStockCost> => {
+    if (form === 'create') return garageApi.createStockCost(companyId, userId, job.id, { amount, description: description.trim(), investor_id: investorId || null });
+    if (form === 'link') return garageApi.linkStockCost(companyId, userId, job.id, expenseId);
+    throw new Error('Choose a cost action.');
+  }, onMutate: () => onBusyChange(true), onSuccess: async () => {
+    await Promise.all([client.invalidateQueries({ queryKey: ['garage', userId, companyId, 'stock-costs', job.id] }), client.invalidateQueries({ queryKey: ['garage', userId, companyId, 'available-expenses', job.vehicle_id] }), client.invalidateQueries({ queryKey: ['companies', userId, companyId, 'phase5'] })]);
+    setForm(null); setAmount(''); setDescription(''); setExpenseId(''); setInvestorId('');
+  }, onSettled: () => onBusyChange(false) });
+  const inputClass = 'w-full rounded border border-gray-300 px-3 py-2 text-xs dark:bg-zinc-900';
+  const choose = (next: 'create' | 'link') => { mutation.reset(); setForm(next); setAmount(''); setDescription(''); setExpenseId(''); setInvestorId(''); };
+  return <section aria-label="Stock job costs" className="space-y-2 border-t border-gray-100 pt-3 dark:border-zinc-800"><h3 className="text-xs font-bold">Stock job costs</h3><p className="text-xs text-gray-500">Costs are linked to the Vehicle Expense record. No payment is made here.</p>
+    {costs.isPending && <p role="status" className="text-xs">Loading costs…</p>}{costs.isError && <p role="alert" className="text-xs text-red-600">Costs could not be loaded.</p>}
+    {costs.isSuccess && <><ul className="space-y-1 text-xs">{costs.data.results.map(cost => <li key={cost.id}>{cost.description} · ₹{cost.amount}</li>)}</ul>{costs.data.results.length === 0 && <p className="text-xs text-gray-500">No linked costs.</p>}<div className="flex gap-3 text-xs"><button type="button" disabled={!costs.data.previous} onClick={() => setPage(p => p - 1)} className="disabled:opacity-40">Previous</button><span>Page {page}</span><button type="button" disabled={!costs.data.next} onClick={() => setPage(p => p + 1)} className="disabled:opacity-40">Next</button></div></>}
+    {canWrite && job.status === 'OPEN' && <div className="flex flex-wrap gap-2"><button type="button" disabled={mutation.isPending} onClick={() => choose('create')} className="rounded border border-gray-300 px-3 py-2 text-xs">Add vehicle cost</button><button type="button" disabled={mutation.isPending} onClick={() => choose('link')} className="rounded border border-gray-300 px-3 py-2 text-xs">Link existing expense</button></div>}
+    {canWrite && form && <form onSubmit={event => { event.preventDefault(); if (!mutation.isPending) mutation.mutate(); }} className="space-y-2 rounded border border-gray-200 p-3 dark:border-zinc-800"><fieldset disabled={mutation.isPending} className="space-y-2">
+      {form === 'create' ? <><h4 className="text-xs font-bold">New vehicle cost</h4><label className="block text-xs" htmlFor="stock-cost-amount">Amount</label><input className={inputClass} id="stock-cost-amount" type="number" min="0.01" step="0.01" required value={amount} onChange={event => setAmount(event.target.value)} /><label className="block text-xs" htmlFor="stock-cost-description">Description</label><input className={inputClass} id="stock-cost-description" required maxLength={500} value={description} onChange={event => setDescription(event.target.value)} />{canChooseInvestor && <><label className="block text-xs" htmlFor="stock-cost-investor">Investor, if applicable</label><select className={inputClass} id="stock-cost-investor" value={investorId} onChange={event => setInvestorId(event.target.value)}><option value="">Company only</option>{investors.data?.results.filter(investor => investor.is_active).map(investor => <option value={investor.id} key={investor.id}>{investor.name}</option>)}</select>{investors.isPending && <p role="status" className="text-xs">Loading investors…</p>}{investors.isError && <p role="alert" className="text-xs text-red-600">Investors could not be loaded.</p>}<div className="flex gap-3 text-xs"><button type="button" disabled={!investors.data?.previous} onClick={() => { setInvestorId(''); setInvestorPage(p => p - 1); }} className="disabled:opacity-40">Previous</button><span>Page {investorPage}</span><button type="button" disabled={!investors.data?.next} onClick={() => { setInvestorId(''); setInvestorPage(p => p + 1); }} className="disabled:opacity-40">Next</button></div><p className="text-xs text-gray-500">For Investor-funded vehicles, select the responsible Investor. Available Fund is used first.</p></>}</> : <><h4 className="text-xs font-bold">Link existing vehicle expense</h4><label className="block text-xs" htmlFor="stock-cost-expense">Vehicle expense</label><select className={inputClass} id="stock-cost-expense" required value={expenseId} onChange={event => setExpenseId(event.target.value)}><option value="">Select expense</option>{expenses.data?.results.map(expense => <option key={expense.id} value={expense.id}>{expense.description} · ₹{expense.amount}</option>)}</select>{expenses.isPending && <p role="status" className="text-xs">Loading expenses…</p>}{expenses.isError && <p role="alert" className="text-xs text-red-600">Vehicle expenses could not be loaded.</p>}<div className="flex gap-3 text-xs"><button type="button" disabled={!expenses.data?.previous} onClick={() => { setExpenseId(''); setExpensePage(p => p - 1); }} className="disabled:opacity-40">Previous</button><span>Page {expensePage}</span><button type="button" disabled={!expenses.data?.next} onClick={() => { setExpenseId(''); setExpensePage(p => p + 1); }} className="disabled:opacity-40">Next</button></div></>}
+      {mutation.isError && <p role="alert" className="text-xs text-red-600">{mutation.error instanceof Error ? mutation.error.message : 'Could not save cost.'}</p>}<div className="flex gap-2"><button type="submit" disabled={form === 'link' && !expenseId} className="rounded bg-[var(--theme-primary)] px-3 py-2 text-xs text-white disabled:opacity-40">Save</button><button type="button" onClick={() => setForm(null)} className="rounded border border-gray-300 px-3 py-2 text-xs">Cancel</button></div>
+    </fieldset></form>}
+  </section>;
+};
