@@ -3,6 +3,7 @@ from django.urls import path
 from apps.vehicles.views import (
     VehicleBranchMovementView,
     VehicleDetailView,
+    VehicleFinancialPositionView,
     VehicleListCreateView,
     VehiclePurchaseDetailView,
     VehiclePurchaseInstallmentView,
@@ -27,6 +28,8 @@ app_name = "vehicles"
 urlpatterns = [
     path("vehicles/", VehicleListCreateView.as_view(), name="vehicle-list-create"),
     path("vehicles/<uuid:vehicle_id>/", VehicleDetailView.as_view(), name="vehicle-detail"),
+    path("vehicles/<uuid:vehicle_id>/financial-position/", VehicleFinancialPositionView.as_view(), name="vehicle-financial-position"),
+    path("vehicles/<uuid:vehicle_id>/financial-position/confirm/", VehicleFinancialPositionView.as_view(), name="vehicle-financial-position-confirm"),
     path("purchases/", VehiclePurchaseListCreateView.as_view(), name="purchase-list-create"),
     path("purchases/<uuid:purchase_id>/", VehiclePurchaseDetailView.as_view(), name="purchase-detail"),
     path("purchases/<uuid:purchase_id>/refunds/", VehiclePurchaseRefundView.as_view(), name="purchase-refund"),

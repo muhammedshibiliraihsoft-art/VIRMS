@@ -577,7 +577,7 @@ export const CompanyAccountingView: React.FC<{
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold text-gray-900 dark:text-white">All Accounting events</h3>
                 <select aria-label="Event type filter" className={inputClass + ' w-auto'} value={toolsEventType ?? ''} onChange={(event) => { setToolsEventType((event.target.value || undefined) as AccountingEventType | undefined); setToolsPage(1); setSelectedEventId(null); }}>
-                  <option value="">All types</option>{(['INCOME', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER', 'GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'LABOUR_PAYMENT'] as AccountingEventType[]).map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}
+                  <option value="">All types</option>{(['INCOME', 'VEHICLE_COMPANY_SHARE', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER', 'GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'LABOUR_PAYMENT', 'OWNER_DISTRIBUTION_PAYMENT'] as AccountingEventType[]).map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}
                 </select>
               </div>
               {toolsEventsQuery.isPending ? <p className="py-6 text-xs text-gray-500">Loading events…</p> : toolsEventsQuery.isError ? <p role="alert" className="py-6 text-xs text-red-600">Event history could not be loaded.</p> : (

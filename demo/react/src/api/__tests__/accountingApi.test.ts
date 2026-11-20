@@ -56,6 +56,32 @@ describe('Accounting correction resource routing', () => {
     expect(parseAccountingEventsPage({ count: 1, next: null, previous: null, results: [row] }).results[0].event_type).toBe('GARAGE_RECEIPT');
     expect(() => accountingCorrectionPath('GARAGE_RECEIPT', eventId, 'REVERSE_ONLY')).toThrow('owning workflow');
   });
+
+  it('reads Vehicle Company Share as a source-linked non-cash result, not a generic correction', () => {
+    const row = { id: eventId, company_id: eventId, branch_id: eventId, branch_name: 'Central',
+      event_type: 'VEHICLE_COMPANY_SHARE', amount: '250.00', currency: 'INR', category_id: null,
+      category_name: null, description: 'Verified Company Share', source_reference: 'vehicle-company-share:result-1',
+      effective_at: '2026-11-17T00:00:00Z', recorded_at: '2026-11-17T00:00:00Z', actor_id: eventId,
+      effect_sign: 1, reversal_of_id: null, replaces_event_id: null };
+    const parsed = parseAccountingEventsPage({ count: 1, next: null, previous: null, results: [row] });
+
+    expect(parsed.results[0].event_type).toBe('VEHICLE_COMPANY_SHARE');
+    expect(() => accountingCorrectionPath('VEHICLE_COMPANY_SHARE', eventId, 'REVERSE_ONLY'))
+      .toThrow('owning workflow');
+  });
+
+  it('reads Owner distributions as cash events without treating them as generic Payments', () => {
+    const row = { id: eventId, company_id: eventId, branch_id: eventId, branch_name: 'Central',
+      event_type: 'OWNER_DISTRIBUTION_PAYMENT', amount: '125.00', currency: 'INR', category_id: null,
+      category_name: null, description: 'Partial owner distribution', source_reference: 'OWNER-DISTRIBUTION-1',
+      effective_at: '2026-11-17T00:00:00Z', recorded_at: '2026-11-17T00:00:00Z', actor_id: eventId,
+      effect_sign: 1, reversal_of_id: null, replaces_event_id: null };
+    const parsed = parseAccountingEventsPage({ count: 1, next: null, previous: null, results: [row] });
+
+    expect(parsed.results[0].event_type).toBe('OWNER_DISTRIBUTION_PAYMENT');
+    expect(() => accountingCorrectionPath('OWNER_DISTRIBUTION_PAYMENT', eventId, 'REVERSE_ONLY'))
+      .toThrow('owning workflow');
+  });
 });
 
 describe('Accounting mutation idempotency', () => {

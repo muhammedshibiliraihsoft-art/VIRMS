@@ -39,7 +39,7 @@ const ALL_REPORT_CARDS = [
   { id: 'Customer Garage Receivables', title: 'Customer Garage Receivables', category: 'Operations', desc: 'Unpaid customer repair and service invoices' },
   { id: 'Running Capital', title: 'Running Capital Ledger', category: 'Accounting', desc: 'Vehicle-linked company capital and recoveries' },
   { id: 'Company Result', title: 'Operational Cash Result', category: 'Financial', desc: 'Operating cash flow and margin components' },
-  { id: 'Owner Distribution', title: 'Owner Distribution (BDR)', category: 'Governance', desc: 'Unapproved drawings policy and governance' },
+  { id: 'Owner Distribution', title: 'Owner Distribution', category: 'Governance', desc: 'Company confirmation and Owner payout workflow is not yet available' },
 ];
 
 export const ReportShell: React.FC<ReportShellProps> = ({

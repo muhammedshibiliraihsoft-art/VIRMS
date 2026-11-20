@@ -9,8 +9,16 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import AccountSecurityEvent, CompanyRoleGrant
 from apps.accounts.tests.test_users import make_user
-from apps.accounting.models import AccountMovement, AccountingAccount, AccountingEvent, FundCreditReferenceKey
+from apps.accounting.models import (
+    AccountMovement,
+    AccountingAccount,
+    AccountingEvent,
+    AccountingSourceLink,
+    FundCreditReferenceKey,
+)
 from apps.investment.models import (
+    Investor,
+    InvestorExitRequest,
     InvestorFundCredit,
     InvestorFundCreditCorrection,
     InvestorFundUse,
@@ -80,6 +88,35 @@ class InvestmentApiTests(TestCase):
             HTTP_IDEMPOTENCY_KEY=key,
         )
 
+    def create_interim_investor(self, *, amount="1000.00", effective_date="2026-10-01"):
+        investor = self.post(
+            "investors/", {"name": "Interim Investor"}, "interim-investor"
+        )
+        self.assertEqual(investor.status_code, 201, investor.content)
+        configuration = self.post(
+            f"investors/{investor.data['id']}/interim-configurations/",
+            {"amount": amount, "effective_date": effective_date},
+            "interim-configuration",
+        )
+        self.assertEqual(configuration.status_code, 201, configuration.content)
+        return investor.data["id"]
+
+    def interim_payment(self, investor_id, *, amount, period_month="2026-10-01",
+                        effective_at="2026-10-15T12:00:00+00:00", branch_id=None,
+                        account_id=None, key="interim-payment", user=None):
+        return self.post(
+            f"investors/{investor_id}/interim-payments/",
+            {
+                "branch_id": str(branch_id or self.branch_a.pk),
+                "account_id": str(account_id or self.cash.pk),
+                "amount": amount,
+                "period_month": period_month,
+                "effective_at": effective_at,
+            },
+            key,
+            user=user,
+        )
+
     def test_phase5_branch_list_respects_company_and_branch_scope(self):
         self.client.force_authenticate(user=self.company_accountant)
         company_rows = self.client.get(self.path("branches/"))
@@ -122,6 +159,120 @@ class InvestmentApiTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(response.data["amount"], "1000.00")
         self.assertEqual(response.data["effective_date"], "2026-12-01")
+
+    def test_interim_payment_is_partial_repeatable_capped_and_has_one_cash_link(self):
+        investor_id = self.create_interim_investor()
+        body = {
+            "branch_id": str(self.branch_a.pk),
+            "account_id": str(self.cash.pk),
+            "amount": "400.00",
+            "period_month": "2026-10-01",
+            "effective_at": "2026-10-10T12:00:00+00:00",
+        }
+        first = self.post(
+            f"investors/{investor_id}/interim-payments/", body, "interim-partial-1",
+            self.branch_accountant,
+        )
+        retry = self.post(
+            f"investors/{investor_id}/interim-payments/", body, "interim-partial-1",
+            self.branch_accountant,
+        )
+        self.assertEqual(first.status_code, 201, first.content)
+        self.assertEqual(retry.status_code, 201, retry.content)
+        self.assertEqual(first.data["payment_id"], retry.data["payment_id"])
+
+        second = self.interim_payment(
+            investor_id, amount="600.00", key="interim-partial-2",
+            user=self.branch_accountant,
+        )
+        self.assertEqual(second.status_code, 201, second.content)
+        over_limit = self.interim_payment(
+            investor_id, amount="0.01", key="interim-over-limit",
+            user=self.branch_accountant,
+        )
+        self.assertEqual(over_limit.status_code, 409, over_limit.content)
+
+        self.assertEqual(AccountingEvent.objects.filter(tenant=self.company).count(), 2)
+        self.assertEqual(AccountMovement.objects.filter(tenant=self.company).count(), 2)
+        self.assertEqual(
+            sum(AccountMovement.objects.filter(tenant=self.company).values_list("delta", flat=True)),
+            Decimal("-1000.00"),
+        )
+        first_event = AccountingEvent.objects.get(pk=first.data["accounting_event_id"])
+        self.assertEqual(first_event.event_type, "INVESTOR_INTERIM_PAYMENT")
+        self.assertIsNone(first_event.category_id)
+        self.assertEqual(AccountMovement.objects.get(event=first_event).delta, Decimal("-400.00"))
+        source_link = AccountingSourceLink.objects.get(event=first_event)
+        self.assertEqual(str(source_link.investor_interim_payment_id), first.data["payment_id"])
+        self.assertEqual(
+            AccountingEvent.objects.filter(tenant=self.company, event_type__in=("INCOME", "EXPENSE")).count(),
+            0,
+        )
+
+    def test_interim_payment_uses_cycle_configuration_and_midmonth_change_starts_next_month(self):
+        investor_id = self.create_interim_investor()
+        changed = self.post(
+            f"investors/{investor_id}/interim-configurations/",
+            {"amount": "500.00", "effective_date": "2026-10-15"},
+            "interim-midmonth-change",
+        )
+        self.assertEqual(changed.status_code, 201, changed.content)
+
+        october = self.interim_payment(
+            investor_id, amount="1000.00", period_month="2026-10-01",
+            effective_at="2026-10-20T12:00:00+00:00", key="interim-october",
+        )
+        self.assertEqual(october.status_code, 201, october.content)
+        november = self.interim_payment(
+            investor_id, amount="500.00", period_month="2026-11-01",
+            effective_at="2026-11-10T12:00:00+00:00", key="interim-november",
+        )
+        self.assertEqual(november.status_code, 201, november.content)
+        november_over = self.interim_payment(
+            investor_id, amount="0.01", period_month="2026-11-01",
+            effective_at="2026-11-10T12:00:00+00:00", key="interim-november-over",
+        )
+        self.assertEqual(november_over.status_code, 409, november_over.content)
+
+    def test_interim_payment_branch_scope_module_gates_and_future_date(self):
+        investor_id = self.create_interim_investor()
+        unauthorized_branch = self.interim_payment(
+            investor_id, amount="100.00", branch_id=self.branch_b.pk,
+            key="interim-branch-denied", user=self.branch_accountant,
+        )
+        self.assertEqual(unauthorized_branch.status_code, 403, unauthorized_branch.content)
+
+        company_scope = self.interim_payment(
+            investor_id, amount="100.00", branch_id=self.branch_b.pk,
+            key="interim-company-branch", user=self.company_accountant,
+        )
+        self.assertEqual(company_scope.status_code, 201, company_scope.content)
+        self.client.force_authenticate(user=self.branch_accountant)
+        branch_history = self.client.get(
+            self.path(f"investors/{investor_id}/interim-payments/?period_month=2026-10-01")
+        )
+        self.assertEqual(branch_history.status_code, 200, branch_history.content)
+        self.assertEqual(branch_history.data["count"], 0)
+
+        future = self.interim_payment(
+            investor_id, amount="100.00", period_month="2026-12-01",
+            effective_at="2026-12-20T12:00:00+00:00", key="interim-future",
+        )
+        self.assertIn(future.status_code, (400, 409), future.content)
+
+        self.add_revision("investment", 2, CompanyModuleState.State.DISABLED)
+        investment_off = self.interim_payment(
+            investor_id, amount="100.00", key="interim-investment-off",
+        )
+        self.assertEqual(investment_off.status_code, 403, investment_off.content)
+        self.add_revision("investment", 3)
+
+        self.add_revision("accounting", 2, CompanyModuleState.State.DISABLED)
+        accounting_off = self.interim_payment(
+            investor_id, amount="100.00", key="interim-accounting-off",
+        )
+        self.assertEqual(accounting_off.status_code, 403, accounting_off.content)
+        self.assertEqual(AccountingEvent.objects.filter(event_type="INVESTOR_INTERIM_PAYMENT").count(), 1)
 
     def test_fund_credit_creates_exactly_one_capital_movement_and_is_idempotent(self):
         investor = self.post("investors/", {"name": "Ayaan"}, "investor-credit")
@@ -297,6 +448,69 @@ class InvestmentApiTests(TestCase):
         )
         self.assertEqual(over_return.status_code, 409, over_return.content)
         self.assertEqual(AccountingEvent.objects.filter(tenant=self.company).count(), 3)
+
+    def test_company_accountant_can_partially_return_exit_principal_while_investment_is_off(self):
+        investor = self.post("investors/", {"name": "Exit Principal"}, "exit-principal-investor")
+        self.assertEqual(investor.status_code, 201, investor.content)
+        investor_user = make_user("p5-exit-principal-investor", role="investor", tenant=self.company)
+        self.add_revision("investor_portal", 1)
+        binding = self.post(
+            f"investors/{investor.data['id']}/portal-binding/",
+            {"account_id": str(investor_user.pk)}, "exit-principal-binding",
+        )
+        self.assertEqual(binding.status_code, 201, binding.content)
+        credit = self.post("fund/credits/", {
+            "investor_id": investor.data["id"], "branch_id": str(self.branch_a.pk),
+            "account_id": str(self.cash.pk), "amount": "5000.00", "reference": "EXIT-PRINCIPAL-CREDIT",
+            "effective_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+        }, "exit-principal-credit")
+        self.assertEqual(credit.status_code, 201, credit.content)
+        self.client.force_authenticate(user=investor_user)
+        requested = self.client.post(self.path("portal/self/exit-requests/"),
+            {"terms_accepted": True}, format="json", HTTP_IDEMPOTENCY_KEY="exit-principal-request")
+        self.assertEqual(requested.status_code, 201, requested.content)
+        exit_request = InvestorExitRequest.objects.get(pk=requested.data["id"])
+
+        self.add_revision("investment", 2, CompanyModuleState.State.DISABLED)
+        review_path = f"investors/{investor.data['id']}/exit-requests/{exit_request.pk}/settlement/"
+        self.client.force_authenticate(user=self.company_accountant)
+        review = self.client.get(self.path(review_path))
+        self.assertEqual(review.status_code, 200, review.content)
+        self.assertEqual(review.data["principal_available"], "5000.00")
+        self.assertEqual(review.data["blockers"], ["EXIT_NOTICE_NOT_EXPIRED"])
+
+        payment_path = f"investors/{investor.data['id']}/exit-requests/{exit_request.pk}/principal-payments/"
+        body = {
+            "branch_id": str(self.branch_a.pk), "account_id": str(self.cash.pk),
+            "amount": "3000.00", "reference": "EXIT-PRINCIPAL-PART-1",
+            "effective_at": timezone.now().isoformat(), "expected_source_version": review.data["source_version"],
+            "reason": "Partial principal return approved",
+        }
+        before = AccountMovement.objects.count()
+        paid = self.post(payment_path, body, "exit-principal-payment")
+        replay = self.post(payment_path, body, "exit-principal-payment")
+        self.assertEqual(paid.status_code, 201, paid.content)
+        self.assertEqual(replay.status_code, 201, replay.content)
+        self.assertEqual(paid.data["id"], replay.data["id"])
+        returned = InvestorPrincipalReturn.objects.get(pk=paid.data["id"])
+        self.assertEqual(returned.exit_request_id, exit_request.pk)
+        self.assertEqual(returned.allocations.get().amount, Decimal("3000.00"))
+        movement = AccountMovement.objects.get(event_id=paid.data["accounting_event_id"])
+        self.assertEqual(movement.delta, Decimal("-3000.00"))
+        self.assertEqual(AccountMovement.objects.count(), before + 1)
+
+        stale = {**body, "amount": "1.00"}
+        self.assertEqual(self.post(payment_path, stale, "exit-principal-stale").status_code, 409)
+        denied_branch = self.post(payment_path, body, "exit-principal-branch-denied", self.branch_accountant)
+        self.assertEqual(denied_branch.status_code, 403)
+
+        self.client.force_authenticate(user=self.branch_accountant)
+        self.client.force_authenticate(user=self.branch_accountant)
+        summary = self.client.get(
+            self.path("fund/summary/"), {"branch_id": str(self.branch_a.pk)}
+        )
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.data["available_amount"], "2000.00")
 
     def test_fund_credit_failure_rolls_back_source_and_cash_records(self):
         investor = self.post("investors/", {"name": "Ayaan"}, "investor-rollback")

@@ -49,16 +49,21 @@ const Phase5WorkspaceView = React.lazy(() =>
     default: module.Phase5WorkspaceView,
   }))
 );
+const InvestorPortalView = React.lazy(() =>
+  import('./components/shared/InvestorPortalView').then((module) => ({
+    default: module.InvestorPortalView,
+  }))
+);
 import { AllVehiclesView } from './components/AllVehiclesView';
 import { VehicleDetailView } from './components/VehicleDetailView';
 import { GarageWorkspaceView } from './components/shared/GarageWorkspaceView';
 import { GarageJobDetailView } from './components/GarageJobDetailView';
 import { PendingViewPlaceholder } from './components/PendingViewPlaceholder';
-import { NoticeView } from './components/shared/NoticeView';
 import { ReportShell } from './components/shared/ReportShell';
 import { FinancialLedgerView } from './components/shared/FinancialLedgerView';
 import { InventoryWorkspaceView } from './components/shared/InventoryWorkspaceView';
 import { CompanyResultView } from './components/shared/CompanyResultView';
+import { InvestorProfitReviewView } from './components/shared/InvestorProfitReviewView';
 import { SettingsAdminView } from './components/shared/SettingsAdminView';
 import { SharedFormModal, FormModalType } from './components/shared/SharedFormModal';
 import {
@@ -461,6 +466,10 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
         <div role="status" className="rounded-xl border border-gray-200 dark:border-zinc-800 p-4 text-sm text-gray-600 dark:text-gray-300">
           This page is not available for the current Company role.
         </div>
+      ) : investorOnly && ['Dashboard', 'Investor Fund', 'Stock / Investor', 'Investor Profit & Interim', 'Reconciliation & Settlement'].includes(activeRoute) ? (
+        <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-500 dark:border-zinc-800 dark:bg-zinc-900">Loading your private Investor workspace…</div>}>
+          <InvestorPortalView routeKey={activeRoute} />
+        </React.Suspense>
       ) : isDashboardView && investorOnly ? (
         <PendingViewPlaceholder
           routeKey="Dashboard"
@@ -650,55 +659,13 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
           }}
         />
       ) : activeRoute === 'Investor Profit & Interim' ? (
-        /* Notice View: BDR-01, BDR-02, BDR-03, BDR-04 */
-        <NoticeView
-          title="Investor Profit & Interim Distribution"
-          category="INVESTMENT MANAGEMENT"
-          bdrCodes={['BDR-01', 'BDR-02', 'BDR-03', 'BDR-04']}
-          description="In accordance with the VIRMS V2 canonical specification, investor profit split calculations and interim dividend distributions are unapproved pending explicit shareholder consensus. To safeguard accounting integrity, no automated interim profit distributions are posted."
-          reasons={[
-            'BDR-01: Vehicle Profit Split Basis (Net sale vs cost basis formula unapproved)',
-            'BDR-02: Loss Allocation Policy (Absorption of vehicle losses between investor & company)',
-            'BDR-03: Interim Distribution Safeguard (Distribution before final buyer collection is barred)',
-            'BDR-04: Multi-Vehicle Fund Pooling (Cross-collateralization across portfolio is locked)',
-          ]}
-          onExploreReports={investorOnly ? undefined : () => handleSelectRoute('Investor Fund Report')}
-        />
+        <InvestorProfitReviewView />
       ) : activeRoute === 'Reconciliation & Settlement' ? (
-        /* Notice View: BDR-05, BDR-06, BDR-07 */
-        <NoticeView
-          title="Reconciliation & Portfolio Settlement"
-          category="INVESTMENT MANAGEMENT"
-          bdrCodes={['BDR-05', 'BDR-06', 'BDR-07']}
-          description="Final contract settlement and fund reconciliation are frozen in read-only mode until authorized governance policies are resolved by company stakeholders."
-          reasons={[
-            'BDR-05: Final Settlement Threshold (Clearance of outstanding buyer notes required)',
-            'BDR-06: Escrow & Warranty Retention (Reserve holding period for buyer dispute warranty)',
-            'BDR-07: Unilateral Capital Extraction (Principal withdrawals during open vehicle lifecycle barred)',
-          ]}
-          onExploreReports={investorOnly ? undefined : () => handleSelectRoute('Company Consolidated')}
-        />
+        <InvestorProfitReviewView />
       ) : activeRoute === 'Owner Distribution' ? (
-        /* Notice View: BDR-08 */
-        <NoticeView
-          title="Owner Distribution Governance"
-          category="COMPANY ACCOUNTING"
-          bdrCodes={['BDR-08']}
-          description="Owner drawing rules, partner distributions and retainage reserves are held in canonical read-only state pending board ratification."
-          reasons={[
-            'BDR-08: Owner Drawing Schedule & Minimum Working Capital Thresholds',
-          ]}
-          onExploreReports={() => handleSelectRoute('Company Result')}
-        />
+        <CompanyResultView />
       ) : activeRoute === 'Company Result' ? (
-        /* Company Result Executive Overview */
-        <CompanyResultView
-          data={data}
-          garages={garages}
-          selectedGarage={selectedGarage}
-          onSelectGarage={handleSelectGarage}
-          onSelectRoute={handleSelectRoute}
-        />
+        <CompanyResultView />
       ) : activeRoute === 'Items & Purchases' ||
         activeRoute === 'Stock Issues' ||
         activeRoute === 'Stock Reports' ||

@@ -8,6 +8,8 @@ from django.db.models.functions import Coalesce
 
 from apps.vehicles import services
 from apps.vehicles.models import VehicleExpenseCorrection
+from apps.investment import services as investment_services
+from apps.investment.serializers import VehicleResultConfirmationSerializer
 
 from .serializers import (
     VehicleBranchMoveSerializer,
@@ -104,6 +106,25 @@ class VehicleDetailView(VehicleAPIView):
             key=request.headers.get("Idempotency-Key"),
             path=request.path,
             values=values,
+        )
+        return Response(result.body, status=result.status)
+
+
+class VehicleFinancialPositionView(VehicleAPIView):
+    def get(self, request, company_id, vehicle_id):
+        if request.query_params:
+            raise ValidationError({"query": "No filters are supported."})
+        return Response(services.get_vehicle_financial_position(
+            actor=request.user, company_id=company_id, vehicle_id=vehicle_id,
+        ))
+
+    def post(self, request, company_id, vehicle_id):
+        serializer = VehicleResultConfirmationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = investment_services.confirm_vehicle_result(
+            actor=request.user, company_id=company_id, vehicle_id=vehicle_id,
+            key=request.headers.get("Idempotency-Key"), path=request.path,
+            **serializer.validated_data,
         )
         return Response(result.body, status=result.status)
 

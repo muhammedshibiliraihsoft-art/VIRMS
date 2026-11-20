@@ -16,6 +16,7 @@ PLATFORM_ACTIONS = {
     "company.suspend",
     "company.activate",
     "module.configure",
+    "investor.agreement.configure",
     "branch.create",
     "branch.rename",
     "membership.add",
@@ -39,10 +40,13 @@ PLATFORM_SCOPED_LIFECYCLE_ACTIONS = {
     for role in ("investor", "media")
 }
 READ_ACTIONS = {"core.company.read", "core.branch.read"}
-SELF_ACTIONS = {"self.password", "self.me", "self.logout"}
+SELF_ACTIONS = {
+    "self.password", "self.me", "self.logout", "investment.portal.exit.request",
+}
 ACCOUNTING_READ_ACTIONS = {
     "accounting.event.read",
     "accounting.report.read",
+    "accounting.company_period.read",
 }
 ACCOUNTING_WRITE_ACTIONS = {
     "accounting.income.create",
@@ -54,29 +58,52 @@ ACCOUNTING_WRITE_ACTIONS = {
     "accounting.category.manage",
     "accounting.opening_balance.create",
     "accounting.transfer.create",
+    "accounting.company_period.confirm",
 }
 ACCOUNTING_COMPANY_ONLY_ACTIONS = {
     "accounting.account.manage",
     "accounting.category.manage",
     "accounting.opening_balance.create",
     "accounting.transfer.create",
+    "accounting.company_period.confirm",
 }
 ACCOUNTING_ACTIONS = ACCOUNTING_READ_ACTIONS | ACCOUNTING_WRITE_ACTIONS
 BUSINESS_READ_ACTIONS = {
     "investment.profile.read",
     "investment.interim.read",
     "investment.fund.read",
+    "investment.profit.loss_offset.read",
+    "investment.profit.calendar.read",
+    "investment.exit.settlement.read",
     "vehicle.read",
     "garage.job.read",
     "labour.person.read",
 }
 BUSINESS_WRITE_ACTIONS = {
+    "investment.portal.binding.manage",
     "investment.profile.manage",
     "investment.interim.manage",
     "investment.fund.credit",
     "investment.fund.credit.correct",
     "investment.fund.return",
     "investment.fund.use",
+    "investment.vehicle_result.confirm",
+    "investment.capital.recovery.confirm",
+    "investment.profit.payment.create",
+    "investment.profit.period.reconcile",
+    "investment.profit.position.confirm",
+    "investment.profit.repayment.create",
+    "investment.profit.future_adjust",
+    "investment.interim.payment.create",
+    "investment.profit.loss_offset.create",
+    "investment.profit.loss_offset.cross_branch",
+    "investment.profit.calendar.manage",
+    "investment.exit.cancel.review",
+    "investment.exit.notice.extend",
+    "investment.exit.settlement.principal",
+    "investment.exit.settlement.loss",
+    "investment.exit.settlement.profit",
+    "investment.exit.settlement.close",
     "vehicle.create",
     "garage.job.create",
     "garage.job.status",
@@ -112,8 +139,25 @@ BUSINESS_WRITE_ACTIONS = {
     "vehicle.sale.correct",
 }
 BUSINESS_COMPANY_ONLY_ACTIONS = {
+    "investment.portal.binding.manage",
     "investment.interim.manage",
     "investment.fund.use",
+    "investment.vehicle_result.confirm",
+    "investment.capital.recovery.confirm",
+    "investment.profit.loss_offset.cross_branch",
+    "investment.profit.calendar.read",
+    "investment.profit.calendar.manage",
+    "investment.profit.period.reconcile",
+    "investment.profit.position.confirm",
+    "investment.profit.repayment.create",
+    "investment.profit.future_adjust",
+    "investment.exit.cancel.review",
+    "investment.exit.notice.extend",
+    "investment.exit.settlement.read",
+    "investment.exit.settlement.principal",
+    "investment.exit.settlement.loss",
+    "investment.exit.settlement.profit",
+    "investment.exit.settlement.close",
     "vehicle.branch.move",
     "vehicle.expense.fund",
     "vehicle.purchase.correct",

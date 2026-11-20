@@ -9,7 +9,9 @@ export type AccountingEventType =
   | 'TRANSFER'
   | 'CAPITAL_INFLOW' | 'CAPITAL_OUTFLOW' | 'VEHICLE_PAYMENT' | 'VEHICLE_RECEIPT'
   | 'VEHICLE_REFUND_IN' | 'PURCHASE_REFUND_IN' | 'VEHICLE_SALE_RECEIPT' | 'VEHICLE_SALE_REFUND'
-  | 'GARAGE_RECEIPT' | 'GARAGE_COST_PAYMENT' | 'GARAGE_COST_REFUND' | 'LABOUR_PAYMENT';
+  | 'VEHICLE_COMPANY_SHARE'
+  | 'GARAGE_RECEIPT' | 'GARAGE_COST_PAYMENT' | 'GARAGE_COST_REFUND' | 'LABOUR_PAYMENT'
+  | 'OWNER_DISTRIBUTION_PAYMENT';
 
 export interface AccountingEventRow {
   id: string;
@@ -85,6 +87,8 @@ export interface AccountingResult {
   period: 'monthly' | 'h1' | 'h2' | 'annual';
   year: number;
   month: number | null;
+  period_start: string;
+  period_end: string;
   branch_id: string | null;
   timezone: 'Asia/Kolkata';
   starts_at: string;
@@ -92,15 +96,27 @@ export interface AccountingResult {
   income_amount: string;
   expense_amount: string;
   accounting_result_amount: string;
+  source_version: string | null;
   currency: 'INR';
   scope: 'recorded_accounting_events';
+}
+
+export interface CompanyPeriodConfirmation {
+  id: string; period_type: 'h1' | 'h2' | 'annual'; period_start: string; period_end: string;
+  version: number; previous_id: string | null; source_version: string; accounting_result: string;
+  prior_loss_carried_forward: string; loss_carried_forward: string; positive_after_loss: string;
+  distributable_amount: string; liabilities_reviewed: boolean; liability_review_reason: string;
+  owner_split_configuration_id: string | null;
+  owner_allocation_snapshot: Array<{ recipient_id: string; recipient_label: string; percentage: string; amount: string; paid_amount?: string; outstanding_amount?: string }>;
+  reason: string; confirmed_at: string; confirmed_by_id: string;
+  source_current?: boolean; is_latest?: boolean;
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const eventTypes = new Set<AccountingEventType>([
   'INCOME', 'EXPENSE', 'RECEIPT', 'PAYMENT', 'OPENING_BALANCE', 'TRANSFER',
   'CAPITAL_INFLOW', 'CAPITAL_OUTFLOW', 'VEHICLE_PAYMENT', 'VEHICLE_RECEIPT',
-  'VEHICLE_REFUND_IN', 'PURCHASE_REFUND_IN', 'VEHICLE_SALE_RECEIPT', 'VEHICLE_SALE_REFUND', 'GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'GARAGE_COST_REFUND', 'LABOUR_PAYMENT',
+  'VEHICLE_REFUND_IN', 'PURCHASE_REFUND_IN', 'VEHICLE_SALE_RECEIPT', 'VEHICLE_SALE_REFUND', 'VEHICLE_COMPANY_SHARE', 'GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'GARAGE_COST_REFUND', 'LABOUR_PAYMENT', 'OWNER_DISTRIBUTION_PAYMENT',
 ]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -255,13 +271,66 @@ export async function accountingResult(
   const value = await requestApi<unknown>(`${companyPath(companyId, 'reports/accounting-result/')}?${query}`, { signal });
   if (
     !isRecord(value) || value.year !== params.year || value.period !== params.period ||
+    typeof value.period_start !== 'string' || typeof value.period_end !== 'string' ||
     typeof value.income_amount !== 'string' || typeof value.expense_amount !== 'string' ||
     typeof value.accounting_result_amount !== 'string' || value.timezone !== 'Asia/Kolkata' ||
+    !(value.source_version === null || (typeof value.source_version === 'string' && /^[0-9a-f]{64}$/.test(value.source_version))) ||
     value.scope !== 'recorded_accounting_events'
   ) {
     throw new Error('Invalid Accounting result response.');
   }
   return value as unknown as AccountingResult;
+}
+
+export async function companyPeriodConfirmations(companyId: string, signal?: AbortSignal) {
+  const value = await requestApi<unknown>(companyPath(companyId, 'company-period-confirmations/'), { signal });
+  if (!isRecord(value) || !Array.isArray(value.confirmations) || !Array.isArray(value.history)) throw new Error('Invalid Company period confirmation response.');
+  return { confirmations: value.confirmations.map(parseCompanyPeriodConfirmation), history: value.history.map(parseCompanyPeriodConfirmation) };
+}
+
+function parseCompanyPeriodConfirmation(value: unknown): CompanyPeriodConfirmation {
+  const money = /^\d+\.\d{2}$/;
+  if (!isRecord(value) || typeof value.id !== 'string' || !uuidPattern.test(value.id) ||
+      !['h1', 'h2', 'annual'].includes(String(value.period_type)) ||
+      typeof value.period_start !== 'string' || typeof value.period_end !== 'string' ||
+      !Number.isInteger(value.version) || (value.version as number) < 1 ||
+      !(value.previous_id === null || (typeof value.previous_id === 'string' && uuidPattern.test(value.previous_id))) ||
+      !(value.carryforward_source_id === null || (typeof value.carryforward_source_id === 'string' && uuidPattern.test(value.carryforward_source_id))) ||
+      typeof value.source_version !== 'string' || !/^[0-9a-f]{64}$/.test(value.source_version) ||
+      !['accounting_result', 'prior_loss_carried_forward', 'loss_carried_forward', 'positive_after_loss', 'distributable_amount'].every((key) => typeof value[key] === 'string' && money.test(value[key] as string)) ||
+      typeof value.liabilities_reviewed !== 'boolean' || typeof value.liability_review_reason !== 'string' ||
+      typeof value.reason !== 'string' || typeof value.confirmed_at !== 'string' ||
+      typeof value.confirmed_by_id !== 'string' || !uuidPattern.test(value.confirmed_by_id) ||
+      !(value.owner_split_configuration_id === null || (typeof value.owner_split_configuration_id === 'string' && uuidPattern.test(value.owner_split_configuration_id))) ||
+      !Array.isArray(value.owner_allocation_snapshot) || !value.owner_allocation_snapshot.every((item) => isRecord(item) && typeof item.recipient_id === 'string' && uuidPattern.test(item.recipient_id) && typeof item.recipient_label === 'string' && typeof item.percentage === 'string' && /^\d+(\.\d+)?$/.test(item.percentage) && typeof item.amount === 'string' && money.test(item.amount) && (item.paid_amount === undefined || (typeof item.paid_amount === 'string' && money.test(item.paid_amount))) && (item.outstanding_amount === undefined || (typeof item.outstanding_amount === 'string' && money.test(item.outstanding_amount)))) ||
+      (value.source_current !== undefined && typeof value.source_current !== 'boolean') ||
+      (value.is_latest !== undefined && typeof value.is_latest !== 'boolean')) throw new Error('Invalid Company period confirmation record.');
+  return value as unknown as CompanyPeriodConfirmation;
+}
+
+export async function confirmCompanyPeriod(companyId: string, userId: string, input: {
+  period_type: 'h1' | 'h2' | 'annual'; year: number; expected_source_version: string;
+  distributable_amount: string; liabilities_reviewed: true; liability_review_reason: string; reason: string;
+}) {
+  if (!/^[0-9a-f]{64}$/.test(input.expected_source_version)) throw new Error('Company period sources must be reloaded before confirmation.');
+  const result = await accountingMutation<unknown>(companyId, userId, 'company-period-confirmations/', 'POST', input);
+  return parseCompanyPeriodConfirmation(result);
+}
+
+export async function recordOwnerDistributionPayment(companyId: string, userId: string, confirmationId: string, input: {
+  recipient_id: string; branch_id: string; account_id: string; amount: string; effective_at: string;
+  expected_source_version: string; reason: string;
+}) {
+  if (!uuidPattern.test(confirmationId) || !uuidPattern.test(input.recipient_id) || !uuidPattern.test(input.branch_id) || !uuidPattern.test(input.account_id)) throw new Error('Select a current Owner, Branch and Cash/Bank account.');
+  if (!/^\d+\.\d{2}$/.test(input.amount) || !/^[0-9a-f]{64}$/.test(input.expected_source_version)) throw new Error('Reload the current distribution before recording payment.');
+  const result = await accountingMutation<unknown>(companyId, userId,
+    `company-period-confirmations/${confirmationId}/owner-payments/`, 'POST', input);
+  if (!isRecord(result) || typeof result.id !== 'string' || !uuidPattern.test(result.id) ||
+      result.confirmation_id !== confirmationId || result.recipient_id !== input.recipient_id ||
+      typeof result.accounting_event_id !== 'string' || !uuidPattern.test(result.accounting_event_id) ||
+      typeof result.movement_id !== 'string' || !uuidPattern.test(result.movement_id) ||
+      typeof result.outstanding_amount !== 'string' || !/^\d+\.\d{2}$/.test(result.outstanding_amount)) throw new Error('Owner payment response could not be verified. Refresh the Company period records.');
+  return result as { id: string; confirmation_id: string; recipient_id: string; accounting_event_id: string; movement_id: string; outstanding_amount: string };
 }
 
 function randomIntentId(): string {

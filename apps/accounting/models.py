@@ -184,10 +184,17 @@ class AccountingEvent(TimestampedUUIDModel):
         PURCHASE_REFUND_IN = "PURCHASE_REFUND_IN", "Vehicle Purchase Refund Received"
         VEHICLE_SALE_RECEIPT = "VEHICLE_SALE_RECEIPT", "Vehicle Sale Receipt"
         VEHICLE_SALE_REFUND = "VEHICLE_SALE_REFUND", "Vehicle Sale Refund"
+        VEHICLE_COMPANY_SHARE = "VEHICLE_COMPANY_SHARE", "Vehicle Company Share"
+        INVESTOR_PROFIT_PAYMENT = "INVESTOR_PROFIT_PAYMENT", "Investor Vehicle Profit Payment"
+        INVESTOR_INTERIM_PAYMENT = "INVESTOR_INTERIM_PAYMENT", "Investor Monthly Interim Payment"
+        INVESTOR_PROFIT_RECOVERY = "INVESTOR_PROFIT_RECOVERY", "Investor Profit Recovery Receipt"
+        INVESTOR_EXIT_LOSS_RECOVERY = "INVESTOR_EXIT_LOSS_RECOVERY", "Investor Exit Loss Recovery Receipt"
+        INVESTOR_EXIT_PROFIT_PAYMENT = "INVESTOR_EXIT_PROFIT_PAYMENT", "Investor Exit Profit Payment"
         GARAGE_RECEIPT = "GARAGE_RECEIPT", "Garage Receipt"
         GARAGE_COST_PAYMENT = "GARAGE_COST_PAYMENT", "Garage Cost Payment"
         GARAGE_COST_REFUND = "GARAGE_COST_REFUND", "Garage Cost Refund"
         LABOUR_PAYMENT = "LABOUR_PAYMENT", "Labour Payment"
+        OWNER_DISTRIBUTION_PAYMENT = "OWNER_DISTRIBUTION_PAYMENT", "Owner Distribution Payment"
 
     tenant = models.ForeignKey(
         "tenants.Tenant", on_delete=models.PROTECT, related_name="accounting_events"
@@ -199,7 +206,7 @@ class AccountingEvent(TimestampedUUIDModel):
         on_delete=models.PROTECT,
         related_name="accounting_events",
     )
-    event_type = models.CharField(max_length=24, choices=EventType.choices)
+    event_type = models.CharField(max_length=32, choices=EventType.choices)
     amount = models.DecimalField(max_digits=38, decimal_places=2)
     currency = models.CharField(max_length=3, default="INR")
     effect_sign = models.SmallIntegerField(default=1)
@@ -259,10 +266,17 @@ class AccountingEvent(TimestampedUUIDModel):
                         "PURCHASE_REFUND_IN",
                         "VEHICLE_SALE_RECEIPT",
                         "VEHICLE_SALE_REFUND",
+                        "VEHICLE_COMPANY_SHARE",
+                        "INVESTOR_PROFIT_PAYMENT",
+                        "INVESTOR_INTERIM_PAYMENT",
+                        "INVESTOR_PROFIT_RECOVERY",
+                        "INVESTOR_EXIT_LOSS_RECOVERY",
+                        "INVESTOR_EXIT_PROFIT_PAYMENT",
                         "GARAGE_RECEIPT",
                         "GARAGE_COST_PAYMENT",
                         "GARAGE_COST_REFUND",
                         "LABOUR_PAYMENT",
+                        "OWNER_DISTRIBUTION_PAYMENT",
                     )
                 ),
                 name="acct_event_type_ck",
@@ -300,10 +314,17 @@ class AccountingEvent(TimestampedUUIDModel):
                             "PURCHASE_REFUND_IN",
                             "VEHICLE_SALE_RECEIPT",
                             "VEHICLE_SALE_REFUND",
+                            "VEHICLE_COMPANY_SHARE",
+                            "INVESTOR_PROFIT_PAYMENT",
+                            "INVESTOR_INTERIM_PAYMENT",
+                            "INVESTOR_PROFIT_RECOVERY",
+                            "INVESTOR_EXIT_LOSS_RECOVERY",
+                            "INVESTOR_EXIT_PROFIT_PAYMENT",
                             "GARAGE_RECEIPT",
                             "GARAGE_COST_PAYMENT",
                             "GARAGE_COST_REFUND",
                             "LABOUR_PAYMENT",
+                            "OWNER_DISTRIBUTION_PAYMENT",
                         ),
                         category__isnull=True,
                     )
@@ -436,6 +457,39 @@ class AccountingSourceLink(TimestampedUUIDModel):
         on_delete=models.PROTECT,
         related_name="accounting_source_link",
     )
+    vehicle_result_confirmation = models.OneToOneField(
+        "investment.VehicleResultConfirmation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="company_share_accounting_source_link",
+    )
+    investor_vehicle_profit_payment = models.OneToOneField(
+        "investment.InvestorVehicleProfitPayment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    investor_interim_payment = models.OneToOneField(
+        "investment.InvestorInterimPayment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="accounting_source_link",
+    )
+    investor_profit_recovery_receipt = models.OneToOneField(
+        "investment.InvestorProfitRecoveryReceipt", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="accounting_source_link",
+    )
+    investor_exit_loss_application = models.OneToOneField(
+        "investment.InvestorExitLossApplication", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="accounting_source_link",
+    )
+    investor_exit_profit_payment = models.OneToOneField(
+        "investment.InvestorExitProfitPayment", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="accounting_source_link",
+    )
 
     class Meta:
         constraints = [
@@ -450,6 +504,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -460,6 +520,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -470,6 +536,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -480,6 +552,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -490,6 +568,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -500,6 +584,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=False,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -510,6 +600,12 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=False,
                         vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
                     )
                     | Q(
                         investor_fund_credit__isnull=True,
@@ -520,6 +616,108 @@ class AccountingSourceLink(TimestampedUUIDModel):
                         vehicle_purchase_refund__isnull=True,
                         vehicle_sale_receipt__isnull=True,
                         vehicle_sale_refund__isnull=False,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=False,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=False,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=False,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=False,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=False,
+                        investor_exit_profit_payment__isnull=True,
+                    )
+                    | Q(
+                        investor_fund_credit__isnull=True,
+                        investor_principal_return__isnull=True,
+                        vehicle_purchase_payment__isnull=True,
+                        vehicle_expense_payment__isnull=True,
+                        vehicle_expense_refund__isnull=True,
+                        vehicle_purchase_refund__isnull=True,
+                        vehicle_sale_receipt__isnull=True,
+                        vehicle_sale_refund__isnull=True,
+                        vehicle_result_confirmation__isnull=True,
+                        investor_vehicle_profit_payment__isnull=True,
+                        investor_interim_payment__isnull=True,
+                        investor_profit_recovery_receipt__isnull=True,
+                        investor_exit_loss_application__isnull=True,
+                        investor_exit_profit_payment__isnull=False,
                     )
                 ),
                 name="acct_source_exactly_one_ck",
@@ -691,6 +889,111 @@ class AccountingIdempotencyRecord(TimestampedUUIDModel):
 
     def delete(self, *args, **kwargs):
         raise ValueError("Accounting idempotency results are retained.")
+
+
+class CompanyPeriodConfirmation(TimestampedUUIDModel):
+    """Immutable Company Accountant confirmation for one reporting interval."""
+
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.PROTECT, related_name="period_confirmations")
+    period_type = models.CharField(max_length=8)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    version = models.PositiveIntegerField()
+    previous = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="revisions")
+    carryforward_source = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="carryforward_dependents")
+    source_version = models.CharField(max_length=64)
+    accounting_result = models.DecimalField(max_digits=38, decimal_places=2)
+    prior_loss_carried_forward = models.DecimalField(max_digits=38, decimal_places=2)
+    loss_carried_forward = models.DecimalField(max_digits=38, decimal_places=2)
+    positive_after_loss = models.DecimalField(max_digits=38, decimal_places=2)
+    distributable_amount = models.DecimalField(max_digits=38, decimal_places=2)
+    owner_split_configuration = models.ForeignKey(
+        "OwnerDistributionConfiguration", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="period_confirmations",
+    )
+    owner_allocation_snapshot = models.JSONField(default=list)
+    liabilities_reviewed = models.BooleanField(default=False)
+    liability_review_reason = models.CharField(max_length=500)
+    reason = models.CharField(max_length=500)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="company_period_confirmations")
+    accounting_revision = models.ForeignKey("tenants.CompanyModuleState", on_delete=models.PROTECT, related_name="period_confirmations")
+    confirmed_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(period_type__in=("h1", "h2", "annual")), name="acct_company_period_type_ck"),
+            models.CheckConstraint(condition=Q(period_end__gt=F("period_start")), name="acct_company_period_dates_ck"),
+            models.CheckConstraint(condition=Q(version__gte=1), name="acct_company_period_version_ck"),
+            models.CheckConstraint(condition=Q(prior_loss_carried_forward__gte=Decimal("0.00")) & Q(loss_carried_forward__gte=Decimal("0.00")) & Q(positive_after_loss__gte=Decimal("0.00")) & Q(distributable_amount__gte=Decimal("0.00")), name="acct_company_period_amounts_ck"),
+            models.UniqueConstraint(fields=("tenant", "period_start", "period_end", "version"), name="acct_company_period_version_uq"),
+        ]
+        indexes = [models.Index(fields=("tenant", "period_end", "period_start", "version"), name="acct_company_period_scope_idx")]
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValueError("Company period confirmations are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Company period confirmations are retained.")
+
+
+class OwnerDistributionConfiguration(TimestampedUUIDModel):
+    """Protected effective Company Owner recipients and percentages."""
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.PROTECT, related_name="owner_distribution_configurations")
+    version = models.PositiveIntegerField()
+    effective_from = models.DateField()
+    recipients = models.JSONField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owner_distribution_configurations")
+    reason = models.CharField(max_length=500)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("tenant", "version"), name="acct_owner_split_version_uq"),
+            models.CheckConstraint(condition=Q(version__gte=1), name="acct_owner_split_version_ck"),
+            models.CheckConstraint(condition=Q(reason__gt=""), name="acct_owner_split_reason_ck"),
+        ]
+        indexes = [models.Index(fields=("tenant", "effective_from", "version"), name="acct_owner_split_effective_idx")]
+
+    def save(self, *args, **kwargs):
+        self.reason = (self.reason or "").strip()
+        if not self._state.adding:
+            raise ValueError("Owner distribution configurations are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Owner distribution configurations are retained.")
+
+
+class OwnerDistributionPayment(TimestampedUUIDModel):
+    """One actual partial Owner payment, represented as Accounting cash only."""
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.PROTECT, related_name="owner_distribution_payments")
+    confirmation = models.ForeignKey(CompanyPeriodConfirmation, on_delete=models.PROTECT, related_name="owner_payments")
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owner_distribution_received")
+    branch = models.ForeignKey("tenants.Branch", on_delete=models.PROTECT, related_name="owner_distribution_payments")
+    account = models.ForeignKey(AccountingAccount, on_delete=models.PROTECT, related_name="owner_distribution_payments")
+    accounting_event = models.OneToOneField(AccountingEvent, on_delete=models.PROTECT, related_name="owner_distribution_payment")
+    amount = models.DecimalField(max_digits=38, decimal_places=2)
+    effective_at = models.DateTimeField()
+    reason = models.CharField(max_length=500)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owner_distribution_payments_recorded")
+    accounting_revision = models.ForeignKey("tenants.CompanyModuleState", on_delete=models.PROTECT, related_name="owner_distribution_payments")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(amount__gt=Decimal("0.00")), name="acct_owner_pay_amount_ck"),
+            models.CheckConstraint(condition=Q(reason__gt=""), name="acct_owner_pay_reason_ck"),
+        ]
+        indexes = [models.Index(fields=("tenant", "confirmation", "recipient"), name="acct_owner_pay_scope_idx")]
+
+    def save(self, *args, **kwargs):
+        self.reason = (self.reason or "").strip()
+        if not self._state.adding:
+            raise ValueError("Owner distribution payments are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("Owner distribution payments are retained.")
 
 
 def normalize_label(value):

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone as datetime_timezone
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from zoneinfo import ZoneInfo
 
 from django.db.models import Case, Count, DecimalField, ExpressionWrapper, F, Sum, Value, When
@@ -27,6 +27,9 @@ from .serializers import (
     ApplicationReallocationSerializer,
     ArchiveSerializer,
     CategoryCreateSerializer,
+    CompanyPeriodConfirmationSerializer,
+    OwnerDistributionConfigurationSerializer,
+    OwnerDistributionPaymentSerializer,
     EventCorrectionSerializer,
     IncomeExpenseCreateSerializer,
     OpeningBalanceCorrectionSerializer,
@@ -616,7 +619,7 @@ class AccountingResultView(AccountingAPIView):
             tenant=scope.company,
             effective_at__gte=start,
             effective_at__lt=end,
-        )
+        ).exclude(owner_distribution_payment__isnull=False)
         if branch_id is not None:
             queryset = queryset.filter(branch_id=branch_id)
         elif not (scope.is_company_accountant or scope.is_company_wide_reader):
@@ -626,10 +629,17 @@ class AccountingResultView(AccountingAPIView):
             F("amount") * F("effect_sign"),
             output_field=amount_field,
         )
-        totals = queryset.aggregate(
+        from django.contrib.postgres.aggregates import ArrayAgg
+        aggregate_values = queryset.aggregate(
             income=Sum(
                 Case(
-                    When(event_type=AccountingEvent.EventType.INCOME, then=net_amount),
+                    When(
+                        event_type__in=(
+                            AccountingEvent.EventType.INCOME,
+                            AccountingEvent.EventType.VEHICLE_COMPANY_SHARE,
+                        ),
+                        then=net_amount,
+                    ),
                     default=Value(Decimal("0.00")),
                     output_field=amount_field,
                 )
@@ -641,15 +651,32 @@ class AccountingResultView(AccountingAPIView):
                     output_field=amount_field,
                 )
             ),
+            source_ids=ArrayAgg("id", ordering=("id",), default=[]) if branch_id is None else Value(None),
+            source_types=ArrayAgg("event_type", ordering=("id",), default=[]) if branch_id is None else Value(None),
+            source_amounts=ArrayAgg("amount", ordering=("id",), default=[]) if branch_id is None else Value(None),
+            source_signs=ArrayAgg("effect_sign", ordering=("id",), default=[]) if branch_id is None else Value(None),
+            source_effective_ats=ArrayAgg("effective_at", ordering=("id",), default=[]) if branch_id is None else Value(None),
         )
-        income = totals["income"] or Decimal("0.00")
-        expense = totals["expense"] or Decimal("0.00")
-        result = income - expense
+        income = aggregate_values["income"] or Decimal("0.00")
+        expense = aggregate_values["expense"] or Decimal("0.00")
+        # Individual Accounting amounts support 38 digits. The default
+        # Decimal context has only 28 digits and silently rounds this result.
+        with localcontext() as context:
+            context.prec = max(80, len(income.as_tuple().digits) + 2, len(expense.as_tuple().digits) + 2)
+            result = income - expense
+        from apps.accounting.company_periods import event_source_version_from_rows
+        source_version = event_source_version_from_rows(
+            ids=aggregate_values["source_ids"], types=aggregate_values["source_types"],
+            amounts=aggregate_values["source_amounts"], signs=aggregate_values["source_signs"],
+            effective_ats=aggregate_values["source_effective_ats"],
+        ) if branch_id is None else None
         response = Response(
             {
                 "period": data["period"],
                 "year": data["year"],
                 "month": data.get("month"),
+                "period_start": local_start.date().isoformat(),
+                "period_end": local_end.date().isoformat(),
                 "branch_id": str(branch_id) if branch_id else None,
                 "timezone": "Asia/Kolkata",
                 "starts_at": start.isoformat(),
@@ -657,11 +684,64 @@ class AccountingResultView(AccountingAPIView):
                 "income_amount": format(income, ".2f"),
                 "expense_amount": format(expense, ".2f"),
                 "accounting_result_amount": format(result, ".2f"),
+                "source_version": source_version,
                 "currency": "INR",
                 "scope": "recorded_accounting_events",
             }
         )
         return response
+
+
+class CompanyPeriodConfirmationView(AccountingAPIView):
+    def get(self, request, company_id):
+        from apps.accounting.company_periods import list_confirmations
+        return Response(list_confirmations(actor=request.user, company_id=company_id))
+
+    def post(self, request, company_id):
+        serializer = CompanyPeriodConfirmationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        from apps.accounting.company_periods import confirm_company_period
+        result = confirm_company_period(
+            actor=request.user, company_id=company_id,
+            key=request.headers.get("Idempotency-Key"), path=request.path,
+            **serializer.validated_data,
+        )
+        return Response(result.body, status=result.status)
+
+
+class OwnerDistributionConfigurationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, company_id):
+        from apps.accounts.policy import require_action
+        from apps.accounting.models import OwnerDistributionConfiguration
+        from apps.tenants.models import Tenant
+        company = Tenant.objects.filter(pk=company_id, is_active=True).first()
+        if company is None:
+            raise NotFound("Company not found.")
+        require_action(request.user, "accounting.company_period.read", company=company)
+        rows = OwnerDistributionConfiguration.objects.filter(tenant=company).order_by("effective_from", "version")
+        return Response([{"id": str(row.pk), "version": row.version,
+            "effective_from": row.effective_from.isoformat(), "recipients": row.recipients,
+            "actor_id": str(row.actor_id), "reason": row.reason} for row in rows])
+
+    def post(self, request, company_id):
+        serializer = OwnerDistributionConfigurationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        from apps.accounting.company_periods import configure_owner_distribution
+        return Response(configure_owner_distribution(actor=request.user, company_id=company_id,
+            **serializer.validated_data), status=201)
+
+
+class OwnerDistributionPaymentView(AccountingAPIView):
+    def post(self, request, company_id, confirmation_id):
+        serializer = OwnerDistributionPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        from apps.accounting.company_periods import pay_owner_distribution
+        result = pay_owner_distribution(actor=request.user, company_id=company_id,
+            confirmation_id=confirmation_id, key=request.headers.get("Idempotency-Key"),
+            path=request.path, **serializer.validated_data)
+        return Response(result.body, status=result.status)
 
 
 def _period_bounds(period, year, month=None):

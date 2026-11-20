@@ -1,5 +1,11 @@
 # 04 — Change Impact & Compatibility
 
+> Local safety correction 2026-11-19: confirmation now fails closed for expense-only Investor funding without a matching Purchase agreement snapshot, preventing Company-only recognition. Existing expense entry and historical records remain unchanged; a complete Investor agreement/recovery path remains outstanding.
+
+> Phase 8 Loss confirmation now requires explicit Investor and Company Loss amounts from new clients when confirming a negative result; positive and break-even confirmation payloads remain unchanged. Investment migrations 0025–0028 enforce signed result consistency, preserve a nullable suggestion snapshot for existing historical rows, and require matching suggestion/impact audit for new Loss confirmations. Existing immutable results and payout records are not rewritten. Deploying clients and migrations together requires a compatibility plan; staging/production remain unverified.
+
+> Phase 8 Exit notice: investment migrations 0022–0023 add append-only extension records and PostgreSQL source, ordering and audit guards. Existing Exit requests retain their recorded identity and derive the initial deadline from their UTC request instant. The additive Company Accountant list/extension API and Investor self fields do not create Fund, Accounting or settlement events. Full Exit settlement and deployment verification remain outstanding.
+
 > HISTORICAL SNAPSHOT — 2026-11-02. This Phase 1/2 candidate note is retained as dated history; current Phase 3 status follows.
 
 > Local integration state — 2026-11-02: `codex/audit` contains the accepted Phase 1/2 integration, including P2-13–P2-22 role-navigation and Investor mock-data boundary corrections. Phase 1 passed 210/210 account/tenant tests on disposable PostgreSQL; Phase 2 passed 74/74 React tests, configured lint/build, and isolated browser acceptance. Role/menu/data-boundary corrections added no business API or schema. The narrow-screen dashboard tab overflow and TopBar decorative-avatar accessibility finding were corrected without redesigning desktop hierarchy; the Vite bundle advisory is deferred. Remote remains at `f266803acd5e86caa2286fb8eae41df6cadfcb86` pending separately authorized push; staging is untouched, production proxy/cookie behavior remains unverified. Roadmap Phase 3 is Main Operations Foundation (not started); Garage is Phase 6 after Phases 4 and 5. See [roadmap](../planning/V2-DEVELOPMENT-ROADMAP.md) and [Phase 2 report](../docs/phase2-execution-progress.md).
@@ -365,6 +371,10 @@ Compatibility is incomplete: React still uses mutable mock state for these modul
 - Purchase/Expense source funding, actual settlement, Sale/Buyer receipts, and refunds remain distinct records. New writes must commit allocations, Accounting event, one movement, and idempotency response atomically.
 - Preserve routes and UI composition; do not import demo data. Add only approved fields needed for real source identity and settlement.
 - Defer added automation/approval/posting workflows until core workflows are stable. Keep Vehicle deactivation unavailable until Garage and open-finance/settlement records are authoritative.
+
+## Phase 8 period reconciliation compatibility checkpoint — 2026-11-19
+
+The period reconciliation endpoint and Accountant review UI are additive. Existing Investor-period and portal read contracts retain separate gross, actual paid and Loss-offset facts. The snapshot route is Company Accountant-only, uses the existing tenant/module revision and idempotency boundaries, and stores an immutable source version. Confirmation creates no Cash/Bank event and does not label the signed position as payable. A stale source returns a conflict for refresh/review; later confirmation appends a new version and preserves the old snapshot/payment records. The private Investor self projection now exposes only the bound Investor's saved calculation and freshness warning; it excludes private Accountant metadata and creates no financial event. No Investor payable/recoverable, Exit settlement, Company close or Owner Distribution behavior is added by this slice.
 
 ## Phase 5 current compatibility checkpoint — 2026-11-15
 

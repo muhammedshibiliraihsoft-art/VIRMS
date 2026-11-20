@@ -34,10 +34,24 @@ export const queryKeys = {
     branchId?: string,
   ) => ['companies', userId, companyId, 'accounting', 'result', period, year, month ?? 'all', branchId ?? 'all'] as const,
   phase5: {
+    investorPortal: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'investor-portal', 'self'] as const,
+    investorFundHistory: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'investor-portal', 'fund-history'] as const,
+    investorInterimPaymentHistory: (userId: string, companyId: string) =>
+      ['companies', userId, companyId, 'investor-portal', 'interim-payment-history'] as const,
+    profitCalendarConfigurations: (userId: string, companyId: string, investorId: string) =>
+      ['companies', userId, companyId, 'phase5', 'profit-calendar', investorId] as const,
+    investorProfitPeriodProjection: (userId: string, companyId: string, investorId: string) =>
+      ['companies', userId, companyId, 'phase8', 'investor-profit-periods', investorId] as const,
+    investorPortalBinding: (userId: string, companyId: string, investorId: string) =>
+      ['companies', userId, companyId, 'phase10', 'investor-portal-binding', investorId] as const,
     vehicles: (userId: string, companyId: string, page: number, branchId?: string, search?: string) =>
       ['companies', userId, companyId, 'phase5', 'vehicles', page, branchId ?? 'all', search ?? ''] as const,
     vehicle: (userId: string, companyId: string, vehicleId: string) =>
       ['companies', userId, companyId, 'phase5', 'vehicle', vehicleId] as const,
+    vehicleFinancialPosition: (userId: string, companyId: string, vehicleId: string) =>
+      ['companies', userId, companyId, 'phase5', 'vehicle-financial-position', vehicleId] as const,
     purchases: (userId: string, companyId: string, page: number, branchId?: string, vehicleId?: string) =>
       ['companies', userId, companyId, 'phase5', 'purchases', page, branchId ?? 'all', vehicleId ?? 'all'] as const,
     purchase: (userId: string, companyId: string, purchaseId: string) =>

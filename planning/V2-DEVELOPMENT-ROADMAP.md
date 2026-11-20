@@ -122,9 +122,9 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** Implemented positive financial flows reconcile across modules, and unresolved exceptional behavior remains blocked from invented outcomes.
 
-**Status:** NOT STARTED
+**Status:** IN PROGRESS — INCOMPLETE LOCALLY; ACCEPTANCE BLOCKED
 
-**Decision boundary:** `BLOCKED BY BUSINESS DECISION` — deal Profit versus period reconciliation; manual Loss impact and confirmation authority; distributable-Profit basis and period close; cross-Branch correction authority; minimum settlement actions while a module is OFF. Unaffected confirmed positive flows may proceed.
+**Decision boundary:** Sale-date deal Profit placement, manual Vehicle Loss confirmation, Available-Fund withdrawal, Company-level cross-Branch Profit/settlement correction, pre-OFF Exit continuation, manual Company distributable confirmation, negative-result carryforward, verified Vehicle Company Share recognition, and ordinary Investor Vehicle Profit payment authority have approved rules in V2. Typed Company Share recognition and a narrow deal-level Investor Profit payment are implemented locally. Interim payment, period reconciliation/Loss-offset/Exit-settlement records, and Company period/Owner Distribution records remain missing; do not infer amounts or post cash.
 
 ### Phase 9 — MAIN VIRMS SYSTEM CORE-COMPLETE
 
@@ -134,7 +134,7 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** The Main VIRMS operational system is usable for its required core workflows and is ready for the first separate user-facing portal.
 
-**Status:** NOT STARTED
+**Status:** BLOCKED — PHASE 8 INCOMPLETE; INTEGRATED ACCEPTANCE NOT RUN
 
 ### Phase 10 — Investor Portal
 
@@ -144,9 +144,19 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** Investors can access their own permitted Fund, Vehicle, confirmed history, payout/reconciliation, recoverable, Exit, and settlement status information under backend authorization.
 
-**Status:** NOT STARTED
+**Status:** BLOCKED — PHASE 9 ACCEPTANCE AND PHASE 8 FINANCIAL POSITIONS INCOMPLETE
 
-**Decision boundary:** `BLOCKED BY BUSINESS DECISION` — unresolved Interim eligibility/withdrawal and Profit/reconciliation behavior; affected views or actions must not imply a decided outcome.
+**Decision boundary:** The private portal must reflect the approved Sale-date Profit periods, confirmed Interim-as-Paid rule, Available-Fund rule, and Exit/cancellation workflow. A deal-level Investor Profit payment command and typed Accounting link now exist locally; period reconciliation, Interim payment, and Exit settlement remain incomplete. The portal may show actual recorded deal payments but must not show unreconciled amounts as payable.
+
+## Phase 8–10 local implementation checkpoint — 2026-11-19
+
+Current inspected worktree: `D:/VIRMS/tmp/phase5-investment-foundation-20261107`, branch `codex/phase5-investment-foundation`, HEAD `d57a92085344228e8bf1b86d0867ec1d57adf662`. This is a dirty local implementation; no commit or push is implied.
+
+- **Phase 8:** partial source implementation exists for versioned Vehicle-result confirmation, Sale-date gross Investor-period projection, calendar configuration, typed non-cash Company Share Income recognition, Company Accounting Result read, an immutable deal-level Investor Profit payment with one typed Accounting cash movement, Investor portal identity, and Exit request/cancellation. Interim payments, persisted period reconciliation/Loss offsets, final Exit settlement, Company period confirmation/carryforward records, and Owner allocation/payment remain incomplete. Deal payment requires Vehicle Management, Investment, and Accounting ON, is Branch-scoped, idempotent, and capped to the current confirmed share. Their business rules noted above are approved; Phase 8 is not complete.
+- **Phase 9:** the acceptance matrix inventories the core journeys. Focused tests and local checks do not establish full core-workflow browser acceptance. Phase 9 remains blocked on Phase 8 and its integrated acceptance run has not occurred.
+- **Phase 10:** bound self-profile, Investor portal read/request views, and Accountant binding management are implemented in part. The server-paginated `portal/self/fund-history/` exposes only the bound Investor's Fund credits, principal returns, Vehicle commitments, and linked commitment adjustments; it excludes cash-account details and external references. Attribution corrections that intersect historical use/return mark both Investors for manual review and suppress derived totals. Vehicle costs, protected agreement percentages, Sale prices, and Buyer balances remain excluded. The portal now shows its own recorded deal Profit payments while keeping periods `NOT_RECONCILED`; payable, Interim-paid, recoverable, and final settlement positions remain unavailable. Phase 10 is incomplete.
+
+Latest local verification on disposable PostgreSQL, 2026-11-19: after adding the deal payment's Vehicle Management revision, two focused API/concurrency tests passed and fresh test-database migrations applied. A preceding focused backend run passed 36 sale/payment/finance/portal tests before that final revision addition. Django `check`, `makemigrations --check --dry-run`, Python compilation, and `git diff --check` passed. The full React suite passed 231 tests across 39 files; configured lint passed; production build passed with a 751.70 KB main-chunk warning. These checks do not replace authenticated integrated browser acceptance. CI, staging, production and deployment remain unverified. Details: [Phase 8 architecture](../architecture/phase-08-integrated-finance/PHASE-08-INTEGRATED-FINANCE-ARCHITECTURE.md), [Phase 9 matrix](../architecture/phase-09-main-system-core/PHASE-09-CORE-ACCEPTANCE-MATRIX.md), and [Phase 10 architecture](../architecture/phase-10-investor-portal/PHASE-10-INVESTOR-PORTAL-ARCHITECTURE-PLAN.md).
 
 ### Phase 11 — Owner Platform
 
@@ -257,3 +267,19 @@ This checkpoint does not establish CI, staging, production or deployment readine
 Phase 7 is **COMPLETE LOCALLY** on worktree `D:/VIRMS/tmp/phase5-investment-foundation-20261107`, branch `codex/phase5-investment-foundation`. The pre-existing Sale/receipt/refund/correction flows were integrated with Phase 6 Stock Vehicle costs; this completion adds saved Sale correction history to the API response and React views so the audit trail remains visible after reload. No business rule, permission, route, database schema, or migration changed.
 
 On disposable PostgreSQL, `python manage.py test apps.vehicles.tests.test_sale_api apps.garage.tests.test_api --verbosity 1` passed 57 tests and `python manage.py test apps.vehicles.tests.test_sale_concurrency --verbosity 1` passed 3 Sale concurrency tests for concurrent receipts, refunds, and correction versions. Django system/schema-drift checks passed; React passed 200 tests across 35 files, lint, and production build. A local browser workflow verified Sale, partial receipt, price correction, partial refund, persisted history after reload, and a 390 px viewport without horizontal overflow. Direct disposable-database inspection confirmed one cash movement each for the actual receipt and refund. Full evidence and limits are in the [Phase 7 architecture record](../architecture/phase-07-sales-buyers-collection/PHASE-07-SALES-BUYERS-COLLECTION-ARCHITECTURE.md). CI, staging/production, and deployment remain UNVERIFIED. No persistent user database was modified and no commit or push was performed.
+
+## Phase 8–10 Investor period reconciliation snapshot — 2026-11-19
+
+The Company Accountant can now confirm a Sale-date Investor period calculation with an expected source fingerprint and reason. Each confirmation is a versioned immutable Investment record with the prior snapshot link and module revisions. Actual deal Profit paid, Monthly Interim paid and confirmed non-cash Loss offsets remain separate inputs. The current signed calculation position and later restatement delta are shown as calculations only; confirmation does not create a payable, recovery, Fund debit, Accounting movement or final settlement. A changed source requires a new reasoned confirmation, preserving earlier history.
+
+**Verification in the current worktree:** the focused Vehicle Sale API regression passed on disposable PostgreSQL after applying fresh migrations; it covers Company Accountant permission, Branch denial, same-source replay, one cash movement for the later actual deal payment only, immutable snapshot history, and version-2 restatement after a -₹100 source change. The regression now also verifies that the Investor self projection shows only its own current snapshot, marks it stale after a further payment, and exposes no internal reason/source fingerprint/actor ID or cash effect. Two targeted React/API files passed 29 tests; `npx tsc --noEmit` passed. CI, full integrated Phase 9 browser acceptance, staging, production and deployment remain UNVERIFIED.
+
+**Still blocking Phase 8–10 completion:** final Investor Exit/settlement and post-Exit adjustment repayment/refund/waiver outcomes; principal and Running Capital recovery; Company period close and negative carryforward; protected Owner split snapshots, exact allocation and actual partial payment; private Investor payable/recoverable and final settlement projection; Phase 9 full backend integration in sample-backed Dashboard/older Vehicle detail; full role-based integrated browser acceptance and responsive reload proof. The current worktree remains dirty and uncommitted; no push, deployment or persistent user database change occurred.
+
+## Phase 8–10 Monthly Interim payment slice — 2026-11-19
+
+Q135's approved rule now has an implementation slice: Monthly Interim may be paid in partial/repeated actual transfers, with the Investor's effective configured amount as the Company-wide monthly cap across Branches. The payment is append-only, stores the selected Cash/Bank account and Branch, links to exactly one typed Accounting outflow, and carries actor/module revision plus audit evidence. The period projection and bound Investor portal show Interim Paid separately from deal Profit paid, without claiming final reconciliation. The Investor-only history endpoint is paginated and resolves identity from the active Company binding.
+
+**Verified locally:** on the disposable PostgreSQL test database, `python manage.py test apps.investment.tests --verbosity 1` passed 41 tests, including fresh schema creation through `accounting.0024`, module and Branch boundaries, repeat/idempotency, monthly cap and concurrent cap enforcement, source-linked cash effects, and portal privacy. Targeted React portal/API tests passed 32 tests. The test database was destroyed by Django after the run. CI, browser-wide Phase 9 acceptance, staging, production, and deployment remain `UNVERIFIED`.
+
+**Remaining Phase 8–10 work:** persisted period reconciliation/restatement and recoverable history, Investor Exit settlement, principal/Running-Capital recovery, Company period confirmation with Loss carryforward, Owner allocation/payment records, integrated end-to-end acceptance, full UI/browser reload and responsive verification. Phases 8–10 remain incomplete and the existing worktree stays dirty/uncommitted; no commit, push, deployment, or persistent user database change occurred.

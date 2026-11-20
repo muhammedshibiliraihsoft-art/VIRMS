@@ -454,3 +454,43 @@ Owner AI is read-only over the Owner's verified authorized Company/Branch scope 
 - A Branch Accountant may create a Company Running Capital-only Purchase or Expense only for a Vehicle in their authorized Branch. A Company-level Accountant may act in any Branch of the same Company.
 - Investor-linked Vehicle Expense creation, including the complete Fund-first/Running Capital allocation, is Company-level Accountant-only; there is no Branch-created pending draft.
 - For an excess Vehicle Expense refund classified as Company Income, the authorized Accountant must create the separate Income record and Receipt using normal Company/Branch permissions. Never modify an old Income event or bypass Income/Receipt permissions.
+
+### ADDITION — Branch authority for ordinary Investor Vehicle Profit payments
+
+**Status:** APPROVED BUSINESS DECISION — 2026-11-19
+
+**Rule**
+- A Branch Accountant may record an actual ordinary Investor Vehicle Profit payment only for a Sale in the Accountant's authorized Branch.
+- A same-Company Company-level Accountant may record that payment for a Sale in any Branch of the Company.
+- This is an action-specific Branch grant. It does not grant cross-Branch Investor/Fund access, reconciliation correction, Loss confirmation, Exit settlement, or other financial mutation authority.
+- Payment remains a human-confirmed actual Accounting Payment linked to the approved Investor Profit entitlement; a calculation or approval alone is not Paid.
+
+**Scope**
+- Actual payment of confirmed positive deal-level Investor Vehicle Profit.
+
+**Preserve unchanged**
+- The payment reduces the Sale-date Investor period's outstanding entitlement once. Company and Branch, source Sale, current module state, available amount after applicable approved offsets, and Accounting movement are validated server-side.
+
+**Supersedes**
+- SUPERSEDES EARLIER UNRESOLVED Phase 8 wording that ordinary Investor Profit payment authority still needed a business answer.
+
+**Implementation impact**
+- Use a dedicated payout action permission and Sale Branch authorization. Keep the Company-level-only authority for pooled Fund use, Loss confirmation and cross-Branch corrections separate.
+
+### ADDITION — Branch authority for Monthly Interim payments
+
+**Status:** APPROVED BUSINESS DECISION — 2026-11-19
+
+- A Branch Accountant may record an actual Monthly Interim payment only in their authorized payment Branch.
+- A same-Company Company-level Accountant may record that payment in any Branch of the Company.
+- This action-specific grant does not provide consolidated Fund visibility or cross-Branch permission for other actions. The actual Cash/Bank movement still requires normal Accounting authorization.
+
+### ADDITION — Investor portal account binding (2026-11-19)
+
+**Status:** APPROVED BUSINESS DECISION. Private portal access remains blocked until the backend binding and checks exist.
+
+- A same-Company Company-level Accountant verifies and links an authenticated login account to an Investor profile in that Company. Only one active Investor profile may be linked to that account in the Company, and one Investor profile may have only one active login account.
+- Link, replacement and revocation retain actor/time/history. Neither name/phone similarity nor an Investor role grant alone establishes record ownership. The server must resolve an active binding before returning private Investor data or accepting an Investor self-service request.
+- Company isolation, active membership, Investor role, Investor status and applicable module gates still apply. A revoked binding immediately removes self-service access; no historical financial record is deleted.
+
+**Supersedes:** The unresolved account-to-Investor binding authority and cardinality for Phase 10 only; it does not grant Investor financial mutation rights.

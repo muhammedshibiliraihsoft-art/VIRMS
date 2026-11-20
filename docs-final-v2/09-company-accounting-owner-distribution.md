@@ -28,7 +28,9 @@ The conceptual Company result is:
 
 Keep source transactions and their classification traceable so the same Vehicle cost, Garage Job cost, receipt or Company Share does not enter this equation twice. Branch-filtered views use original attribution while Company totals consolidate all Branches. A Company Profit/Loss result is not automatically an Owner payable, and a calendar period ending does not transfer funds. The amount that is actually distributable requires a confirmed Company-level position.
 
-**BUSINESS DECISION REQUIRED:** Define the exact Company distributable-Profit basis, period close/carryforward treatment, and recognition of Company Share, Garage Revenue and common Expenses. This does not block the Garage workflow from recording its authoritative charge, receivable and actual receipt source links or exposing the Accounting Garage Revenue source. Garage does not finalize Company Profit, close a period or calculate/pay Owner Distribution; the conceptual equation does not authorize an automatic Owner payment or decide cash-versus-accrual treatment.
+**Approved rule:** A same-Company Company-level Accountant reviews Company income, expenses, and liabilities and confirms the amount available for each period. A negative Company result carries forward; only positive balance remaining after that Loss is covered may be considered for Owner Distribution. Verified positive Vehicle Company Share is recognized as Company Accounting Income under the approved addition below. This confirmation does not authorize automatic Owner payment.
+
+**Implementation gap:** Persisted Company-period confirmation, carryforward history, Owner allocation snapshots, and actual Owner payment records remain required. Garage remains the owner of its customer charge and linked Accounting source; see the approved Garage revenue workflow and do not duplicate its receipts or costs.
 
 ## Owner allocation and payout
 
@@ -64,10 +66,36 @@ New Stock Vehicle Loss and Running-Capital Loss impacts remain manual under 01 a
 - Company Share, Garage Revenue, Running Capital, Investor principal, Investor Profit, Owner Distribution, and actual cash events remain distinct and source-owned.
 
 **Supersedes**
-- SUPERSEDES EARLIER UNRESOLVED/STALE STATEMENT: the statement in Company result and distributable Profit that this architecture does not decide cash-versus-accrual treatment, only as to whether already recognized/committed Accounting Income and Expense participate in Company Profit before Receipt or Payment. Source recognition of Company Share, Garage Revenue and common Expenses, distributable-Profit basis, and period close/carryforward remain unresolved.
+- SUPERSEDES EARLIER UNRESOLVED/STALE STATEMENT: the statement in Company result and distributable Profit that this architecture does not decide cash-versus-accrual treatment, only as to whether already recognized/committed Accounting Income and Expense participate in Company Profit before Receipt or Payment. The later approved Company Share addition resolves Vehicle Company Share recognition; the Accountant-confirmed distributable amount and negative-result carryforward are also approved. This earlier addition still does not resolve any remaining unclassified Company income/expense source.
 
 **Implementation impact**
 - Compute the Company result from recognized/committed Accounting records; do not infer Income from a Receipt or Expense from a Payment.
+
+### ADDITION — Verified Vehicle Company Share is recognized in Company Profit
+
+**Status:** APPROVED BUSINESS DECISION — 2026-11-19
+
+**Rule**
+- When a same-Company Company-level Accountant verifies and confirms a completed positive Stock Vehicle result, recognize its positive Company Share automatically as Company Accounting Income in the Company Profit result.
+- Use a typed link to the exact immutable `VehicleResultConfirmation`; use the Sale's Branch and Sale effective date. This recognition is not a Cash/Bank movement, Buyer Receipt, Company Running Capital recovery, or Owner payment.
+- An Investor-funded result also requires Investment ON and its allocation-time agreement snapshot. Every Company Share recognition requires Vehicle Management and Accounting ON so confirmation and source recognition commit atomically. Company-funded results do not require Investment.
+- A later verified confirmation for a changed source version must reverse any previously recognized Company Share exactly once and recognize the replacement amount, retaining both records and their audit history. Do not count two versions as two profits.
+- Loss and break-even confirmations do not create positive Company Share Income. Apply the separately approved manual Loss rules. Company Share recognition does not by itself finalize distributable Profit or authorize Owner Distribution.
+
+**Scope**
+- Recognition of the residual Company Share from a verified positive Stock Vehicle result in Company Accounting Profit.
+
+**Preserve unchanged**
+- Investor Share remains Investment-owned and is not Company Income. Buyer proceeds, capital recovery, Expense, Income recognition, actual cash, Investor Profit, distributable Profit, and Owner Distribution remain distinct source records.
+- An Accounting module OFF state blocks the atomic Company Share recognition; no partial Vehicle result confirmation may imply Company Profit recognition.
+
+**Supersedes**
+- SUPERSEDES EARLIER UNRESOLVED STATEMENT in this document that recognition of Vehicle Company Share in Company Profit still required a business decision. Other unresolved Company revenue/expense recognition questions are unaffected.
+
+**Implementation impact**
+- Add a typed Accounting source relationship and a non-cash Company Share Income event. Create it in the same database transaction as result confirmation, enforce the Sale date/Branch and amount at the database boundary, and include signed current recognition events in Accounting Result. Never derive a duplicate event from the Buyer Receipt.
+
+**Local implementation status:** implemented in the current worktree through a typed source link, transactional result confirmation, and signed Accounting Result inclusion. It remains subject to the Phase 8 acceptance gate and is not a Phase 8 completion claim.
 
 ### ADDITION — Company Profit reports use independent calendar windows
 
@@ -87,7 +115,7 @@ New Stock Vehicle Loss and Running-Capital Loss impacts remain manual under 01 a
 - Investor reconciliation periods and Owner Distribution periods remain separately owned and governed.
 
 **Supersedes**
-- None. The distributable-Profit and period close/carryforward BDR remains.
+- The later **ADDITION — Phase 8 Company distributable confirmation and Loss carryforward (2026-11-19)** supersedes the earlier unresolved confirmation/carryforward status. The H1/H2/Annual reporting windows above remain reporting periods; this addition does not make a report itself a close or payout.
 
 **Implementation impact**
 - Use derived date-filtered reporting; no period-close entity or automatic financial event follows from a report.
@@ -1089,7 +1117,7 @@ New Stock Vehicle Loss and Running-Capital Loss impacts remain manual under 01 a
 - Accounting classification boundary and actual cash-movement ownership for direct Phase 5 Stock Vehicle costs; future Garage Job customer charges.
 
 **Preserve unchanged**
-- Accounting remains the owner of actual Cash/Bank movements. Company Running Capital remains distinct from Company Expense/Profit; existing Company Profit rules and the unresolved recognition of Company Share, Garage Revenue, and common Expenses remain unchanged.
+- Accounting remains the owner of actual Cash/Bank movements. Company Running Capital remains distinct from Company Expense/Profit. This earlier note predates the approved Company Share recognition addition; that addition supersedes its Company Share portion while preserving source ownership and leaving unrelated source rules unchanged.
 
 **Supersedes**
 - SUPERSEDES EARLIER Q102 IMPLEMENTATION WORDING: treating a direct Stock Vehicle cost as a generic Company Accounting Expense/Payment by default. This resolves only Stock Vehicle-specific costs; it does not resolve general Company Expense recognition.
@@ -1338,3 +1366,13 @@ New Stock Vehicle Loss and Running-Capital Loss impacts remain manual under 01 a
 - If the Accountant explicitly classifies an excess as Company Income, create a separate Company Income event with an Accountant-selected category and note, then link the actual Receipt to it. This increases Company Profit once. Do not edit an existing Income event or auto-classify the excess. This follows Q132 and the existing rule that Income and Receipt are separate.
 - Company Running Capital allocation is a separate Vehicle-linked source record for the exact cost shortfall; it is not a Company Expense and does not itself create a Cash/Bank movement. A real payment creates one Accounting event and one movement.
 - Only a Company-level Accountant may allocate pooled Investor Fund to Vehicle Purchase or Investor-linked Vehicle Expense. Company-only Purchase/Expense remains available to an authorized Branch Accountant for their Branch; company-level scope remains same-Company only.
+
+### ADDITION — Phase 8 Company distributable confirmation and Loss carryforward (2026-11-19)
+
+**Status:** APPROVED BUSINESS DECISIONS. Implementation remains separately verifiable.
+
+- A same-Company Company-level Accountant reviews recognized income, expense and outstanding liabilities, then manually confirms the period's distributable amount. A derived Company result or period end alone does not authorize an Owner payout.
+- Carry a negative Company period result forward. Only a positive amount remaining after that carried Loss is resolved may be considered for Owner Distribution. Preserve original periods, confirmations, adjustments and actual payments as separate audited records.
+- No automatic Owner allocation or Cash/Bank movement follows from a calculation, negative result, or period boundary.
+
+**Supersedes:** Earlier unresolved period Loss carryforward and confirmation authority. The exact source recognition and remaining period-close mechanics still require implementation-specific validation against authoritative Accounting and Vehicle/Garage sources.

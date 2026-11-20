@@ -163,6 +163,9 @@ class VehicleSaleReceiptSerializer(serializers.Serializer):
 class VehicleSaleRefundSerializer(serializers.Serializer):
     account_id = serializers.UUIDField()
     amount = serializers.DecimalField(max_digits=38, decimal_places=2, min_value=Decimal("0.01"))
+    investor_principal_amount = serializers.DecimalField(
+        max_digits=38, decimal_places=2, min_value=Decimal("0.00"), required=False,
+    )
     effective_at = serializers.DateTimeField(required=False)
 
 

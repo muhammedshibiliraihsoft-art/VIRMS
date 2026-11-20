@@ -8,6 +8,9 @@ from .views import (
     ApplicationReallocationView,
     CategoryArchiveView,
     CategoryListCreateView,
+    CompanyPeriodConfirmationView,
+    OwnerDistributionConfigurationView,
+    OwnerDistributionPaymentView,
     EventCorrectionView,
     EventDetailView,
     EventListView,
@@ -88,4 +91,7 @@ urlpatterns = [
         AccountingResultView.as_view(),
         name="accounting-result",
     ),
+    path("company-period-confirmations/", CompanyPeriodConfirmationView.as_view(), name="company-period-confirmations"),
+    path("owner-distribution-configurations/", OwnerDistributionConfigurationView.as_view(), name="owner-distribution-configurations"),
+    path("company-period-confirmations/<uuid:confirmation_id>/owner-payments/", OwnerDistributionPaymentView.as_view(), name="company-period-owner-payment"),
 ]

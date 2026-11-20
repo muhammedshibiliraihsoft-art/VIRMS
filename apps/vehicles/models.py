@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -146,6 +147,16 @@ class VehiclePurchase(TimestampedUUIDModel):
     )
     investor_fund_amount = models.DecimalField(max_digits=38, decimal_places=2)
     running_capital_amount = models.DecimalField(max_digits=38, decimal_places=2)
+    investor_share_agreement = models.ForeignKey(
+        "investment.InvestorProfitShareAgreement",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="vehicle_purchase_snapshots",
+    )
+    investor_share_percentage_snapshot = models.DecimalField(
+        max_digits=7, decimal_places=4, null=True, blank=True
+    )
     purchased_at = models.DateTimeField()
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -180,6 +191,18 @@ class VehiclePurchase(TimestampedUUIDModel):
                     | Q(investor_fund_amount__gt=0, investor__isnull=False, investment_module_revision__isnull=False)
                 ),
                 name="vehicle_purchase_investor_ck",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(investor_share_agreement__isnull=True, investor_share_percentage_snapshot__isnull=True)
+                    | Q(investor_share_agreement__isnull=False, investor_share_percentage_snapshot__isnull=False)
+                ),
+                name="vehicle_purchase_share_snapshot_ck",
+            ),
+            models.CheckConstraint(
+                condition=Q(investor_share_percentage_snapshot__isnull=True)
+                | Q(investor_share_percentage_snapshot__gte=Decimal("0.0000"), investor_share_percentage_snapshot__lte=Decimal("100.0000")),
+                name="vehicle_purchase_share_range_ck",
             ),
             models.CheckConstraint(
                 condition=Q(seller_name__gt=""), name="vehicle_purchase_seller_ck"

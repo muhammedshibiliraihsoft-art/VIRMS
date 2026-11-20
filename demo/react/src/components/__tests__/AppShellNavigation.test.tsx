@@ -35,7 +35,7 @@ function renderShell(
 
 describe('AppShell role-filtered navigation', () => {
   it('marks business screens as Demo while keeping backend Company context separate', () => {
-    const { rerender } = renderShell(['owner'], [], 'Garage Jobs');
+    const { rerender } = renderShell(['owner'], [], 'Garage Job Detail');
 
     expect(screen.getByRole('note', { name: /Demo data and actions/i })).toHaveTextContent('Demo');
 
@@ -60,6 +60,12 @@ describe('AppShell role-filtered navigation', () => {
       </AppShell>
     );
 
+    expect(screen.queryByRole('note', { name: /Demo data and actions/i })).not.toBeInTheDocument();
+  });
+
+  it('labels the Garage Jobs API workspace as Backend API', () => {
+    renderShell(['accountant'], [], 'Garage Jobs');
+    expect(screen.getByRole('note', { name: 'Backend API data and actions' })).toHaveTextContent('Backend API');
     expect(screen.queryByRole('note', { name: /Demo data and actions/i })).not.toBeInTheDocument();
   });
 

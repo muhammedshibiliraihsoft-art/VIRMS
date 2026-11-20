@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "eslint src/api src/auth src/main.tsx src/components/AppShell.tsx src/components/TopBar.tsx src/components/dashboard/DashboardHeader.tsx src/components/shared/Phase5WorkspaceView.tsx src/components/shared/__tests__/Phase5WorkspaceView.test.tsx src/components/shared/Garage*.tsx src/components/shared/Labour*.tsx src/components/shared/__tests__/Garage*.test.tsx src/components/shared/__tests__/Labour*.test.tsx",
+    "lint": "eslint src/api src/auth src/main.tsx src/components/AppShell.tsx src/components/TopBar.tsx src/components/dashboard/DashboardHeader.tsx src/components/shared/Phase5WorkspaceView.tsx src/components/shared/InvestorProfitReviewView.tsx src/components/shared/InvestorProfitRepaymentForm.tsx src/components/shared/InvestorProfitFutureAdjustmentForm.tsx src/components/shared/__tests__/InvestorProfitFutureAdjustmentForm.test.tsx src/components/shared/__tests__/InvestorProfitReviewView.test.tsx src/components/shared/__tests__/InvestorProfitRepaymentForm.test.tsx src/components/shared/__tests__/Phase5WorkspaceView.test.tsx src/components/shared/Garage*.tsx src/components/shared/Labour*.tsx src/components/shared/__tests__/Garage*.test.tsx src/components/shared/__tests__/Labour*.test.tsx",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

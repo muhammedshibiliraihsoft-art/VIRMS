@@ -10,7 +10,11 @@ from rest_framework.test import APIClient
 from apps.accounts.models import CompanyRoleGrant
 from apps.accounts.tests.test_users import make_user
 from apps.accounting.models import AccountMovement, AccountingAccount, AccountingEvent
-from apps.investment.models import InvestorFundUse, InvestorFundUseAllocation
+from apps.investment.models import (
+    InvestorFundUse,
+    InvestorFundUseAllocation,
+    InvestorProfitShareAgreement,
+)
 from apps.tenants.models import Branch, BranchAssignment, CompanyModuleState, Tenant
 from apps.vehicles.models import Vehicle, VehiclePurchase
 
@@ -351,6 +355,64 @@ class VehiclePurchaseApiTests(TestCase):
         self.assertFalse(
             AccountingEvent.objects.filter(event_type__in=("INCOME", "EXPENSE")).exists()
         )
+
+    def test_investor_share_agreement_is_snapshotted_at_purchase_effective_time(self):
+        investor_id = self.create_investor_and_credit(amount="10000.00")
+        agreement_time = timezone.now() - timedelta(minutes=1)
+        agreement = InvestorProfitShareAgreement.objects.create(
+            tenant=self.company,
+            investor_id=investor_id,
+            share_percentage=Decimal("33.0000"),
+            effective_at=agreement_time,
+            actor=self.company_accountant,
+        )
+        purchased_at = timezone.now() - timedelta(seconds=20)
+        created = self.post(
+            "purchases/",
+            self.purchase_payload(
+                investor_id=investor_id,
+                investor_fund_amount="10000.00",
+                running_capital_amount="0.00",
+                purchased_at=purchased_at.isoformat(),
+            ),
+            "purchase-agreement-snapshot",
+        )
+
+        self.assertEqual(created.status_code, 201, created.content)
+        purchase = VehiclePurchase.objects.get(pk=created.data["id"])
+        self.assertEqual(purchase.investor_share_agreement_id, agreement.pk)
+        self.assertEqual(purchase.investor_share_percentage_snapshot, Decimal("33.0000"))
+        self.assertEqual(created.data["investor_share_percentage_snapshot"], "33.0000")
+
+    def test_late_agreement_does_not_backfill_existing_purchase_snapshot(self):
+        investor_id = self.create_investor_and_credit(amount="10000.00")
+        purchased_at = timezone.now() - timedelta(seconds=30)
+        created = self.post(
+            "purchases/",
+            self.purchase_payload(
+                investor_id=investor_id,
+                investor_fund_amount="10000.00",
+                running_capital_amount="0.00",
+                purchased_at=purchased_at.isoformat(),
+            ),
+            "purchase-no-agreement-snapshot",
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+
+        InvestorProfitShareAgreement.objects.create(
+            tenant=self.company,
+            investor_id=investor_id,
+            share_percentage=Decimal("33.0000"),
+            effective_at=timezone.now() - timedelta(minutes=2),
+            actor=self.company_accountant,
+        )
+
+        position = self.client.get(
+            self.path(f"vehicles/{self.vehicle.pk}/financial-position/")
+        )
+        self.assertEqual(position.status_code, 200, position.content)
+        self.assertEqual(position.data["profit_share_status"], "AGREEMENT_SNAPSHOT_MISSING")
+        self.assertIsNone(position.data["investor_share_percentage_snapshot"])
 
     def test_investor_purchase_is_capped_and_branch_accountant_cannot_use_pooled_fund(self):
         investor_id = self.create_investor_and_credit(amount="5000.00")

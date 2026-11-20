@@ -14,6 +14,8 @@ from apps.accounting.models import (
     AccountingAccount,
     AccountingCategory,
     AccountingEvent,
+    CompanyPeriodConfirmation,
+    OwnerDistributionPayment,
 )
 from apps.tenants.models import Branch, BranchAssignment, CompanyModuleState, Tenant
 
@@ -1104,6 +1106,16 @@ class AccountingApiTests(TestCase):
         self.assertIsNotNone(self.cash.archived_at)
         self.assertEqual(AccountMovement.objects.filter(account=self.cash).count(), 0)
 
+    def test_accounting_result_preserves_paise_for_large_amounts(self):
+        income = self.post("incomes/", self.income_payload(amount="9999999999999999999999999999.99"), "large-report-income")
+        self.assertEqual(income.status_code, 201, income.content)
+        expense = self.post("expenses/", self.expense_payload(amount="0.01"), "large-report-expense")
+        self.assertEqual(expense.status_code, 201, expense.content)
+        self.login()
+        response = self.client.get(self.path("reports/accounting-result/?period=annual&year=2026"))
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["accounting_result_amount"], "9999999999999999999999999999.98")
+
     def test_accounting_result_uses_accounting_records_and_calendar_period(self):
         payload = self.income_payload(amount="125.50")
         created = self.post("incomes/", payload, "income-report")
@@ -1156,3 +1168,153 @@ class AccountingApiTests(TestCase):
             if 'FROM "accounting_accountingevent"' in query["sql"]
         ]
         self.assertEqual(len(result_queries), 1, result_queries)
+
+    def test_company_period_confirmation_carries_loss_and_caps_distributable_amount(self):
+        h1_income = self.post("incomes/", {
+            **self.income_payload(amount="20.00", source_reference="H1-INCOME"),
+            "effective_at": "2026-02-01T10:00:00+05:30",
+        }, "company-period-h1-income")
+        h1_expense = self.post("expenses/", {
+            **self.expense_payload(amount="70.00"), "source_reference": "H1-EXPENSE",
+            "effective_at": "2026-03-01T10:00:00+05:30",
+        }, "company-period-h1-expense")
+        self.assertEqual(h1_income.status_code, 201, h1_income.data)
+        self.assertEqual(h1_expense.status_code, 201, h1_expense.data)
+        self.login()
+        h1_report = self.client.get(self.path("reports/accounting-result/?period=h1&year=2026"))
+        self.assertEqual(h1_report.data["accounting_result_amount"], "-50.00")
+        from apps.accounting.company_periods import period_bounds, event_source_version
+        from apps.accounting.models import AccountingEvent
+        _, _, start_at, end_at = period_bounds("h1", 2026)
+        self.assertEqual(h1_report.data["source_version"], event_source_version(AccountingEvent.objects.filter(
+            tenant=self.company, effective_at__gte=start_at, effective_at__lt=end_at,
+        )))
+        h1 = self.post("company-period-confirmations/", {
+            "period_type": "h1", "year": 2026, "expected_source_version": h1_report.data["source_version"],
+            "distributable_amount": "0.00", "liabilities_reviewed": True,
+            "liability_review_reason": "Reviewed Company liabilities", "reason": "Confirm first-half Loss",
+        }, "company-period-h1-confirm")
+        self.assertEqual(h1.status_code, 201, getattr(h1, "data", h1.content))
+        self.assertEqual(h1.data["loss_carried_forward"], "50.00")
+        h1_replay = self.post("company-period-confirmations/", {
+            "period_type": "h1", "year": 2026, "expected_source_version": h1_report.data["source_version"],
+            "distributable_amount": "0.00", "liabilities_reviewed": True,
+            "liability_review_reason": "Reviewed Company liabilities", "reason": "Confirm first-half Loss",
+        }, "company-period-h1-confirm")
+        self.assertEqual(h1_replay.data["id"], h1.data["id"])
+
+        h2_income = self.post("incomes/", {
+            **self.income_payload(amount="100.00", source_reference="H2-INCOME"),
+            "effective_at": "2026-08-01T10:00:00+05:30",
+        }, "company-period-h2-income")
+        self.assertEqual(h2_income.status_code, 201, h2_income.data)
+        self.login()
+        h2_report = self.client.get(self.path("reports/accounting-result/?period=h2&year=2026"))
+        h2_body = {
+            "period_type": "h2", "year": 2026, "expected_source_version": h2_report.data["source_version"],
+            "distributable_amount": "35.00", "liabilities_reviewed": True,
+            "liability_review_reason": "Reviewed unpaid bills and obligations", "reason": "Confirm second-half pool",
+        }
+        no_owner_split = self.post("company-period-confirmations/", h2_body, "company-period-h2-no-owner-split")
+        self.assertEqual(no_owner_split.status_code, 409, no_owner_split.content)
+        from apps.accounts.tests.test_users import make_user
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from apps.tenants.models import TenantMembership
+        owner_membership = self.owner.tenant_memberships.get(tenant=self.company)
+        owner_end = timezone.now()
+        owner_membership.role_grants.filter(role="owner").update(effective_until=owner_end)
+        TenantMembership.objects.filter(pk=owner_membership.pk).update(effective_until=owner_end)
+        historical_owner = make_user("p4-period-historical-owner")
+        owner_membership = TenantMembership.objects.create(
+            user=historical_owner, tenant=self.company, assigned_by=historical_owner,
+            effective_from=datetime(2025, 1, 1, tzinfo=ZoneInfo("Asia/Kolkata")),
+        )
+        CompanyRoleGrant.objects.create(
+            membership=owner_membership, role="owner", assigned_by=historical_owner,
+            effective_from=owner_membership.effective_from,
+        )
+        operator = make_user("p4-owner-split-operator", role="back_office", account_kind="platform")
+        self.client.force_authenticate(user=operator)
+        configured = self.client.post(self.path("owner-distribution-configurations/"), {
+            "effective_from": "2026-01-01",
+            "recipients": [{"id": str(historical_owner.pk), "percentage": "100.00"}],
+            "reason": "Set approved Company Owner split",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="owner-split-config-v1")
+        self.assertEqual(configured.status_code, 201, configured.content)
+        self.login()
+        h2 = self.post("company-period-confirmations/", h2_body, "company-period-h2-confirm")
+        self.assertEqual(h2.status_code, 201, h2.data)
+        self.assertEqual(h2.data["prior_loss_carried_forward"], "50.00")
+        self.assertEqual(h2.data["positive_after_loss"], "50.00")
+        self.assertEqual(h2.data["owner_allocation_snapshot"], [
+            {"recipient_id": str(historical_owner.pk), "recipient_label": historical_owner.login_id,
+             "percentage": "100.00", "amount": "35.00"},
+        ])
+        self.assertEqual(CompanyPeriodConfirmation.objects.filter(tenant=self.company).count(), 2)
+        self.assertEqual(AccountMovement.objects.count(), 0)
+        owner_payment_path = self.path(f"company-period-confirmations/{h2.data['id']}/owner-payments/")
+        payment_body = {
+            "recipient_id": str(historical_owner.pk), "branch_id": str(self.branch_a.pk),
+            "account_id": str(self.cash.pk), "amount": "10.00", "effective_at": timezone.now().isoformat(),
+            "expected_source_version": h2.data["source_version"], "reason": "Pay first Owner distribution part",
+        }
+        payment_before = AccountMovement.objects.count()
+        first_payment = self.client.post(owner_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="owner-payment-part-1")
+        payment_replay = self.client.post(owner_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="owner-payment-part-1")
+        self.assertEqual(first_payment.status_code, 201, first_payment.content)
+        self.assertEqual(payment_replay.status_code, 201, payment_replay.content)
+        self.assertEqual(first_payment.data["id"], payment_replay.data["id"])
+        owner_payment = OwnerDistributionPayment.objects.get(pk=first_payment.data["id"])
+        self.assertEqual(owner_payment.accounting_event.event_type, AccountingEvent.EventType.OWNER_DISTRIBUTION_PAYMENT)
+        self.assertEqual(AccountMovement.objects.get(event=owner_payment.accounting_event).delta, Decimal("-10.00"))
+        self.assertEqual(AccountMovement.objects.count(), payment_before + 1)
+        self.assertEqual(first_payment.data["outstanding_amount"], "25.00")
+        _, _, h2_starts_at, h2_ends_at = period_bounds("h2", 2026)
+        self.assertEqual(event_source_version(AccountingEvent.objects.filter(
+            tenant=self.company, effective_at__gte=h2_starts_at, effective_at__lt=h2_ends_at,
+        )), h2.data["source_version"])
+        too_much_owner_payment = self.client.post(owner_payment_path, {
+            **payment_body, "amount": "35.01",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="owner-payment-over-allocation")
+        self.assertEqual(too_much_owner_payment.status_code, 409, too_much_owner_payment.content)
+        self.client.force_authenticate(user=operator)
+        revised_split = self.client.post(self.path("owner-distribution-configurations/"), {
+            "effective_from": "2026-01-01",
+            "recipients": [{"id": str(historical_owner.pk), "percentage": "100.00"}],
+            "reason": "Reconfirm effective Company Owner split",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="owner-split-config-v2")
+        self.assertEqual(revised_split.status_code, 201, revised_split.content)
+        self.login()
+        confirmations_after_split_change = self.client.get(self.path("company-period-confirmations/"))
+        confirmed_h2 = next(row for row in confirmations_after_split_change.data["confirmations"] if row["period_type"] == "h2")
+        self.assertFalse(confirmed_h2["source_current"])
+        self.post("incomes/", {
+            **self.income_payload(amount="1.00", source_reference="H2-LATE-INCOME"),
+            "effective_at": "2026-09-01T10:00:00+05:30",
+        }, "company-period-late-income")
+        confirmation_history = self.client.get(self.path("company-period-confirmations/"))
+        self.assertFalse(next(row for row in confirmation_history.data["confirmations"] if row["period_type"] == "h2")["source_current"])
+        stale = self.post("company-period-confirmations/", h2_body, "company-period-stale-confirm")
+        self.assertEqual(stale.status_code, 409, stale.content)
+        too_much = self.post("company-period-confirmations/", {
+            **h2_body, "distributable_amount": "50.01",
+        }, "company-period-h2-over-cap")
+        self.assertEqual(too_much.status_code, 409, too_much.content)
+
+    def test_company_period_confirmation_is_company_accountant_only_and_non_overlapping(self):
+        self.login()
+        report = self.client.get(self.path("reports/accounting-result/?period=h1&year=2026"))
+        body = {
+            "period_type": "h1", "year": 2026, "expected_source_version": report.data["source_version"],
+            "distributable_amount": "0.00", "liabilities_reviewed": True,
+            "liability_review_reason": "Reviewed liabilities", "reason": "Confirm period",
+        }
+        denied = self.post("company-period-confirmations/", body, "company-period-owner-denied", user=self.owner)
+        self.assertEqual(denied.status_code, 403, denied.content)
+        saved = self.post("company-period-confirmations/", body, "company-period-h1-overlap", user=self.accountant)
+        self.assertEqual(saved.status_code, 201, saved.data)
+        overlap = self.post("company-period-confirmations/", {
+            **body, "period_type": "annual",
+        }, "company-period-annual-overlap", user=self.accountant)
+        self.assertEqual(overlap.status_code, 409, overlap.content)

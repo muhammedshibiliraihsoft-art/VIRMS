@@ -1,3 +1,5 @@
+import hashlib
+import json
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import IntegrityError
@@ -29,9 +31,10 @@ from apps.investment.models import (
     InvestorFundUse,
     InvestorFundUseAllocation,
     InvestorFundUseAdjustment,
+    InvestorProfitShareAgreement,
     InvestorPrincipalReturnAllocation,
 )
-from apps.investment.selectors import with_current_fund_credit_owner
+from apps.investment.selectors import with_current_fund_credit_owner, with_fund_credit_available
 from apps.tenants.models import Branch, CompanyModuleCode, Tenant
 from apps.vehicles.models import (
     Vehicle,
@@ -115,7 +118,7 @@ def _purchase_data(purchase):
     correction = purchase.corrections.order_by("-version", "-id").first()
     cost, investor_fund_amount, running_capital_amount = _purchase_source_values(purchase)
     payable = _purchase_payable(purchase, paid=paid, refunded=refunded)
-    return {
+    payload = {
         "id": str(purchase.pk),
         "vehicle_id": str(purchase.vehicle_id),
         "company_id": str(purchase.tenant_id),
@@ -126,6 +129,14 @@ def _purchase_data(purchase):
         "investor_id": str(purchase.investor_id) if purchase.investor_id else None,
         "investor_fund_amount": format(investor_fund_amount, ".2f"),
         "running_capital_amount": format(running_capital_amount, ".2f"),
+        "investor_share_agreement_id": (
+            str(purchase.investor_share_agreement_id)
+            if purchase.investor_share_agreement_id else None
+        ),
+        "investor_share_percentage_snapshot": (
+            format(purchase.investor_share_percentage_snapshot, ".4f")
+            if purchase.investor_share_percentage_snapshot is not None else None
+        ),
         "seller_paid": format(paid - refunded, ".2f"),
         "seller_payable": format(max(Decimal("0.00"), payable), ".2f"),
         "no_advance_warning": paid == 0,
@@ -152,6 +163,7 @@ def _purchase_data(purchase):
         ],
         "correction_version": correction.version if correction else 0,
     }
+    return payload
 
 
 def _expense_totals(expense):
@@ -281,16 +293,11 @@ def _record_purchase_payment(*, company, branch, purchase, actor, account_id, am
 
 
 def _available_credit(credit):
-    returned = InvestorPrincipalReturnAllocation.objects.filter(
-        tenant_id=credit.tenant_id, credit=credit
-    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-    used = InvestorFundUseAllocation.objects.filter(
-        tenant_id=credit.tenant_id, credit=credit
-    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-    adjustment = InvestorFundUseAdjustment.objects.filter(
-        tenant_id=credit.tenant_id, credit=credit
-    ).aggregate(total=Sum("amount_delta"))["total"] or Decimal("0.00")
-    return credit.amount - returned - used - adjustment
+    if not hasattr(credit, "fund_available"):
+        raise RuntimeError("Fund credit availability must be selected under the transaction lock.")
+    if credit.fund_available is None:
+        raise DomainConflict("Fund recovery sources require review.", code="FUND_RECOVERY_REVIEW_REQUIRED")
+    return credit.fund_available
 
 
 def _allocate_fund_use(
@@ -300,9 +307,9 @@ def _allocate_fund_use(
     if (purchase is None) == (expense is None):
         raise ValidationError("Investor Fund use must have exactly one Vehicle source.")
     credits = list(
-        with_current_fund_credit_owner(
+        with_fund_credit_available(with_current_fund_credit_owner(
             InvestorFundCredit.objects.select_for_update().filter(tenant=company)
-        )
+        ))
         .filter(current_investor_id=investor.pk)
         .order_by("effective_at", "id")
     )
@@ -490,6 +497,216 @@ def get_vehicle(*, actor, company_id, vehicle_id):
         resource=vehicle,
     )
     return _vehicle_data(vehicle)
+
+
+def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_investor_id=None):
+    """Read current source amounts; this preview never confirms or posts Profit."""
+    company = Tenant.objects.filter(pk=company_id, is_active=True).first()
+    if company is None:
+        raise NotFound("Company not found.")
+    vehicle = Vehicle.objects.filter(tenant=company, pk=vehicle_id).select_related("current_branch").first()
+    if vehicle is None:
+        raise NotFound("Vehicle not found.")
+
+    purchase = VehiclePurchase.objects.filter(tenant=company, vehicle=vehicle).select_related(
+        "branch", "investor", "investor_share_agreement"
+    ).prefetch_related("corrections").first()
+    expenses = list(VehicleExpense.objects.filter(tenant=company, vehicle=vehicle).select_related(
+        "branch"
+    ).prefetch_related("corrections"))
+    sale = VehicleSale.objects.filter(tenant=company, vehicle=vehicle).select_related(
+        "branch", "vehicle"
+    ).prefetch_related("corrections", "receipts", "refunds").first()
+
+    if authorized_investor_id is None:
+        # A moved Vehicle can have financial sources owned by other Branches.
+        # Authorize every source Branch before returning their combined figures.
+        branches = {vehicle.current_branch_id: vehicle.current_branch}
+        for source in ([purchase] if purchase else []) + expenses + ([sale] if sale else []):
+            branches[source.branch_id] = source.branch
+        for branch in branches.values():
+            require_action(actor, "vehicle.read", company=company, branch=branch)
+    elif purchase is None or str(purchase.investor_id) != str(authorized_investor_id):
+        # Investor self-service is authorized only by its server-resolved binding
+        # and by the purchase's immutable Investor ownership link.
+        raise NotFound("Vehicle not found.")
+
+    purchase_cost = Decimal("0.00")
+    investor_fund_cost = Decimal("0.00")
+    running_capital_cost = Decimal("0.00")
+    purchase_version = 0
+    if purchase:
+        correction = max(purchase.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
+        purchase_cost = correction.purchase_cost if correction else purchase.purchase_cost
+        investor_fund_cost = correction.investor_fund_amount if correction else purchase.investor_fund_amount
+        running_capital_cost = correction.running_capital_amount if correction else purchase.running_capital_amount
+        purchase_version = correction.version if correction else 0
+
+    expense_cost = Decimal("0.00")
+    expense_versions = []
+    for expense in expenses:
+        correction = max(expense.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
+        expense_cost += correction.amount if correction else expense.amount
+        investor_fund_cost += correction.investor_fund_amount if correction else expense.investor_fund_amount
+        running_capital_cost += correction.running_capital_amount if correction else expense.running_capital_amount
+        expense_versions.append({"expense_id": str(expense.pk), "version": correction.version if correction else 0})
+
+    total_cost = purchase_cost + expense_cost
+    sale_data = _sale_data(sale) if sale else None
+    result = Decimal(sale_data["sale_price"]) - total_cost if sale_data else None
+    if purchase is None:
+        status = "NOT_PURCHASED"
+    elif sale_data is None:
+        status = "NOT_SOLD"
+    elif Decimal(sale_data["refund_payable"]) > 0:
+        status = "REFUND_PENDING"
+    elif Decimal(sale_data["receivable"]) > 0:
+        status = "PROVISIONAL_COLLECTION"
+    elif result < 0:
+        status = "LOSS_REVIEW_REQUIRED"
+    else:
+        status = "READY_FOR_REVIEW"
+
+    payload = {
+        "vehicle_id": str(vehicle.pk),
+        "company_id": str(company.pk),
+        "branch_id": str(vehicle.current_branch_id),
+        "purchase_id": str(purchase.pk) if purchase else None,
+        "investor_id": str(purchase.investor_id) if purchase and purchase.investor_id else None,
+        "investor_share_agreement_id": (
+            str(purchase.investor_share_agreement_id)
+            if purchase and purchase.investor_share_agreement_id else None
+        ),
+        "investor_share_percentage_snapshot": (
+            format(purchase.investor_share_percentage_snapshot, ".4f")
+            if purchase and purchase.investor_share_percentage_snapshot is not None else None
+        ),
+        "profit_share_status": (
+            "AGREEMENT_SNAPSHOT_MISSING"
+            if purchase and purchase.investor_id and purchase.investor_share_percentage_snapshot is None
+            else "NOT_APPLICABLE" if purchase and not purchase.investor_id
+            else "AVAILABLE" if purchase else "NOT_PURCHASED"
+        ),
+        "sale_id": str(sale.pk) if sale else None,
+        "sale_effective_date": timezone.localdate(sale.sold_at).isoformat() if sale else None,
+        "purchase_cost": format(purchase_cost, ".2f"),
+        "vehicle_expense_cost": format(expense_cost, ".2f"),
+        "total_vehicle_cost": format(total_cost, ".2f"),
+        "investor_fund_cost": format(investor_fund_cost, ".2f"),
+        "running_capital_cost": format(running_capital_cost, ".2f"),
+        "sale_price": sale_data["sale_price"] if sale_data else None,
+        "actual_net_collection": sale_data["net_received"] if sale_data else "0.00",
+        "buyer_receivable": sale_data["receivable"] if sale_data else None,
+        "buyer_refund_payable": sale_data["refund_payable"] if sale_data else None,
+        "calculated_result": format(result, ".2f") if result is not None else None,
+        "status": status,
+        "settlement_eligible": False,
+        "purchase_correction_version": purchase_version,
+        "expense_correction_versions": expense_versions,
+        "sale_correction_version": sale_data["correction_version"] if sale_data else 0,
+    }
+    payload["source_version"] = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    # Expense-only Investor funding has no Purchase agreement snapshot. Keep
+    # this review flag outside the historical source fingerprint, but never
+    # present an earlier Company-only confirmation as a current result.
+    expense_investors = {row.investor_id for row in expenses if row.investor_id}
+    unmatched_investor = bool(expense_investors and (
+        purchase is None or purchase.investor_id is None
+        or expense_investors != {purchase.investor_id}
+    ))
+    if unmatched_investor:
+        payload["profit_share_status"] = "AGREEMENT_SNAPSHOT_MISSING"
+    # A calculation for review is not a confirmation, cash movement or Fund
+    # debit. Keep it outside the source fingerprint so this additive projection
+    # does not invalidate already-confirmed immutable source versions.
+    payload["suggested_loss_split"] = None
+    if not unmatched_investor and result is not None and result < 0 and purchase is not None and (
+        purchase.investor_id is None or purchase.investor_share_percentage_snapshot is not None
+    ):
+        from apps.investment.finance import calculate_vehicle_shares
+
+        suggested = calculate_vehicle_shares(
+            result=result, investor_percentage=purchase.investor_share_percentage_snapshot,
+        )
+        payload["suggested_loss_split"] = {
+            "investor_loss": format(suggested.investor_share.copy_abs(), ".2f"),
+            "company_loss": format(suggested.company_share.copy_abs(), ".2f"),
+        }
+    from apps.investment.models import VehicleResultConfirmation
+    latest_result = VehicleResultConfirmation.objects.filter(
+        tenant=company, vehicle=vehicle,
+    ).order_by("-version", "-id").first()
+    payload["confirmed_result"] = None
+    if latest_result is not None:
+        paid_total = Decimal("0.00")
+        loss_offset_total = Decimal("0.00")
+        future_adjustment_total = Decimal("0.00")
+        if latest_result.investor_id is not None and latest_result.sale_id is not None:
+            from apps.investment.models import (
+                InvestorProfitLossOffset,
+                InvestorVehicleProfitPayment,
+            )
+
+            paid_total = InvestorVehicleProfitPayment.objects.filter(
+                tenant=company,
+                investor_id=latest_result.investor_id,
+                result_confirmation__sale_id=latest_result.sale_id,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+            loss_offset_total = InvestorProfitLossOffset.objects.filter(
+                tenant=company,
+                investor_id=latest_result.investor_id,
+                profit_result=latest_result,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+            from apps.investment.models import InvestorProfitFutureAdjustment
+            future_adjustment_total = InvestorProfitFutureAdjustment.objects.filter(
+                tenant=company, profit_result__sale_id=latest_result.sale_id,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        remaining_share = max(
+            Decimal("0.00"),
+            Decimal(latest_result.investor_share_amount) - paid_total - loss_offset_total - future_adjustment_total,
+        )
+        overpaid_share = max(
+            Decimal("0.00"),
+            paid_total + loss_offset_total + future_adjustment_total - Decimal(latest_result.investor_share_amount),
+        )
+        payload["confirmed_result"] = {
+            "id": str(latest_result.pk),
+            "version": latest_result.version,
+            "source_version": latest_result.source_version,
+            "is_current": not unmatched_investor and latest_result.source_version == payload["source_version"],
+            "result_kind": latest_result.result_kind,
+            "result_amount": format(latest_result.result_amount, ".2f"),
+            "investor_share_amount": format(latest_result.investor_share_amount, ".2f"),
+            "investor_profit_paid": format(paid_total, ".2f"),
+            "investor_loss_offset_applied": format(loss_offset_total, ".2f"),
+            "investor_future_adjustment_applied": format(future_adjustment_total, ".2f"),
+            "investor_profit_remaining": format(remaining_share, ".2f"),
+            "investor_profit_overpaid": format(overpaid_share, ".2f"),
+            "company_share_amount": format(latest_result.company_share_amount, ".2f"),
+            "suggested_investor_loss": format(latest_result.suggested_investor_loss, ".2f") if latest_result.suggested_investor_loss is not None else None,
+            "suggested_company_loss": format(latest_result.suggested_company_loss, ".2f") if latest_result.suggested_company_loss is not None else None,
+            "confirmed_at": latest_result.confirmed_at.isoformat(),
+            "reason": latest_result.reason,
+        }
+    from apps.investment.models import VehicleCapitalRecovery
+    recovery_rows = VehicleCapitalRecovery.objects.filter(tenant_id=company_id, sale_id=payload["sale_id"])
+    recovered = recovery_rows.aggregate(principal=Sum("investor_principal"), capital=Sum("running_capital"))
+    recovery_current = recovery_rows.filter(
+        Q(source_version=payload["source_version"]) | Q(reviews__source_version=payload["source_version"]),
+    ).exists()
+    payload["capital_recovery"] = {
+        "investor_principal": format(recovered["principal"] or Decimal("0"), ".2f"),
+        "running_capital": format(recovered["capital"] or Decimal("0"), ".2f"),
+        "is_current": recovery_current,
+        "is_complete": (
+            recovery_current
+            and (recovered["principal"] or Decimal("0")) == investor_fund_cost
+            and (recovered["capital"] or Decimal("0")) == running_capital_cost
+        ),
+    }
+    return payload
 
 
 def create_vehicle(*, actor, company_id, key, path, branch_id, registration, model):
@@ -842,12 +1059,21 @@ def create_purchase(
             ).first()
             if investor is None:
                 raise NotFound("Active Investor not found.")
+            from apps.investment.services import assert_investor_accepts_new_funding
+
+            assert_investor_accepts_new_funding(company=company, investor=investor)
             existing_investors = _vehicle_investor_ids(company=company, vehicle=vehicle)
             if existing_investors and existing_investors != {investor.pk}:
                 raise DomainConflict(
                     "A Stock Vehicle may use Investor Fund from only one Investor.",
                     code="VEHICLE_INVESTOR_MISMATCH",
                 )
+
+        share_agreement = None
+        if investor is not None:
+            share_agreement = InvestorProfitShareAgreement.objects.filter(
+                tenant=company, investor=investor, effective_at__lte=purchased_at,
+            ).order_by("-effective_at", "-id").first()
 
         purchase = VehiclePurchase.objects.create(
             tenant=company,
@@ -859,6 +1085,10 @@ def create_purchase(
             investor=investor,
             investor_fund_amount=investor_fund_amount,
             running_capital_amount=running_capital_amount,
+            investor_share_agreement=share_agreement,
+            investor_share_percentage_snapshot=(
+                share_agreement.share_percentage if share_agreement else None
+            ),
             purchased_at=purchased_at,
             actor=locked_actor,
             vehicle_module_revision=revisions[CompanyModuleCode.VEHICLE_MANAGEMENT],
@@ -892,6 +1122,11 @@ def create_purchase(
                 "investor_id": str(investor.pk) if investor else None,
                 "investor_fund_amount": format(investor_fund_amount, ".2f"),
                 "running_capital_amount": format(running_capital_amount, ".2f"),
+                "investor_share_agreement_id": str(share_agreement.pk) if share_agreement else None,
+                "investor_share_percentage_snapshot": (
+                    format(share_agreement.share_percentage, ".4f")
+                    if share_agreement else None
+                ),
             },
         )
         if initial_payment_amount:
@@ -1139,9 +1374,9 @@ def create_vehicle_expense(
                     "A Stock Vehicle may use Investor Fund from only one Investor.",
                     code="VEHICLE_INVESTOR_MISMATCH",
                 )
-            credits = list(with_current_fund_credit_owner(
+            credits = list(with_fund_credit_available(with_current_fund_credit_owner(
                 InvestorFundCredit.objects.select_for_update(of=("self",)).filter(tenant=company)
-            ).filter(current_investor_id=investor.pk).order_by("effective_at", "id"))
+            )).filter(current_investor_id=investor.pk).order_by("effective_at", "id"))
             available = sum((max(Decimal("0.00"), _available_credit(row)) for row in credits), Decimal("0.00"))
             fund_amount = min(amount, available)
         else:
@@ -1542,9 +1777,9 @@ def _apply_fund_use_correction(
             raise ValidationError({"investor_id": "A source without an Investor cannot receive Investor Fund allocation."})
         return
     credits = list(
-        with_current_fund_credit_owner(
+        with_fund_credit_available(with_current_fund_credit_owner(
             InvestorFundCredit.objects.select_for_update().filter(tenant=company)
-        )
+        ))
         .filter(current_investor_id=investor.pk)
         .order_by("effective_at", "id")
     )
@@ -1755,9 +1990,9 @@ def correct_purchase(*, actor, company_id, purchase_id, key, path, purchase_cost
         if purchase.investor_id:
             raw_fund = purchase_cost * purchase.investor_fund_amount / purchase.purchase_cost
             desired_fund = raw_fund.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            credits = list(with_current_fund_credit_owner(
+            credits = list(with_fund_credit_available(with_current_fund_credit_owner(
                 InvestorFundCredit.objects.select_for_update().filter(tenant=company)
-            ).filter(current_investor_id=purchase.investor_id).order_by("effective_at", "id"))
+            )).filter(current_investor_id=purchase.investor_id).order_by("effective_at", "id"))
             available = sum((max(Decimal("0.00"), _available_credit(row)) for row in credits), Decimal("0.00"))
             new_fund = min(desired_fund, old_fund + available)
         else:
@@ -1838,9 +2073,9 @@ def correct_vehicle_expense(*, actor, company_id, expense_id, key, path, amount,
                 code="VEHICLE_EXPENSE_CORRECTION_REQUIRES_REFUND",
             )
         if expense.investor_id:
-            credits = list(with_current_fund_credit_owner(
+            credits = list(with_fund_credit_available(with_current_fund_credit_owner(
                 InvestorFundCredit.objects.select_for_update().filter(tenant=company)
-            ).filter(current_investor_id=expense.investor_id).order_by("effective_at", "id"))
+            )).filter(current_investor_id=expense.investor_id).order_by("effective_at", "id"))
             available = sum((max(Decimal("0.00"), _available_credit(row)) for row in credits), Decimal("0.00"))
             new_fund = min(amount, old_fund + available)
         else:
@@ -2070,7 +2305,8 @@ def create_sale_receipt(*, actor, company_id, sale_id, key, path, account_id, am
         raise
 
 
-def create_sale_refund(*, actor, company_id, sale_id, key, path, account_id, amount, effective_at=None):
+def create_sale_refund(*, actor, company_id, sale_id, key, path, account_id, amount, effective_at=None,
+                       investor_principal_amount=None):
     amount = _money(amount)
     effective_at_was_supplied = effective_at is not None
     effective_at = effective_at or timezone.now()
@@ -2079,6 +2315,9 @@ def create_sale_refund(*, actor, company_id, sale_id, key, path, account_id, amo
         raise NotFound("Vehicle Sale not found.")
     body = {"sale_id": str(sale_id), "account_id": str(account_id), "amount": format(amount, ".2f"),
             "effective_at": effective_at.isoformat() if effective_at_was_supplied else None}
+    if investor_principal_amount is not None:
+        investor_principal_amount = _money(investor_principal_amount)
+        body["investor_principal_amount"] = format(investor_principal_amount, ".2f")
 
     def operation(company, _branch, revisions, locked_actor):
         sale = VehicleSale.objects.select_for_update().filter(tenant=company, pk=sale_id).select_related("branch").first()
@@ -2099,6 +2338,11 @@ def create_sale_refund(*, actor, company_id, sale_id, key, path, account_id, amo
                 "Buyer refund cannot exceed the current Sale refund payable.",
                 code="SALE_REFUND_EXCEEDS_NET_RECEIVED",
             )
+        from apps.investment.fund_position import prepare_principal_refund, record_principal_refund
+        principal_plan = prepare_principal_refund(
+            company=company, sale=sale, actor=locked_actor,
+            refund_amount=amount, principal_amount=investor_principal_amount,
+        )
         account = AccountingAccount.objects.select_for_update().filter(tenant=company, pk=account_id, is_active=True).first()
         if account is None:
             raise NotFound("Cash/Bank account not found.")
@@ -2108,6 +2352,7 @@ def create_sale_refund(*, actor, company_id, sale_id, key, path, account_id, amo
             vehicle_module_revision=revisions[CompanyModuleCode.VEHICLE_MANAGEMENT],
             accounting_module_revision=revisions[CompanyModuleCode.ACCOUNTING],
         )
+        record_principal_refund(company=company, refund=refund, actor=locked_actor, plan=principal_plan)
         event = _save_sale_cash_event(
             company=company, branch=sale.branch, actor=locked_actor, account=account,
             amount=amount, effective_at=effective_at,

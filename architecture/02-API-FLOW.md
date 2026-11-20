@@ -1,5 +1,13 @@
 # 02 — API Flow
 
+> Local safety correction 2026-11-19: Vehicle financial-position confirmation returns `INVESTOR_AGREEMENT_SNAPSHOT_MISSING` for Investor-funded expense sources without a matching Purchase Investor snapshot. The position also displays that review status and does not mark an earlier confirmation current. Existing source and Accounting history is retained; this response does not resolve or reverse historical Company Share recognition.
+
+> Phase 8 Loss confirmation: `POST /vehicle-management/vehicles/{vehicle_id}/financial-position/confirm/` requires the current source version, reason and explicit nonnegative `investor_loss_amount` / `company_loss_amount` when the result is negative. The Company-level Accountant may edit the agreement-based suggestion; the two impacts must equal the Vehicle Loss. A positive or break-even result rejects Loss-specific amounts. Source calculation and final signed impacts are retained separately; this confirmation does not debit Fund or move cash.
+
+> Phase 8 Exit notice: Company Accountant `GET /investment/investors/{investor_id}/exit-requests/` lists paginated request notices; `POST /investment/investors/{investor_id}/exit-requests/{exit_id}/notice-extensions/` requires an idempotency key, later deadline and reason. Both are same-Company scoped; the POST requires Investment ON and never posts cash. The bound Investor's existing self response adds the current and initial notice deadline plus extension history. Dates are based on the recorded UTC request instant. Final settlement remains unimplemented.
+
+> Exit cancellation review: the Company Accountant review UI reads the existing paginated request history, displays the Investor's pending reason, and conditionally invokes `POST /investment/investors/{investor_id}/exit-requests/{exit_id}/cancellation-review/` with an idempotency key and explicit approve/reject choice. Backend same-Company authority and Investment/Investor Portal module checks remain authoritative. Successful approval returns `CANCELLED`; rejection returns `REQUESTED`; neither posts cash.
+
 > Phase 1 corrections candidate after `cac26195`: `/auth/me` retains its existing aggregate `roles` fields and adds `company_wide_roles` per Company and `roles` per returned Branch. These describe effective self context; the aggregate is not a Branch permission. Platform `back_office` remains a separate top-level role, not a Company grant. Business Company/Branch reads continue to use their existing authorization policy. See [the execution report](../docs/phase1-execution-progress.md).
 
 > Earlier candidate snapshot — 2026-11-01: identifier admission, scoped account lifecycle and bounded Branch summaries passed 172/172 on disposable PostgreSQL 15.19 before the subsequent B1/B2/B3 corrections. Current correction status and the final 199-test result are in [the execution report](../docs/phase1-execution-progress.md). Live/staging HTTP remains unverified; the legacy migration cutover still requires the documented writer pause.
@@ -372,6 +380,14 @@ The Q124–Q132 statement above that API contracts were not yet implemented is h
 - `GET /api/v1/tenants/{company_id}/investment/branches/?page=N` returns paginated Phase 5 Branch choices after Investment read authorization: Company readers see same-Company Branches; Branch Accountants see their assigned authorized Branches. The existing `/branches/` endpoint retains its assigned-Branch behavior.
 - Vehicle Expense list responses include `running_capital_total`, calculated across all matching, authorized Expense rows rather than just the current page. The React client rejects responses without a valid total.
 - Investor-linked Expense creation calculates Fund-first allocation server-side; supplied source amounts must match the current calculated allocation or receive a conflict. Fund Credit duplicate references in the same Company and account return `FUND_CREDIT_REFERENCE_DUPLICATE`.
+
+## Phase 8 Investor period reconciliation API checkpoint — 2026-11-19
+
+- GET /api/v1/tenants/{company_id}/investment/investors/{investor_id}/profit-periods/ is REQUIRED for the Company Accountant's consolidated review. It returns typed source fingerprint and per-period reconciliation status alongside separate actual deal-paid, Interim-paid and Loss-offset facts.
+- POST /api/v1/tenants/{company_id}/investment/investors/{investor_id}/profit-period-reconciliations/ is CONDITIONAL on an explicit Company Accountant action. It requires period start, expected fingerprint, reason and Idempotency-Key; service and PostgreSQL guards enforce same-Company sources, all module revisions ON, unique version/source, immutable history and no stale-source commit.
+- Success stores an audited calculation snapshot only. No Accounting event, AccountMovement, Fund debit, payable, recovery or final settlement is created. RESTATEMENT_REQUIRED returns the pending delta; a later explicit POST saves a new snapshot version.
+- `GET /api/v1/tenants/{company_id}/investment/portal/self/` is CONDITIONAL on an authenticated Investor with an active same-Company binding and enabled Investor Portal. It includes only that Investor's latest confirmed snapshot fields and current freshness state; it does not return the internal fingerprint, Accountant reason, actor ID, or payable/recoverable status. Historical snapshots with changed sources are marked RESTATEMENT_REQUIRED, and manual attribution review suppresses period amounts. This read has no cash or ledger effect.
+- Locally verified by one disposable-PostgreSQL endpoint regression plus 25 focused React/API tests and TypeScript compile. Full Phase 8–10 integrated acceptance remains outstanding.
 
 ## Phase 7 implemented API checkpoint — 2026-11-18
 

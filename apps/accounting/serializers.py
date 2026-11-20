@@ -178,6 +178,32 @@ class AccountingResultQuerySerializer(serializers.Serializer):
         return attrs
 
 
+class CompanyPeriodConfirmationSerializer(serializers.Serializer):
+    period_type = serializers.ChoiceField(choices=("h1", "h2", "annual"))
+    year = serializers.IntegerField(min_value=1900, max_value=9998)
+    expected_source_version = serializers.RegexField(regex=r"^[0-9a-f]{64}$")
+    distributable_amount = MoneySerializerField(min_value=Decimal("0.00"))
+    liabilities_reviewed = serializers.BooleanField()
+    liability_review_reason = serializers.CharField(max_length=500, trim_whitespace=True, min_length=3)
+    reason = serializers.CharField(max_length=500, trim_whitespace=True, min_length=3)
+
+
+class OwnerDistributionConfigurationSerializer(serializers.Serializer):
+    effective_from = serializers.DateField()
+    recipients = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+    reason = serializers.CharField(max_length=500, trim_whitespace=True, min_length=3)
+
+
+class OwnerDistributionPaymentSerializer(serializers.Serializer):
+    recipient_id = serializers.UUIDField()
+    branch_id = serializers.UUIDField()
+    account_id = serializers.UUIDField()
+    amount = MoneySerializerField(min_value=Decimal("0.01"))
+    effective_at = serializers.DateTimeField()
+    expected_source_version = serializers.RegexField(regex=r"^[0-9a-f]{64}$")
+    reason = serializers.CharField(max_length=500, trim_whitespace=True, min_length=3)
+
+
 class EventFilterSerializer(serializers.Serializer):
     event_type = serializers.ChoiceField(
         choices=AccountingEvent.EventType.choices,

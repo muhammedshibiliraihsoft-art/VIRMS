@@ -6,7 +6,7 @@ import { accountingAccounts, accountingCategories, AccountingAccount, Accounting
 import { authApi } from '../../api/authApi';
 import { queryKeys } from '../../api/queryKeys';
 import { useCompanyModuleStates, hasCompanyBranchReadRole } from '../../api/queries';
-import { phase5Api, phase5Mutation, Phase5Expense, Phase5FundCredit, Phase5FundSummary, Phase5Investor, Phase5PrincipalReturn, Phase5Purchase, Phase5Sale, Phase5SaleCorrection, Phase5Vehicle } from '../../api/phase5Api';
+import { phase5Api, phase5Mutation, InvestorProfitLossOffsetOptions, Phase5Expense, Phase5FundCredit, Phase5FundSummary, Phase5Investor, Phase5PrincipalReturn, Phase5Purchase, Phase5Sale, Phase5SaleCorrection, Phase5Vehicle, VehicleFinancialPosition } from '../../api/phase5Api';
 import { BranchListItem, BranchSummary } from '../../api/types';
 import type { CompanyModuleCode } from '../../api/types';
 
@@ -14,7 +14,7 @@ type RouteKey = 'Stock / Investor' | 'Investor Fund' | 'Vehicle Sales' | 'Collec
 type FormKind =
   | 'vehicle' | 'purchase' | 'purchasePayment' | 'purchaseRefund' | 'purchaseCorrection'
   | 'expense' | 'expensePayment' | 'expenseRefund' | 'expenseCorrection' | 'sale'
-  | 'saleReceipt' | 'saleRefund' | 'saleCorrection' | 'investor' | 'investorEdit' | 'fundCredit' | 'fundCreditCorrection' | 'principalReturn' | 'vehicleMove';
+  | 'saleReceipt' | 'saleRefund' | 'saleCorrection' | 'investor' | 'investorEdit' | 'fundCredit' | 'fundCreditCorrection' | 'principalReturn' | 'vehicleMove' | 'profitPayment' | 'capitalRecovery' | 'principalRefundReview';
 type FormAction = { kind: FormKind; targetId?: string };
 type FieldType = 'text' | 'money' | 'datetime' | 'select';
 interface FieldOption { value: string; label: string }
@@ -95,6 +95,163 @@ function PageControls({ page, hasPrevious, hasNext, onChange }: { page: number; 
   );
 }
 
+type ConfirmedLossAllocation = { investor_loss_amount: string; company_loss_amount: string };
+
+function VehicleFinancialPositionCard({ position, canConfirm, isConfirming, confirmError, onConfirm, canPayInvestorProfit, onPayInvestorProfit, canCreateInvestorLossOffset, lossOffsetOptions, lossOffsetOptionsLoading, lossOffsetOptionsError, creatingInvestorLossOffset, investorLossOffsetError, onCreateInvestorLossOffset }: {
+  position: VehicleFinancialPosition;
+  canConfirm: boolean;
+  isConfirming: boolean;
+  confirmError: string | null;
+  onConfirm: (reason: string, loss?: ConfirmedLossAllocation) => void;
+  canPayInvestorProfit: boolean;
+  onPayInvestorProfit: (resultConfirmationId: string) => void;
+  canCreateInvestorLossOffset: boolean;
+  lossOffsetOptions: InvestorProfitLossOffsetOptions | null;
+  lossOffsetOptionsLoading: boolean;
+  lossOffsetOptionsError: string | null;
+  creatingInvestorLossOffset: boolean;
+  investorLossOffsetError: string | null;
+  onCreateInvestorLossOffset: (lossResultId: string, profitResultId: string, amount: string, reason: string) => Promise<unknown>;
+}) {
+  const [reason, setReason] = useState('');
+  const [investorLoss, setInvestorLoss] = useState('');
+  const [companyLoss, setCompanyLoss] = useState('');
+  useEffect(() => {
+    setInvestorLoss(position.suggested_loss_split?.investor_loss ?? '');
+    setCompanyLoss(position.suggested_loss_split?.company_loss ?? '');
+  }, [position.source_version, position.suggested_loss_split?.investor_loss, position.suggested_loss_split?.company_loss]);
+  const lossAllocationValid = (() => {
+    if (position.status !== 'LOSS_REVIEW_REQUIRED') return true;
+    try {
+      const investor = moneyCents(investorLoss);
+      const company = moneyCents(companyLoss);
+      const result = position.calculated_result;
+      return Boolean(result?.startsWith('-') && investor + company === moneyCents(result.slice(1)) && (position.investor_id || investor === 0n));
+    } catch { return false; }
+  })();
+  const [offsetOpen, setOffsetOpen] = useState(false);
+  const [offsetResultId, setOffsetResultId] = useState('');
+  const [offsetAmount, setOffsetAmount] = useState('');
+  const [offsetReason, setOffsetReason] = useState('');
+  useEffect(() => {
+    const options = lossOffsetOptions?.target_options ?? [];
+    if (!options.length) {
+      setOffsetResultId('');
+      return;
+    }
+    if (!options.some((option) => option.result_id === offsetResultId)) {
+      setOffsetResultId(options[0].result_id);
+      setOffsetAmount('');
+    }
+  }, [lossOffsetOptions, offsetResultId]);
+  const selectedOffsetTarget = lossOffsetOptions?.target_options.find((option) => option.result_id === offsetResultId) ?? null;
+  const offsetMaximum = (() => {
+    if (!lossOffsetOptions || !selectedOffsetTarget) return null;
+    const lossCents = moneyCents(lossOffsetOptions.loss_remaining_amount);
+    const profitCents = moneyCents(selectedOffsetTarget.remaining_amount);
+    return moneyFromCents(lossCents < profitCents ? lossCents : profitCents);
+  })();
+  const offsetAmountValid = (() => {
+    if (!offsetMaximum) return false;
+    try {
+      const amount = moneyCents(offsetAmount);
+      return amount > 0n && amount <= moneyCents(offsetMaximum);
+    } catch {
+      return false;
+    }
+  })();
+  const submitLossOffset = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const lossResultId = position.confirmed_result?.id;
+    if (!lossResultId || !selectedOffsetTarget || !offsetAmountValid || offsetReason.trim().length < 3) return;
+    try {
+      const normalizedAmount = moneyFromCents(moneyCents(offsetAmount));
+      await onCreateInvestorLossOffset(lossResultId, selectedOffsetTarget.result_id, normalizedAmount, offsetReason.trim());
+      setOffsetOpen(false);
+      setOffsetAmount('');
+      setOffsetReason('');
+    } catch {
+      // Keep the entered values available for a safe retry; the error is rendered below.
+    }
+  };
+  const status = {
+    NOT_PURCHASED: 'Purchase not recorded',
+    NOT_SOLD: 'Not sold',
+    PROVISIONAL_COLLECTION: 'Collection in progress',
+    REFUND_PENDING: 'Buyer refund pending',
+    LOSS_REVIEW_REQUIRED: 'Loss needs review',
+    READY_FOR_REVIEW: 'Ready for Accountant review',
+  }[position.status];
+  return (
+    <section aria-label="Vehicle financial position" className="mb-3 rounded-xl border border-[#e2d8ce] bg-[#fcfaf8] p-3 dark:border-zinc-700 dark:bg-zinc-950">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-extrabold text-gray-900 dark:text-white">Current vehicle position</h3>
+        <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-gray-600 dark:bg-zinc-900 dark:text-gray-300">{status}</span>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-3">
+        <div><span className="text-gray-500">Purchase cost</span><div className="font-semibold">{formatMoney(position.purchase_cost)}</div></div>
+        <div><span className="text-gray-500">Vehicle expenses</span><div className="font-semibold">{formatMoney(position.vehicle_expense_cost)}</div></div>
+        <div><span className="text-gray-500">Total cost</span><div className="font-bold">{formatMoney(position.total_vehicle_cost)}</div></div>
+        <div><span className="text-gray-500">Investor Fund</span><div className="font-semibold">{formatMoney(position.investor_fund_cost)}</div></div>
+        <div><span className="text-gray-500">Running Capital</span><div className="font-semibold">{formatMoney(position.running_capital_cost)}</div></div>
+        {position.investor_share_percentage_snapshot !== null && <div><span className="text-gray-500">Investor share at Purchase</span><div className="font-semibold">{position.investor_share_percentage_snapshot}%</div></div>}
+        <div><span className="text-gray-500">Net collected</span><div className="font-semibold">{formatMoney(position.actual_net_collection)}</div></div>
+        {position.sale_price !== null && <div><span className="text-gray-500">Sale price</span><div className="font-semibold">{formatMoney(position.sale_price)}</div></div>}
+        {position.sale_price !== null && <div><span className="text-gray-500">Buyer receivable</span><div className="font-semibold">{formatMoney(position.buyer_receivable)}</div></div>}
+        {position.sale_price !== null && <div><span className="text-gray-500">Refund payable</span><div className="font-semibold">{formatMoney(position.buyer_refund_payable)}</div></div>}
+        {position.calculated_result !== null && <div><span className="text-gray-500">Calculated result</span><div className="font-bold">{formatMoney(position.calculated_result)}</div></div>}
+      </div>
+      {position.profit_share_status === 'AGREEMENT_SNAPSHOT_MISSING' && (
+        <p role="status" className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          No matching Investor share agreement snapshot is available for this Vehicle. The Investor share cannot be derived from later terms; review the historical agreement before reconciliation.
+        </p>
+      )}
+      {position.suggested_loss_split && !position.confirmed_result?.is_current && <p role="status" className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">Suggested Loss for review: Investor {formatMoney(position.suggested_loss_split.investor_loss)} · Company {formatMoney(position.suggested_loss_split.company_loss)}. Based on the saved agreement where available; amounts can be edited. This is a calculation, not a confirmed Loss or Fund deduction.</p>}
+      {position.confirmed_result && <div className={`mt-2 rounded-lg px-3 py-2 text-[11px] ${position.confirmed_result.is_current ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200' : 'bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200'}`}>
+        <p>{position.confirmed_result.is_current ? 'Accountant-confirmed result' : 'Source records changed after confirmation; a new review is required'} · Investor {formatMoney(position.confirmed_result.investor_share_amount)} · Company {formatMoney(position.confirmed_result.company_share_amount)}</p>
+        {position.confirmed_result.result_kind === 'LOSS' && position.confirmed_result.suggested_investor_loss != null && position.confirmed_result.suggested_company_loss != null && <p className="mt-1">Original suggestion: Investor {formatMoney(position.confirmed_result.suggested_investor_loss)} · Company {formatMoney(position.confirmed_result.suggested_company_loss)}</p>}
+        {position.investor_id && position.confirmed_result.result_kind === 'PROFIT' && <p className="mt-1">Actual Investor Profit paid {formatMoney(position.confirmed_result.investor_profit_paid)} · Remaining share {formatMoney(position.confirmed_result.investor_profit_remaining)}</p>}
+        {position.confirmed_result.investor_future_adjustment_applied && moneyCents(position.confirmed_result.investor_future_adjustment_applied) > 0n &&
+          <p className="mt-1">Applied to earlier Investor recoverable {formatMoney(position.confirmed_result.investor_future_adjustment_applied)}</p>}
+        {moneyCents(position.confirmed_result.investor_profit_overpaid) > 0n && <p role="status" className="mt-1 font-semibold text-amber-800 dark:text-amber-200">Paid exceeds the current confirmed share by {formatMoney(position.confirmed_result.investor_profit_overpaid)}. Review recovery manually; no automatic Fund deduction is made.</p>}
+        {canPayInvestorProfit && position.confirmed_result.result_kind === 'PROFIT' && moneyCents(position.confirmed_result.investor_profit_remaining) > 0n && <div className="mt-2"><button type="button" disabled={!position.capital_recovery?.is_complete || !position.confirmed_result.is_current || position.status !== "READY_FOR_REVIEW"} onClick={() => onPayInvestorProfit(position.confirmed_result!.id)} className="h-8 rounded-lg bg-[#18181b] px-3 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Record Investor Profit payment</button><p className="mt-1">Payment requires current capital recovery and resolved Buyer balances.</p></div>}
+        {canCreateInvestorLossOffset && position.confirmed_result.result_kind === 'LOSS' && <button type="button" onClick={() => setOffsetOpen((open) => !open)} className="mt-2 ml-1 h-8 rounded-lg border border-[#e2d8ce] px-3 text-[10px] font-bold dark:border-zinc-700">{offsetOpen ? 'Close Loss offset' : 'Apply Loss to available Profit'}</button>}
+      </div>}
+      {offsetOpen && canCreateInvestorLossOffset && lossOffsetOptions && <form onSubmit={submitLossOffset} className="mt-2 grid gap-2 rounded-lg border border-[#e2d8ce] bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900 sm:grid-cols-2">
+        <p className="sm:col-span-2 text-[10px] text-gray-600 dark:text-gray-300">Remaining confirmed Loss: <strong>{formatMoney(lossOffsetOptions.loss_remaining_amount)}</strong>. This adjusts unpaid Vehicle Profit. It does not reduce Fund or move Cash/Bank money.</p>
+        <label className="min-w-0 text-[10px] font-bold text-gray-600 dark:text-gray-300">Available Vehicle Profit
+          <select value={offsetResultId} onChange={(event) => { setOffsetResultId(event.target.value); setOffsetAmount(''); }} required className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-950">
+            {lossOffsetOptions.target_options.map((target) => <option key={target.result_id} value={target.result_id}>{target.registration} · {displayDate(target.sale_date)} · available {formatMoney(target.remaining_amount)}</option>)}
+          </select>
+        </label>
+        <label className="min-w-0 text-[10px] font-bold text-gray-600 dark:text-gray-300">Offset amount
+          <input type="number" min="0.01" step="0.01" max={offsetMaximum ?? undefined} inputMode="decimal" value={offsetAmount} onChange={(event) => setOffsetAmount(event.target.value)} required className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-950" />
+        </label>
+        <label className="min-w-0 text-[10px] font-bold text-gray-600 dark:text-gray-300 sm:col-span-2">Reason
+          <input value={offsetReason} onChange={(event) => setOffsetReason(event.target.value)} minLength={3} maxLength={500} required className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs dark:border-zinc-700 dark:bg-zinc-950" placeholder="Explain this Loss adjustment" />
+        </label>
+        <div className="sm:col-span-2 flex flex-wrap items-center justify-end gap-2">
+          <button type="submit" disabled={creatingInvestorLossOffset || !selectedOffsetTarget || !offsetAmountValid || offsetReason.trim().length < 3} className="h-8 rounded-lg bg-[#18181b] px-3 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">{creatingInvestorLossOffset ? 'Saving…' : 'Save Loss offset'}</button>
+        </div>
+      </form>}
+      {offsetOpen && lossOffsetOptionsLoading && <p role="status" className="mt-2 text-[11px] text-gray-500">Loading later confirmed Vehicle Profit…</p>}
+      {offsetOpen && lossOffsetOptionsError && <p role="alert" className="mt-2 text-[11px] text-red-700 dark:text-red-300">{lossOffsetOptionsError}</p>}
+      {offsetOpen && lossOffsetOptions && lossOffsetOptions.target_options.length === 0 && <p role="status" className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">No current Profit remains available to offset this Loss.</p>}
+      {offsetOpen && investorLossOffsetError && <p role="alert" className="mt-2 text-[11px] text-red-700 dark:text-red-300">{investorLossOffsetError}</p>}
+      {canConfirm && position.profit_share_status !== 'AGREEMENT_SNAPSHOT_MISSING' && ['READY_FOR_REVIEW', 'LOSS_REVIEW_REQUIRED'].includes(position.status) && !position.confirmed_result?.is_current && (
+        <div className="mt-2 flex flex-col gap-2 rounded-lg border border-[#e2d8ce] bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900 sm:flex-row sm:items-end">
+          <label className="min-w-0 flex-1 text-[10px] font-bold text-gray-600 dark:text-gray-300">Accountant review note <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2.5 text-xs dark:border-zinc-700 dark:bg-zinc-950" placeholder="Explain the result or Loss confirmation" /></label>
+          {position.status === 'LOSS_REVIEW_REQUIRED' && <><label className="min-w-28 text-[10px] font-bold text-gray-600 dark:text-gray-300">Investor Loss<input aria-label="Investor Loss amount" type="number" min="0" step="0.01" inputMode="decimal" disabled={!position.investor_id} value={investorLoss} onChange={(event) => setInvestorLoss(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-200 px-2 text-xs disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950" /></label><label className="min-w-28 text-[10px] font-bold text-gray-600 dark:text-gray-300">Company Loss<input aria-label="Company Loss amount" type="number" min="0" step="0.01" inputMode="decimal" value={companyLoss} onChange={(event) => setCompanyLoss(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-200 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-950" /></label></>}
+          <button type="button" disabled={isConfirming || reason.trim().length < 3 || !lossAllocationValid} onClick={() => onConfirm(reason.trim(), position.status === 'LOSS_REVIEW_REQUIRED' ? { investor_loss_amount: moneyFromCents(moneyCents(investorLoss)), company_loss_amount: moneyFromCents(moneyCents(companyLoss)) } : undefined)} className="h-9 shrink-0 rounded-lg bg-[#18181b] px-3 text-xs font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">{isConfirming ? 'Confirming…' : position.status === 'LOSS_REVIEW_REQUIRED' ? 'Confirm reviewed Loss' : 'Confirm result'}</button>
+        </div>
+      )}
+      {position.status === 'LOSS_REVIEW_REQUIRED' && !lossAllocationValid && <p role="status" className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Investor and Company Loss amounts must add up to the Vehicle Loss.</p>}
+      {confirmError && <p role="alert" className="mt-2 text-[11px] text-red-700 dark:text-red-300">{confirmError}</p>}
+      <p className="mt-2 text-[10px] text-gray-500">Calculation uses current source records. Confirmation records Investor/Company shares; it does not post cash or mark any amount Paid.</p>
+    </section>
+  );
+}
+
 export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey }) => {
   const { status, user, currentCompany } = useAuth();
   const queryClient = useQueryClient();
@@ -150,7 +307,10 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   const branchOptions: FieldOption[] = branches.map((branch) => ({ value: branch.id, label: branch.name }));
   const purchaseNeedsAccount = formAction?.kind === 'purchase' && isPositiveMoney(formValues.initial_payment_amount ?? '0.00');
   const needsCashAccount = Boolean(formAction && (
-    ['purchasePayment', 'purchaseRefund', 'expensePayment', 'expenseRefund', 'saleReceipt', 'saleRefund', 'fundCredit', 'principalReturn'].includes(formAction.kind) || purchaseNeedsAccount
+    ['purchasePayment', 'purchaseRefund', 'expensePayment', 'expenseRefund', 'saleReceipt', 'saleRefund', 'fundCredit', 'principalReturn', 'profitPayment'].includes(formAction.kind) || purchaseNeedsAccount
+  ));
+  const needsPaymentPreference = Boolean(formAction && (
+    ['purchase', 'purchasePayment', 'purchaseRefund', 'expensePayment', 'expenseRefund', 'saleReceipt', 'saleRefund', 'fundCredit', 'principalReturn'].includes(formAction.kind) || purchaseNeedsAccount
   ));
 
   const accountsQuery = useQuery({
@@ -162,7 +322,7 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   const preferenceQuery = useQuery({
     queryKey: currentCompany && user ? queryKeys.phase5.paymentPreference(user.id, currentCompany.id) : ['companies', 'unavailable', ...PHASE5_ROOT, 'payment-account-preference'],
     queryFn: ({ signal }) => currentCompany ? phase5Api.paymentAccountPreference(currentCompany.id, signal) : Promise.reject(new Error('A Company is required.')),
-    enabled: canRead && moduleOn(ACCOUNTING_MODULE) && needsCashAccount,
+    enabled: canRead && moduleOn(ACCOUNTING_MODULE) && needsPaymentPreference,
     retry: false,
   });
   const investorsQuery = useQuery({
@@ -210,6 +370,25 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
     queryKey: currentCompany && user && selectedSaleId ? queryKeys.phase5.sale(user.id, currentCompany.id, selectedSaleId) : ['companies', 'unavailable', ...PHASE5_ROOT, 'sale-detail'],
     queryFn: ({ signal }) => currentCompany && selectedSaleId ? phase5Api.sale(currentCompany.id, selectedSaleId, signal) : Promise.reject(new Error('A Sale is required.')),
     enabled: canRead && Boolean(selectedSaleId) && isVehicleRoute,
+    retry: false,
+  });
+  const financialPositionQuery = useQuery({
+    queryKey: currentCompany && user && selectedVehicleId ? queryKeys.phase5.vehicleFinancialPosition(user.id, currentCompany.id, selectedVehicleId) : ['companies', 'unavailable', ...PHASE5_ROOT, 'vehicle-financial-position'],
+    queryFn: ({ signal }) => currentCompany && selectedVehicleId ? phase5Api.vehicleFinancialPosition(currentCompany.id, selectedVehicleId, signal) : Promise.reject(new Error('A Vehicle is required.')),
+    enabled: canRead && Boolean(selectedVehicleId) && isVehicleRoute,
+    retry: false,
+  });
+  const lossResultId = financialPositionQuery.data?.confirmed_result?.result_kind === 'LOSS' && financialPositionQuery.data.confirmed_result.is_current
+    ? financialPositionQuery.data.confirmed_result.id
+    : null;
+  const lossOffsetOptionsQuery = useQuery({
+    queryKey: currentCompany && user && lossResultId
+      ? ['companies', user.id, currentCompany.id, 'phase8', 'loss-offset-targets', lossResultId]
+      : ['companies', 'unavailable', 'phase8', 'loss-offset-targets'],
+    queryFn: ({ signal }) => currentCompany && lossResultId
+      ? phase5Api.investorProfitLossOffsetOptions(currentCompany.id, lossResultId, signal)
+      : Promise.reject(new Error('A current Investor Loss result is required.')),
+    enabled: canRead && Boolean(lossResultId) && isVehicleRoute,
     retry: false,
   });
   const investors = investorsQuery.data ?? [];
@@ -299,6 +478,15 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   const mutation = useMutation({
     mutationFn: async ({ action, values }: { action: FormAction; values: Record<string, string> }) => {
       if (!currentCompany || !user) throw new Error('An authenticated Company session is required.');
+      if (action.kind === 'profitPayment') {
+        if (!currentCompany || !user || !action.targetId) throw new Error('Reload the confirmed Investor result before paying it.');
+        return phase5Api.recordInvestorVehicleProfitPayment(currentCompany.id, user.id, action.targetId, {
+          account_id: values.account_id,
+          amount: values.amount,
+          effective_at: toIso(values.effective_at),
+          description: values.description?.trim() || undefined,
+        });
+      }
       const command = buildCommand(action, values, { selectedVehicle, purchase, expenses, sales, saleDetail: saleDetailQuery.data ?? null, investors, investorFilterId, branches, companyAccountant });
       return phase5Mutation<unknown>(currentCompany.id, user.id, command.module, command.suffix, command.body, command.method ?? 'POST');
     },
@@ -310,6 +498,49 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
       ]);
       setMessage('Saved successfully. The latest server records are refreshing.');
       closeForm();
+    },
+  });
+  const resultConfirmationMutation = useMutation({
+    mutationFn: ({ vehicleId, sourceVersion, reason, loss }: { vehicleId: string; sourceVersion: string; reason: string; loss?: ConfirmedLossAllocation }) => {
+      if (!currentCompany || !user) throw new Error('An authenticated Company Accountant session is required.');
+      return phase5Api.confirmVehicleResult(currentCompany.id, user.id, vehicleId, {
+        expected_source_version: sourceVersion,
+        reason,
+        ...loss,
+      });
+    },
+    onSuccess: async (_result, variables) => {
+      if (!currentCompany || !user) return;
+      await queryClient.invalidateQueries({ queryKey: queryKeys.phase5.vehicleFinancialPosition(user.id, currentCompany.id, variables.vehicleId) });
+      await queryClient.invalidateQueries({ queryKey: ['companies', user.id, currentCompany.id, 'accounting'] });
+    },
+  });
+  const profitLossOffsetMutation = useMutation({
+    mutationFn: ({ lossResultId: targetLossResultId, profitResultId, amount, reason }: {
+      lossResultId: string; profitResultId: string; amount: string; reason: string;
+    }) => {
+      if (!currentCompany || !user) throw new Error('An authenticated Accountant session is required.');
+      return phase5Api.recordInvestorProfitLossOffset(
+        currentCompany.id,
+        user.id,
+        targetLossResultId,
+        { profit_result_id: profitResultId, amount, reason },
+      );
+    },
+    onSuccess: async () => {
+      if (!currentCompany || !user) return;
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['companies', user.id, currentCompany.id, 'phase5', 'vehicle-financial-position'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['companies', user.id, currentCompany.id, 'phase8', 'investor-profit-periods'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['companies', user.id, currentCompany.id, 'phase8', 'loss-offset-targets'],
+        }),
+      ]);
+      setMessage('Loss offset recorded. No Cash/Bank movement was created.');
     },
   });
 
@@ -327,6 +558,7 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
     initialPaymentAmount: formValues.initial_payment_amount ?? '0.00',
     investorFundAmount: formValues.investor_fund_amount ?? '0.00',
     refundAmount: formValues.amount ?? '0.00',
+    investorProfitRemaining: financialPositionQuery.data?.confirmed_result?.investor_profit_remaining ?? '0.00',
   }) : [];
 
   const moduleRows: Array<{ code: CompanyModuleCode; label: string }> = [
@@ -335,6 +567,28 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
     { code: ACCOUNTING_MODULE, label: 'Accounting' },
   ];
   const allModuleStatesLoaded = Boolean(moduleQuery.data);
+  const canPayInvestorProfit = Boolean(
+    allModuleStatesLoaded
+      && moduleOn(VEHICLE_MODULE)
+      && moduleOn(INVESTMENT_MODULE)
+      && moduleOn(ACCOUNTING_MODULE)
+      && (companyAccountant || currentCompany?.roles?.includes('accountant'))
+      && (companyAccountant || branches.some((branch) => branch.id === saleDetailQuery.data?.branch_id))
+      && financialPositionQuery.data?.investor_id
+      && financialPositionQuery.data.confirmed_result?.is_current
+      && financialPositionQuery.data.confirmed_result.result_kind === 'PROFIT'
+      && moneyCents(financialPositionQuery.data.confirmed_result.investor_profit_remaining) > 0n,
+  );
+  const canCreateInvestorLossOffset = Boolean(
+    allModuleStatesLoaded
+      && moduleOn(VEHICLE_MODULE)
+      && moduleOn(INVESTMENT_MODULE)
+      && (companyAccountant || currentCompany?.roles?.includes('accountant'))
+      && (companyAccountant || branches.some((branch) => branch.id === saleDetailQuery.data?.branch_id))
+      && financialPositionQuery.data?.investor_id
+      && financialPositionQuery.data.confirmed_result?.is_current
+      && financialPositionQuery.data.confirmed_result.result_kind === 'LOSS',
+  );
   const headerCopy: Record<RouteKey, { title: string; subtitle: string }> = {
     'Stock / Investor': { title: 'Stock / Investor Vehicles', subtitle: 'Backend vehicle register, purchase funding, direct vehicle costs and sales.' },
     'Investor Fund': { title: 'Investor Fund', subtitle: 'Company-wide investor profiles and branch-tagged fund records.' },
@@ -345,7 +599,7 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   };
   const currentPage = isFundRoute ? fundCreditsQuery.data : isSalesRoute ? salesQuery.data : vehiclesQuery.data;
   const isLoading = moduleQuery.isLoading || (isFundRoute ? fundCreditsQuery.isLoading || investorsQuery.isLoading : isSalesRoute ? salesQuery.isLoading : isVehicleRoute ? vehiclesQuery.isLoading : false);
-  const pageError = moduleQuery.error || (isFundRoute ? fundCreditsQuery.error || investorsQuery.error || fundSummaryQuery.error || returnsQuery.error : isSalesRoute ? salesQuery.error : isVehicleRoute ? vehiclesQuery.error || (selectedVehicleId ? purchasesQuery.error || expensesQuery.error || saleDetailQuery.error : null) : null);
+  const pageError = moduleQuery.error || (isFundRoute ? fundCreditsQuery.error || investorsQuery.error || fundSummaryQuery.error || returnsQuery.error : isSalesRoute ? salesQuery.error : isVehicleRoute ? vehiclesQuery.error || (selectedVehicleId ? purchasesQuery.error || expensesQuery.error || saleDetailQuery.error || financialPositionQuery.error : null) : null);
 
   return (
     <div className="flex flex-col gap-3.5 sm:gap-4 animate-in fade-in duration-150">
@@ -426,6 +680,9 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
 
       {isFundRoute ? (
         <FundPanel
+          companyId={currentCompany?.id ?? ''}
+          userId={user?.id ?? ''}
+          investmentOn={investmentOn}
           summary={fundSummaryQuery.data}
           credits={fundCreditsQuery.data?.results ?? []}
           returns={returnsQuery.data?.results ?? []}
@@ -480,6 +737,38 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
           purchase={purchase}
           expenses={expenses}
           sale={saleDetailQuery.data ?? null}
+          financialPosition={financialPositionQuery.data ?? null}
+          canConfirmResult={companyAccountant && allModuleStatesLoaded && moduleOn(VEHICLE_MODULE) && moduleOn(ACCOUNTING_MODULE) && (!financialPositionQuery.data?.investor_id || investmentOn)}
+          canPayInvestorProfit={canPayInvestorProfit}
+          onPrincipalRefundReview={() => {
+            const position = financialPositionQuery.data;
+            if (!position?.sale_id) return;
+            startForm('principalRefundReview', position.sale_id);
+            setFormValues({ expected_source_version: position.source_version });
+          }}
+          onCapitalRecovery={() => {
+            const position = financialPositionQuery.data;
+            if (!position?.sale_id) return;
+            startForm('capitalRecovery', position.sale_id);
+            setFormValues({ expected_source_version: position.source_version });
+          }}
+          onPayInvestorProfit={(resultId) => startForm('profitPayment', resultId)}
+          canCreateInvestorLossOffset={canCreateInvestorLossOffset}
+          lossOffsetOptions={lossOffsetOptionsQuery.data ?? null}
+          lossOffsetOptionsLoading={lossOffsetOptionsQuery.isLoading}
+          lossOffsetOptionsError={lossOffsetOptionsQuery.error instanceof Error ? lossOffsetOptionsQuery.error.message : null}
+          creatingInvestorLossOffset={profitLossOffsetMutation.isPending}
+          investorLossOffsetError={profitLossOffsetMutation.error instanceof Error ? profitLossOffsetMutation.error.message : null}
+          onCreateInvestorLossOffset={(lossResultId, profitResultId, amount, reason) => {
+            profitLossOffsetMutation.reset();
+            return profitLossOffsetMutation.mutateAsync({ lossResultId, profitResultId, amount, reason });
+          }}
+          confirmingResult={resultConfirmationMutation.isPending}
+          resultConfirmationError={resultConfirmationMutation.error instanceof Error ? resultConfirmationMutation.error.message : null}
+          onConfirmResult={(reason, loss) => {
+            if (!selectedVehicleId || !financialPositionQuery.data) return;
+            resultConfirmationMutation.mutate({ vehicleId: selectedVehicleId, sourceVersion: financialPositionQuery.data.source_version, reason, loss });
+          }}
           branches={branches}
           branchId={branchId}
           search={search}
@@ -509,7 +798,7 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
           canAccountingWrite={allModuleStatesLoaded && moduleOn(ACCOUNTING_MODULE)}
           canInvestmentWrite={allModuleStatesLoaded && moduleOn(INVESTMENT_MODULE)}
           companyAccountant={companyAccountant}
-          detailLoading={Boolean(selectedVehicleId) && (purchasesQuery.isLoading || expensesQuery.isLoading || saleDetailQuery.isLoading)}
+          detailLoading={Boolean(selectedVehicleId) && (purchasesQuery.isLoading || expensesQuery.isLoading || saleDetailQuery.isLoading || financialPositionQuery.isLoading)}
           detailPage={detailPage}
           detailHasPrevious={Boolean(expensesQuery.data?.previous)}
           detailHasNext={Boolean(expensesQuery.data?.next)}
@@ -523,9 +812,11 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
 
 function formTitle(kind: FormKind): string {
   const titles: Record<FormKind, string> = {
+    capitalRecovery: 'Confirm capital recovery',
+    principalRefundReview: 'Confirm Buyer principal refund obligation',
     vehicle: 'Register stock vehicle', purchase: 'Record vehicle purchase', purchasePayment: 'Pay seller installment', purchaseRefund: 'Record seller refund', purchaseCorrection: 'Correct purchase cost',
     expense: 'Add vehicle expense', expensePayment: 'Pay vehicle expense installment', expenseRefund: 'Record expense refund', expenseCorrection: 'Correct vehicle expense', sale: 'Confirm vehicle sale',
-    saleReceipt: 'Record buyer receipt', saleRefund: 'Record buyer refund', saleCorrection: 'Correct sale price', investor: 'Create investor profile', investorEdit: 'Edit investor profile', fundCredit: 'Record investor fund credit', fundCreditCorrection: 'Correct Fund Credit Investor', principalReturn: 'Return unused principal', vehicleMove: 'Move vehicle to another Branch',
+    saleReceipt: 'Record buyer receipt', saleRefund: 'Record buyer refund', saleCorrection: 'Correct sale price', investor: 'Create investor profile', investorEdit: 'Edit investor profile', fundCredit: 'Record investor fund credit', fundCreditCorrection: 'Correct Fund Credit Investor', principalReturn: 'Return unused principal', vehicleMove: 'Move vehicle to another Branch', profitPayment: 'Pay Investor Vehicle Profit',
   };
   return titles[kind];
 }
@@ -538,16 +829,17 @@ function formHelp(kind: FormKind): string {
   if (kind === 'fundCredit') return 'One actual bank transfer or cash receipt belongs to one Investor Fund Credit.';
   if (kind === 'fundCreditCorrection') return 'The original credit and Cash/Bank movement stay unchanged. If the credit was used or returned, review the related Investor calculations manually.';
   if (kind === 'principalReturn') return 'Only unused Investor principal can be returned. The server allocates the return using the credit ledger.';
+  if (kind === 'profitPayment') return 'This records an actual payment against the confirmed Investor share for this Sale. It does not reconcile the whole Profit period.';
   return 'The server validates Company scope, module availability and the financial limits before saving.';
 }
 
 function fieldsForAction(kind: FormAction, context: {
   branches: FieldOption[]; accounts: AccountingAccount[]; investors: Phase5Investor[]; vehicles: Phase5Vehicle[];
   sale: Phase5Sale | null; expense: Phase5Expense | null; fundCredit: Phase5FundCredit | null; incomeCategories: AccountingCategory[]; companyAccountant: boolean; investmentOn: boolean;
-  initialPaymentAmount: string; investorFundAmount: string; refundAmount: string;
+  initialPaymentAmount: string; investorFundAmount: string; refundAmount: string; investorProfitRemaining: string;
 }): FieldSpec[] {
   const branchFields: FieldSpec[] = [{ key: 'branch_id', label: 'Branch', type: 'select', required: true, options: context.branches }];
-  const accountFields: FieldSpec[] = [{ key: 'account_id', label: 'Cash / Bank account', type: 'select', required: true, options: context.accounts.filter((account) => account.is_active).map((account) => ({ value: account.id, label: `${account.label} · ${account.account_type}` })), help: 'Your last successfully saved account is selected automatically when available.' }];
+  const accountFields: FieldSpec[] = [{ key: 'account_id', label: 'Cash / Bank account', type: 'select', required: true, options: context.accounts.filter((account) => account.is_active).map((account) => ({ value: account.id, label: `${account.label} · ${account.account_type}` })), help: kind.kind === 'profitPayment' ? undefined : 'Your last successfully saved account is selected automatically when available.' }];
   const fundUsed = (value: string) => {
     try { return moneyCents(value) > 0n; } catch { return false; }
   };
@@ -579,7 +871,11 @@ function fieldsForAction(kind: FormAction, context: {
     case 'expenseCorrection': return [money('amount', 'Corrected expense amount'), text('reason', 'Reason')];
     case 'sale': return [money('sale_price', 'Sale price'), text('buyer_name', 'Buyer name'), text('buyer_phone', 'Buyer phone'), date('sold_at', 'Sale date and time')];
     case 'saleReceipt': return [...accountFields, money('amount', 'Buyer payment amount'), text('reference', 'External reference (bank ID / cash voucher)'), date()];
-    case 'saleRefund': return [...accountFields, money('amount', `Refund (up to ${formatMoney(context.sale?.refund_payable ?? '0.00')})`), date()];
+    case 'saleRefund': return [...accountFields, money('amount', `Refund (up to ${formatMoney(context.sale?.refund_payable ?? '0.00')})`),
+      ...(context.companyAccountant && context.sale?.investor_funded ? [{
+        ...money('investor_principal_amount', 'Investor principal in this refund', false),
+        help: 'After capital recovery, explicitly specify the principal portion, including 0.00.',
+      }] : []), date()];
     case 'saleCorrection': return [money('sale_price', 'Corrected sale price'), text('reason', 'Reason')];
     case 'investor': return [text('name', 'Investor name')];
     case 'investorEdit': return [text('name', 'Investor name')];
@@ -589,6 +885,9 @@ function fieldsForAction(kind: FormAction, context: {
       text('reason', 'Correction reason'),
     ];
     case 'principalReturn': return [...investorFields, ...branchFields, ...accountFields, money('amount', 'Principal returned'), text('reference', 'External reference'), date()];
+    case 'principalRefundReview': return [money('principal_amount', 'Total outstanding Investor principal refund'), text('reason', 'Refund obligation confirmation reason')];
+    case 'capitalRecovery': return [text('reason', 'Recovery confirmation reason')];
+    case 'profitPayment': return [...accountFields, money('amount', `Investor Profit payment (up to ${formatMoney(context.investorProfitRemaining)})`), text('description', 'Note', false), date()];
     case 'vehicleMove': return [{ key: 'to_branch_id', label: 'Destination Branch', type: 'select', required: true, options: context.branches }, text('reason', 'Reason')];
     default: return [];
   }
@@ -654,7 +953,10 @@ function buildCommand(action: FormAction, values: Record<string, string>, contex
       return { module: 'vehicle-management', suffix: 'sales/', body: { vehicle_id: context.selectedVehicle.id, branch_id: context.selectedVehicle.branch_id, sale_price: values.sale_price, buyer_name: values.buyer_name, buyer_phone: values.buyer_phone, sold_at: values.sold_at ? toIso(values.sold_at) : undefined } };
     }
     case 'saleReceipt': return { module: 'vehicle-management', suffix: `sales/${action.targetId}/receipts/`, body: { account_id: values.account_id, amount, reference: values.reference, effective_at: toIso(values.effective_at) } };
-    case 'saleRefund': return { module: 'vehicle-management', suffix: `sales/${action.targetId}/refunds/`, body: { account_id: values.account_id, amount, effective_at: toIso(values.effective_at) } };
+    case 'saleRefund': return { module: 'vehicle-management', suffix: `sales/${action.targetId}/refunds/`, body: {
+      account_id: values.account_id, amount, effective_at: toIso(values.effective_at),
+      ...(values.investor_principal_amount?.trim() ? { investor_principal_amount: values.investor_principal_amount.trim() } : {}),
+    } };
     case 'saleCorrection': return { module: 'vehicle-management', suffix: `sales/${action.targetId}/corrections/`, body: { sale_price: values.sale_price, reason: values.reason } };
     case 'investor': return { module: 'investment', suffix: 'investors/', body: { name: values.name } };
     case 'investorEdit': return { module: 'investment', suffix: `investors/${action.targetId}/`, body: { name: values.name }, method: 'PATCH' };
@@ -662,6 +964,9 @@ function buildCommand(action: FormAction, values: Record<string, string>, contex
     case 'fundCreditCorrection': return { module: 'investment', suffix: `fund/credits/${action.targetId}/corrections/`, body: { to_investor_id: values.to_investor_id, reason: values.reason } };
     case 'principalReturn': return { module: 'investment', suffix: 'fund/principal-returns/', body: { investor_id: values.investor_id, branch_id: values.branch_id, account_id: values.account_id, amount, reference: values.reference, effective_at: toIso(values.effective_at) } };
     case 'vehicleMove': return { module: 'vehicle-management', suffix: `vehicles/${action.targetId}/branch-movements/`, body: { to_branch_id: values.to_branch_id, reason: values.reason } };
+    case 'principalRefundReview': return { module: 'investment', suffix: `sales/${action.targetId}/principal-refund-reviews/`, body: { expected_source_version: values.expected_source_version, principal_amount: values.principal_amount, reason: values.reason } };
+    case 'capitalRecovery': return { module: 'investment', suffix: `sales/${action.targetId}/capital-recoveries/`, body: { expected_source_version: values.expected_source_version, reason: values.reason } };
+    case 'profitPayment': return { module: 'investment', suffix: `vehicle-results/${action.targetId}/profit-payments/`, body: { account_id: values.account_id, amount, effective_at: toIso(values.effective_at), description: values.description ?? '' } };
     default: throw new Error('Unknown Phase 5 action.');
   }
 }
@@ -684,7 +989,70 @@ function BranchFilter({ branches, value, onChange }: { branches: Array<BranchSum
   );
 }
 
+function ProfitCalendarSettings(props: {
+  companyId: string; userId: string; investorId: string; investorName: string; enabled: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.phase5.profitCalendarConfigurations(
+    props.userId, props.companyId, props.investorId,
+  );
+  const calendars = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => phase5Api.profitCalendarConfigurations(
+      props.companyId, props.investorId, signal,
+    ),
+    enabled: props.enabled && Boolean(props.companyId && props.investorId),
+    retry: false,
+  });
+  const [effectiveStart, setEffectiveStart] = useState('');
+  const [durationMonths, setDurationMonths] = useState('6');
+  const mutation = useMutation({
+    mutationFn: () => phase5Api.configureProfitCalendar(
+      props.companyId, props.userId, props.investorId,
+      { effective_start: effectiveStart, duration_months: Number(durationMonths) },
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey });
+    },
+  });
+  useEffect(() => {
+    const latest = calendars.data?.at(-1);
+    if (latest) setDurationMonths(String(latest.duration_months));
+    else setDurationMonths('6');
+    setEffectiveStart('');
+  }, [calendars.data, props.investorId]);
+
+  if (!props.enabled) {
+    return <Notice>Investment is OFF. Profit calendar settings remain readable only through the Investor portal; changes are disabled.</Notice>;
+  }
+
+  return (
+    <section className="mb-3 rounded-xl border border-[#e2d8ce] bg-[#faf8f6] p-3 dark:border-zinc-700 dark:bg-zinc-950/40" aria-label={`${props.investorName} Profit calendar settings`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-extrabold text-gray-900 dark:text-white">Profit calendar · {props.investorName}</h3>
+        {calendars.data?.length ? <span className="text-[10px] text-gray-500">{calendars.data.length} saved version(s)</span> : null}
+      </div>
+      {calendars.isPending && <p role="status" className="mt-2 text-[11px] text-gray-500">Loading saved calendar…</p>}
+      {calendars.isError && <p role="alert" className="mt-2 text-[11px] text-red-600">Saved calendar could not be loaded.</p>}
+      {calendars.data?.length ? <ol className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-600 dark:text-gray-300">{calendars.data.map((row) => <li key={row.id}>v{row.version} · from {row.effective_start} · {row.duration_months} months</li>)}</ol> : <p className="mt-1 text-[11px] text-gray-500">No custom calendar yet. The Investor view uses the six-month default from the first Fund credit until configured.</p>}
+      <form className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_110px_auto] sm:items-end" onSubmit={(event) => { event.preventDefault(); if (!mutation.isPending) mutation.mutate(); }}>
+        <label className="text-[10px] font-bold text-gray-600 dark:text-gray-300">Period start date
+          <input type="date" required value={effectiveStart} onChange={(event) => setEffectiveStart(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" />
+        </label>
+        <label className="text-[10px] font-bold text-gray-600 dark:text-gray-300">Duration (months)
+          <input type="number" min="1" max="32767" step="1" required value={durationMonths} onChange={(event) => setDurationMonths(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" />
+        </label>
+        <button type="submit" disabled={mutation.isPending || calendars.isPending || calendars.isError || !effectiveStart || !/^\d+$/.test(durationMonths)} className="h-9 rounded-lg bg-[#18181b] px-3 text-xs font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">{mutation.isPending ? 'Saving…' : 'Save calendar'}</button>
+      </form>
+      <p className="mt-2 text-[10px] text-gray-500">Updates begin at the open period boundary. The server rejects dates that would overlap a completed period; each saved version remains in history.</p>
+      {mutation.isError && <p role="alert" className="mt-2 text-[11px] text-red-600">{mutation.error instanceof Error ? mutation.error.message : 'Calendar update failed.'}</p>}
+      {mutation.isSuccess && <p role="status" className="mt-2 text-[11px] text-emerald-700 dark:text-emerald-300">Calendar version {mutation.data.version} saved.</p>}
+    </section>
+  );
+}
+
 function FundPanel(props: {
+  companyId: string; userId: string; investmentOn: boolean;
   summary?: Phase5FundSummary; credits: Phase5FundCredit[]; returns: Phase5PrincipalReturn[]; investors: Phase5Investor[]; branches: Array<BranchSummary | BranchListItem>;
   branchId: string; onBranch: (value: string) => void; selectedInvestorId: string; onInvestorFilter: (value: string) => void; onAddInvestor: () => void; onEditInvestor: (investor: Phase5Investor) => void; onCredit: (investorId?: string) => void; onCorrectCredit: (credit: Phase5FundCredit) => void; onReturn: (investorId: string) => void;
   page: number; hasPrevious: boolean; hasNext: boolean; onPage: (page: number) => void; returnPage: number; returnHasPrevious: boolean; returnHasNext: boolean; onReturnPage: (page: number) => void; canProfileWrite: boolean; canFundWrite: boolean; canCreditCorrection: boolean; companyAccountant: boolean;
@@ -710,6 +1078,16 @@ function FundPanel(props: {
             <button type="button" disabled={!props.canFundWrite || !props.investors.length} onClick={() => props.onCredit(props.selectedInvestorId)} className="inline-flex h-9 items-center gap-1 rounded-lg border border-[#e2d8ce] px-3 text-xs font-bold disabled:opacity-50 dark:border-zinc-700"><Plus className="h-3.5 w-3.5" /> Fund Credit</button>
           </div>
         </div>
+        {props.companyAccountant && props.selectedInvestorId && (
+          <ProfitCalendarSettings
+            key={props.selectedInvestorId}
+            companyId={props.companyId}
+            userId={props.userId}
+            investorId={props.selectedInvestorId}
+            investorName={investorNames.get(props.selectedInvestorId) ?? 'Investor'}
+            enabled={props.investmentOn}
+          />
+        )}
         {props.investors.length ? <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
           {props.investors.map((investor) => <div key={investor.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[#eee6de] p-3 dark:border-zinc-800">
             <div className="min-w-0"><div className="truncate text-xs font-extrabold text-gray-900 dark:text-white">{investor.name}</div><div className="mt-1 text-[10px] text-gray-400">{investor.is_active ? 'Active' : 'Inactive'}</div></div>
@@ -749,7 +1127,13 @@ function FundPanel(props: {
 }
 
 function VehiclePanel(props: {
-  routeKey: 'Stock / Investor' | 'Running Capital'; vehicles: Phase5Vehicle[]; selectedVehicle: Phase5Vehicle | null; purchase: Phase5Purchase | null; expenses: Phase5Expense[]; sale: Phase5Sale | null;
+  onCapitalRecovery: () => void;
+  onPrincipalRefundReview: () => void;
+  routeKey: 'Stock / Investor' | 'Running Capital'; vehicles: Phase5Vehicle[]; selectedVehicle: Phase5Vehicle | null; purchase: Phase5Purchase | null; expenses: Phase5Expense[]; sale: Phase5Sale | null; financialPosition: VehicleFinancialPosition | null;
+  canConfirmResult: boolean; confirmingResult: boolean; resultConfirmationError: string | null; onConfirmResult: (reason: string, loss?: ConfirmedLossAllocation) => void;
+  canPayInvestorProfit: boolean; onPayInvestorProfit: (resultConfirmationId: string) => void;
+  canCreateInvestorLossOffset: boolean; lossOffsetOptions: InvestorProfitLossOffsetOptions | null; lossOffsetOptionsLoading: boolean; lossOffsetOptionsError: string | null; creatingInvestorLossOffset: boolean; investorLossOffsetError: string | null;
+  onCreateInvestorLossOffset: (lossResultId: string, profitResultId: string, amount: string, reason: string) => Promise<unknown>;
   branches: Array<BranchSummary | BranchListItem>; branchId: string; search: string; onSearch: (value: string) => void; onBranch: (value: string) => void; onSelectVehicle: (vehicle: Phase5Vehicle) => void;
   onAddVehicle: () => void; onPurchase: (vehicle: Phase5Vehicle) => void; onAddExpense: (vehicle: Phase5Vehicle) => void; onPurchasePayment: (purchase: Phase5Purchase) => void; onPurchaseRefund: (purchase: Phase5Purchase) => void; onPurchaseCorrection: (purchase: Phase5Purchase) => void;
   onExpensePayment: (expense: Phase5Expense) => void; onExpenseRefund: (expense: Phase5Expense) => void; onExpenseCorrection: (expense: Phase5Expense) => void; onSale: (vehicle: Phase5Vehicle) => void; onSaleReceipt: (sale: Phase5Sale) => void; onSaleRefund: (sale: Phase5Sale) => void; onSaleCorrection: (sale: Phase5Sale) => void; onMove: (vehicle: Phase5Vehicle) => void;
@@ -774,7 +1158,7 @@ function VehiclePanel(props: {
               <div className="mt-1 text-[10px] text-gray-400">{vehicle.branch_name} · {vehicle.is_sold ? 'Sale confirmed' : 'Active stock vehicle'}</div>
             </button>
             <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-              {!runningView && !vehicle.is_sold && <button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite} onClick={() => props.onSelectVehicle(vehicle)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Open</button>}
+              {!runningView && <button type="button" onClick={() => props.onSelectVehicle(vehicle)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold dark:border-zinc-700">Open</button>}
               {!runningView && props.companyAccountant && <button type="button" disabled={!props.canVehicleWrite} onClick={() => props.onMove(vehicle)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Move Branch</button>}
             </div>
           </div>)}
@@ -784,12 +1168,20 @@ function VehiclePanel(props: {
 
       {props.selectedVehicle && (
         <div className="rounded-2xl border border-[#e2d8ce] bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900 sm:p-4">
+          {props.canConfirmResult && props.financialPosition?.sale_id && <button
+            type="button" onClick={props.onCapitalRecovery}
+            className="mb-2 h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold dark:border-zinc-700"
+          >Confirm capital recovery</button>}
+          {props.companyAccountant && props.canVehicleWrite && props.canAccountingWrite && props.financialPosition?.sale_id &&
+            moneyCents(props.financialPosition.running_capital_cost) > 0n && moneyCents(props.financialPosition.buyer_refund_payable ?? '0.00') > 0n &&
+            <button type="button" onClick={props.onPrincipalRefundReview} className="mb-2 ml-1 h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold dark:border-zinc-700">Confirm principal refund obligation</button>}
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div><div className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--theme-primary)]">Vehicle workspace</div><h2 className="mt-0.5 text-sm font-extrabold text-gray-950 dark:text-white">{props.selectedVehicle.model} · {props.selectedVehicle.registration}</h2><p className="mt-1 text-[10px] text-gray-500">{props.selectedVehicle.branch_name} · {props.selectedVehicle.is_sold ? 'Sold' : 'Active'}</p></div>
             <button type="button" onClick={() => props.onSelectVehicle(props.selectedVehicle!)} aria-label="Close vehicle details" className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800"><X className="h-4 w-4" /></button>
           </div>
           {props.detailLoading ? <div role="status" className="py-5 text-center text-xs text-gray-500">Loading purchase and expense records…</div> : (
             <>
+              {props.financialPosition && <VehicleFinancialPositionCard position={props.financialPosition} canConfirm={props.canConfirmResult} isConfirming={props.confirmingResult} confirmError={props.resultConfirmationError} onConfirm={props.onConfirmResult} canPayInvestorProfit={props.canPayInvestorProfit} onPayInvestorProfit={props.onPayInvestorProfit} canCreateInvestorLossOffset={props.canCreateInvestorLossOffset} lossOffsetOptions={props.lossOffsetOptions} lossOffsetOptionsLoading={props.lossOffsetOptionsLoading} lossOffsetOptionsError={props.lossOffsetOptionsError} creatingInvestorLossOffset={props.creatingInvestorLossOffset} investorLossOffsetError={props.investorLossOffsetError} onCreateInvestorLossOffset={props.onCreateInvestorLossOffset} />}
               {props.purchase ? <div className="mb-3 rounded-xl bg-gray-50 p-3 dark:bg-zinc-950">
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[10px] font-bold uppercase text-gray-400">Purchase · {props.purchase.seller_name}{props.purchase.no_advance_warning ? ' · No advance paid' : ''}</div><div className="mt-1 text-xs font-extrabold">Cost {formatMoney(props.purchase.purchase_cost)} <span className="font-medium text-gray-500">· Paid {formatMoney(props.purchase.seller_paid)} · Payable {formatMoney(props.purchase.seller_payable)}</span></div><div className="mt-1 text-[10px] text-gray-500">Investor Fund {formatMoney(props.purchase.investor_fund_amount)} · Running Capital {formatMoney(props.purchase.running_capital_amount)}</div></div>
                   <div className="flex flex-wrap gap-1.5"><button type="button" disabled={!props.canAccountingWrite || moneyCents(props.purchase.seller_payable) <= 0n} onClick={() => props.onPurchasePayment(props.purchase!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Pay</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || moneyCents(props.purchase.seller_paid) <= 0n} onClick={() => props.onPurchaseRefund(props.purchase!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Refund</button><button type="button" disabled={!props.canVehicleWrite || !props.canAccountingWrite || !props.canInvestmentWrite} onClick={() => props.onPurchaseCorrection(props.purchase!)} className="h-8 rounded-lg border border-[#e2d8ce] px-2.5 text-[10px] font-bold disabled:opacity-50 dark:border-zinc-700">Correct cost</button></div>

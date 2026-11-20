@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, connection
-from django.db.models import Sum
+from django.db.models import Exists, OuterRef, Sum
 from django.utils import timezone
 from rest_framework.exceptions import APIException, NotFound, ValidationError
 
@@ -317,6 +317,280 @@ def record_capital_movement(
     data = event_data(event)
     data.update({"account_id": str(account.pk), "movement_id": str(movement.pk)})
     return event, movement, data
+
+
+def record_investor_vehicle_profit_payment(
+    *, tenant, payment, actor, accounting_revision,
+):
+    """Post one actual Investor Vehicle Profit payment as a linked cash outflow."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("Investor Profit payments must be part of an outer transaction.")
+    if (
+        payment.tenant_id != tenant.pk
+        or payment.actor_id != actor.pk
+        or payment.result_confirmation.tenant_id != tenant.pk
+        or payment.investor_id != payment.result_confirmation.investor_id
+        or payment.branch_id != payment.result_confirmation.sale.branch_id
+        or payment.vehicle_module_revision.tenant_id != tenant.pk
+        or payment.vehicle_module_revision.module_code != CompanyModuleCode.VEHICLE_MANAGEMENT
+        or payment.vehicle_module_revision.state != CompanyModuleState.State.ENABLED
+        or payment.investment_module_revision.tenant_id != tenant.pk
+        or payment.investment_module_revision.module_code != CompanyModuleCode.INVESTMENT
+        or payment.investment_module_revision.state != CompanyModuleState.State.ENABLED
+        or accounting_revision is None
+        or accounting_revision.tenant_id != tenant.pk
+        or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED
+    ):
+        raise ValidationError("Investor Profit payment source, Branch, or Accounting scope does not match.")
+    if payment.account.tenant_id != tenant.pk or not payment.account.is_active:
+        raise ValidationError({"account_id": "Choose an active Cash/Bank account from this Company."})
+
+    event = _event_row(
+        tenant=tenant,
+        branch=payment.branch,
+        event_type=AccountingEvent.EventType.INVESTOR_PROFIT_PAYMENT,
+        amount=Decimal(payment.amount),
+        actor=actor,
+        revision=accounting_revision,
+        description=payment.description,
+        source_reference=payment.source_reference,
+        effective_at=payment.effective_at,
+    )
+    movement = AccountMovement.objects.create(
+        tenant=tenant,
+        event=event,
+        account=payment.account,
+        delta=-Decimal(payment.amount),
+    )
+    AccountingSourceLink.objects.create(
+        tenant=tenant,
+        event=event,
+        investor_vehicle_profit_payment=payment,
+    )
+    data = event_data(event)
+    data.update({"account_id": str(payment.account_id), "movement_id": str(movement.pk)})
+    return event, movement, data
+
+
+def record_investor_profit_recovery(*, tenant, receipt, actor, accounting_revision):
+    """Receive an Investor repayment once; this is not Company Income."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("Investor repayments require an outer transaction.")
+    if (
+        receipt.tenant_id != tenant.pk or receipt.actor_id != actor.pk
+        or receipt.position.tenant_id != tenant.pk or receipt.branch.tenant_id != tenant.pk
+        or receipt.account.tenant_id != tenant.pk or not receipt.account.is_active
+        or receipt.accounting_revision_id != accounting_revision.pk
+        or accounting_revision.tenant_id != tenant.pk
+        or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED
+    ):
+        raise ValidationError("Investor repayment source and Accounting scope do not match.")
+    event = _event_row(
+        tenant=tenant, branch=receipt.branch, event_type=AccountingEvent.EventType.INVESTOR_PROFIT_RECOVERY,
+        amount=receipt.amount, actor=actor, revision=accounting_revision, description=receipt.reason,
+        source_reference=f"INVESTOR-PROFIT-RECOVERY-{receipt.pk}", effective_at=receipt.effective_at,
+    )
+    movement = AccountMovement.objects.create(
+        tenant=tenant, event=event, account=receipt.account, delta=receipt.amount,
+    )
+    AccountingSourceLink.objects.create(tenant=tenant, event=event, investor_profit_recovery_receipt=receipt)
+    return event, movement
+
+
+def record_investor_exit_loss_recovery(*, tenant, application, actor, accounting_revision):
+    """Receive a confirmed Exit Loss repayment without recognizing Company Income."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("Exit Loss receipts require an outer transaction.")
+    if (application.tenant_id != tenant.pk or application.actor_id != actor.pk
+        or application.source != "DIRECT_RECEIPT" or application.account is None
+        or application.branch.tenant_id != tenant.pk or application.account.tenant_id != tenant.pk
+        or not application.account.is_active or application.accounting_revision_id != accounting_revision.pk
+        or accounting_revision.tenant_id != tenant.pk or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED):
+        raise ValidationError("Exit Loss receipt and Accounting scope do not match.")
+    event = _event_row(
+        tenant=tenant, branch=application.branch, event_type=AccountingEvent.EventType.INVESTOR_EXIT_LOSS_RECOVERY,
+        amount=application.amount, actor=actor, revision=accounting_revision, description=application.reason,
+        source_reference=f"INVESTOR-EXIT-LOSS-{application.pk}", effective_at=application.effective_at,
+    )
+    movement = AccountMovement.objects.create(tenant=tenant, event=event, account=application.account, delta=application.amount)
+    AccountingSourceLink.objects.create(tenant=tenant, event=event, investor_exit_loss_application=application)
+    return event, movement
+
+
+def record_investor_exit_profit_payment(*, tenant, payment, actor, accounting_revision):
+    """Pay confirmed Exit Profit once as a typed Cash/Bank outflow."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("Exit Profit payments require an outer transaction.")
+    if (payment.tenant_id != tenant.pk or payment.actor_id != actor.pk
+        or payment.position.tenant_id != tenant.pk or payment.branch.tenant_id != tenant.pk
+        or payment.account.tenant_id != tenant.pk or not payment.account.is_active
+        or payment.accounting_revision_id != accounting_revision.pk or accounting_revision.tenant_id != tenant.pk
+        or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED):
+        raise ValidationError("Exit Profit payment and Accounting scope do not match.")
+    event = _event_row(
+        tenant=tenant, branch=payment.branch, event_type=AccountingEvent.EventType.INVESTOR_EXIT_PROFIT_PAYMENT,
+        amount=payment.amount, actor=actor, revision=accounting_revision, description=payment.reason,
+        source_reference=f"INVESTOR-EXIT-PROFIT-{payment.pk}", effective_at=payment.effective_at,
+    )
+    movement = AccountMovement.objects.create(tenant=tenant, event=event, account=payment.account, delta=-payment.amount)
+    AccountingSourceLink.objects.create(tenant=tenant, event=event, investor_exit_profit_payment=payment)
+    return event, movement
+
+
+def record_investor_interim_payment(
+    *, tenant, payment, actor, accounting_revision,
+):
+    """Post one actual Monthly Interim payment as one linked Cash/Bank outflow."""
+    if not connection.in_atomic_block:
+        raise RuntimeError("Investor Interim payments require an outer transaction.")
+    investment_revision = payment.investment_module_revision
+    if (
+        payment.tenant_id != tenant.pk
+        or payment.actor_id != actor.pk
+        or payment.investor.tenant_id != tenant.pk
+        or payment.configuration.tenant_id != tenant.pk
+        or payment.configuration.investor_id != payment.investor_id
+        or payment.configuration.effective_date > payment.period_month
+        or payment.branch.tenant_id != tenant.pk
+        or payment.account.tenant_id != tenant.pk
+        or not payment.account.is_active
+        or payment.amount <= 0
+        or payment.period_month.day != 1
+        or investment_revision.tenant_id != tenant.pk
+        or investment_revision.module_code != CompanyModuleCode.INVESTMENT
+        or investment_revision.state != CompanyModuleState.State.ENABLED
+        or accounting_revision is None
+        or accounting_revision.tenant_id != tenant.pk
+        or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED
+    ):
+        raise ValidationError("Investor Interim payment source, Branch, or module scope does not match.")
+
+    event = _event_row(
+        tenant=tenant,
+        branch=payment.branch,
+        event_type=AccountingEvent.EventType.INVESTOR_INTERIM_PAYMENT,
+        amount=Decimal(payment.amount),
+        actor=actor,
+        revision=accounting_revision,
+        description=payment.description,
+        source_reference=payment.source_reference,
+        effective_at=payment.effective_at,
+    )
+    movement = AccountMovement.objects.create(
+        tenant=tenant,
+        event=event,
+        account=payment.account,
+        delta=-Decimal(payment.amount),
+    )
+    AccountingSourceLink.objects.create(
+        tenant=tenant,
+        event=event,
+        investor_interim_payment=payment,
+    )
+    data = event_data(event)
+    data.update({"account_id": str(payment.account_id), "movement_id": str(movement.pk)})
+    return event, movement, data
+
+
+def record_vehicle_company_share_recognition(
+    *, tenant, result_confirmation, actor, accounting_revision,
+):
+    """Recognize a verified positive Vehicle Company Share without cash movement.
+
+    The Investment result-confirmation mutation owns the outer transaction and
+    has already locked the Company and required module revisions. Each new
+    verified source version reverses the previously recognized share once,
+    then recognizes its replacement, if positive.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("Vehicle Company Share recognition requires an outer transaction.")
+    if (
+        result_confirmation.tenant_id != tenant.pk
+        or accounting_revision is None
+        or accounting_revision.tenant_id != tenant.pk
+        or accounting_revision.module_code != CompanyModuleCode.ACCOUNTING
+        or accounting_revision.state != CompanyModuleState.State.ENABLED
+    ):
+        raise ValidationError("Company Share recognition requires an enabled same-Company Accounting revision.")
+    if AccountingSourceLink.objects.filter(
+        vehicle_result_confirmation=result_confirmation
+    ).exists():
+        raise AccountingConflict(
+            "This Vehicle result already has an Accounting source event.",
+            code="VEHICLE_COMPANY_SHARE_ALREADY_RECOGNIZED",
+        )
+
+    from apps.investment.models import VehicleResultConfirmation
+
+    if not isinstance(result_confirmation, VehicleResultConfirmation):
+        raise ValidationError("Vehicle result confirmation is required.")
+
+    has_reversal = AccountingEvent.objects.filter(reversal_of_id=OuterRef("pk"))
+    active_events = list(
+        AccountingEvent.objects.filter(
+            tenant=tenant,
+            event_type=AccountingEvent.EventType.VEHICLE_COMPANY_SHARE,
+            effect_sign=1,
+            reversal_of__isnull=True,
+            source_link__vehicle_result_confirmation__vehicle_id=result_confirmation.vehicle_id,
+        ).annotate(_has_reversal=Exists(has_reversal))
+        .filter(_has_reversal=False)
+        .select_related("branch")
+        .order_by("effective_at", "id")
+    )
+    if len(active_events) > 1:
+        raise AccountingConflict(
+            "More than one open Company Share recognition exists for this Vehicle; manual review is required.",
+            code="VEHICLE_COMPANY_SHARE_POSITION_AMBIGUOUS",
+        )
+
+    reversed_ids = []
+    for prior in active_events:
+        reversal = _event_row(
+            tenant=tenant,
+            branch=prior.branch,
+            event_type=AccountingEvent.EventType.VEHICLE_COMPANY_SHARE,
+            amount=prior.amount,
+            actor=actor,
+            revision=accounting_revision,
+            description=prior.description,
+            source_reference=prior.source_reference,
+            effective_at=prior.effective_at,
+            effect_sign=-1,
+            reversal_of=prior,
+            correction_reason=(
+                f"Superseded by verified Vehicle result {result_confirmation.pk}"
+            ),
+        )
+        reversed_ids.append(str(reversal.pk))
+
+    recognition = None
+    amount = Decimal(result_confirmation.company_share_amount)
+    if result_confirmation.result_kind == VehicleResultConfirmation.ResultKind.PROFIT and amount > 0:
+        sale = result_confirmation.sale
+        recognition = _event_row(
+            tenant=tenant,
+            branch=sale.branch,
+            event_type=AccountingEvent.EventType.VEHICLE_COMPANY_SHARE,
+            amount=amount,
+            actor=actor,
+            revision=accounting_revision,
+            description=f"Verified Company Share for Vehicle {result_confirmation.vehicle_id}",
+            source_reference=f"vehicle-company-share:{result_confirmation.pk}",
+            effective_at=sale.sold_at,
+        )
+        AccountingSourceLink.objects.create(
+            tenant=tenant,
+            event=recognition,
+            vehicle_result_confirmation=result_confirmation,
+        )
+
+    return recognition, reversed_ids
 
 
 def event_data(event):

@@ -50,9 +50,13 @@ At each configured six-month or annual Investor reconciliation, derive relevant 
 
 **BUSINESS DECISION REQUIRED:** Define the precise eligible-principal base and permitted withdrawal limits; define which deals fall in a reconciliation period and how ordinary deal-level payouts coexist with periodic payout so the same earned Profit is never distributed twice.
 
+**Superseded by approved additions dated 2026-11-19:** The fixed monthly Interim amount replaces a rate/eligible-principal formula; ordinary principal withdrawals are limited to Available Fund; Vehicle results belong to the Sale-date period; and confirmed deal-level payments are counted Paid once in that same period. The actual Interim-payment and persisted reconciliation workflows remain implementation gaps.
+
 ## 5. Manual Loss and corrections
 
 A negative arithmetic result does not automatically allocate Loss to Investor, Company or Owners and does not create a Fund movement or settlement. Authorized users record the confirmed Loss, manual Investor impact, manual Company impact, reason, corrections and actual financial actions. No separate automatic Loss engine, percentage-based Loss split, mandatory Owner contribution formula or automatic Running-Capital Loss recovery applies to new V2 activity. **BUSINESS DECISION REQUIRED:** Define exact approval/confirmation authority and how a manually confirmed Loss affects the Investor principal claim, Company finances and closure; do not substitute the old formula.
+
+**Superseded by approved additions dated 2026-11-19:** Same-Company Company-level Accountant confirms each Vehicle Loss with reason; approved future-Profit offsets and the special Exit rule are recorded in the later additions below. Their implementation remains incomplete.
 
 An authorized correction preserves original Sale, cost, receipt, Fund, interim, Profit, Running Capital and distribution events. Record linked actor, time, reason, old/new values, applicable effective snapshots and current reconciled position. Before payout, adjust the current entitlement without erasing the earlier calculation. After payout, `Net Retained Profit Payment = confirmed valid Profit Payments − actual confirmed recoveries against those payment correction chains`; an open recovery obligation is not actual recovery. Reconcile a corrected entitlement against net retained payment to one current Additional Payable or Recovery/Adjustment Obligation, rather than stacking duplicates. An actual Profit Recovery Receipt is positive and no greater than its current outstanding Recovery/Adjustment Obligation; partial receipt is permitted and reduces the obligation only when confirmed. Interim and recoverable corrections likewise reconcile actual events, not merely suggestions. Cross-category netting is forbidden except an explicitly confirmed future-Profit adjustment against an Investor recoverable. A previously closed position remains in history if a later correction opens a new obligation.
 
@@ -2025,3 +2029,45 @@ Eligible normal Investor Profit paid while Active remains valid history and cann
 
 **Implementation impact**
 - Do not add Investor agreement snapshots, Investor Profit result screens, or automatic calculation refresh to Phase 5. The current Phase 5 message that Profit calculations are not refreshed remains accurate.
+
+### ADDITION — Phase 8 reconciliation, Loss, principal and existing settlement (2026-11-19)
+
+**Status:** APPROVED BUSINESS DECISIONS. These rules govern Phase 8 implementation; they do not assert that the features are implemented.
+
+- Assign a Vehicle's deal-level Investor Profit to the Investor reconciliation period containing the actual Sale date. Show any confirmed deal-level Profit payment against that same entitlement as Paid and deduct it exactly once from the period's remaining payable. Keep payment and calculation records separate.
+- A same-Company Company-level Accountant manually confirms each Vehicle Loss with a recorded reason and its Investor/Company impacts. A calculated negative result alone does not debit Investor Fund or post a cash movement. Existing approved future-Profit loss offsets and the exceptional Exit rule remain separately governed.
+- Ordinary principal withdrawal is limited to Available Fund: exclude principal committed to open Vehicles and outstanding refund obligations. Preserve the existing Company-wide Fund and Branch authorization rules.
+- A Phase 8 Investor Profit or settlement correction spanning Branches is available only to the same-Company Company-level Accountant. This is action-specific authority, not a general cross-Branch grant.
+- When Investment is OFF and Accounting is ON, a same-Company Company-level Accountant may continue only authorized steps of an Investor Exit/settlement already started before the OFF transition. New Fund credit, ordinary withdrawal, or new Exit initiation remains subject to its normal module gate. Every actual payment still needs its own Accounting authorization and cash event.
+
+**Supersedes:** Earlier unresolved wording only for these five decisions. Effective agreement snapshot sourcing, exact Loss impact amounts, adjustment history and other unreconciled requirements remain subject to their separately approved rules.
+
+### ADDITION — Phase 8 Monthly Interim payment Branch authority (2026-11-19)
+
+**Status:** APPROVED BUSINESS DECISION
+
+- A Branch Accountant may record an actual Monthly Interim payment only in their authorized payment Branch.
+- A same-Company Company-level Accountant may record that payment in any Branch of the Company.
+- This is action-specific authority. It does not permit cross-Branch Investor/Fund reads or other financial mutations.
+- The actual payment remains a separately confirmed Investment record linked to one Accounting Cash/Bank movement; configuration or a calculated due amount is not Paid.
+
+**Scope:** Actual Monthly Interim payment confirmation and its Company/Branch authorization.
+
+### ADDITION — Q135 Monthly Interim partial payments and monthly cap (2026-11-19)
+
+**Status:** APPROVED BUSINESS DECISION
+
+- An Investor's configured Monthly Interim amount may be paid in partial or repeated payments within the same calendar month.
+- The sum of actual Interim payments for that Investor and month must not exceed that month's effective configured amount, across all Company Branches.
+- A failed or repeated request must not create another payment or Cash/Bank movement. The payment history remains source-linked and separate from final Profit reconciliation.
+
+**Scope:** Monthly Interim actual payment amount/cap only. It does not turn a paid Interim advance into a final payable or settlement.
+
+### ADDITION — Editable Loss impact before Accountant confirmation (2026-11-19)
+
+**Status:** APPROVED BUSINESS DECISION
+
+- Show the calculated Vehicle Loss and a suggested Investor/Company split for Accountant review. A Company-level Accountant may edit the impact amounts and must explicitly confirm them with a reason; no Loss impact is posted automatically.
+- The Investor Loss percentage need not equal the Investor Profit percentage. The agreement-based split may be displayed as a suggestion, not enforced as the final Loss allocation.
+- Preserve the original calculation, confirmed amounts, actor, reason and history. Confirmation alone does not debit Investor Fund, move Cash/Bank or settle Exit.
+- This supersedes earlier wording that requires the agreement percentage to determine the final Investor Loss share. Existing explicitly confirmed Loss offset and Exit rules continue to apply to the confirmed impact.
