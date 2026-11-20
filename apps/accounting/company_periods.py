@@ -115,17 +115,18 @@ def list_confirmations(*, actor, company_id):
     from django.db.models import Sum
     from apps.accounting.models import OwnerDistributionPayment
     payment_rows = OwnerDistributionPayment.objects.filter(tenant=company).values(
-        "confirmation_id", "recipient_id",
+        "confirmation__period_start", "confirmation__period_end", "recipient_id",
     ).annotate(total=Sum("amount"))
-    paid = {(item["confirmation_id"], str(item["recipient_id"])): item["total"] for item in payment_rows}
+    paid = {(item["confirmation__period_start"], item["confirmation__period_end"], str(item["recipient_id"])): item["total"] for item in payment_rows}
     def with_payments(row):
         data = confirmation_data(row)
         enriched = []
         for allocation in data["owner_allocation_snapshot"]:
-            amount_paid = paid.get((row.pk, allocation["recipient_id"]), Decimal("0.00"))
+            amount_paid = paid.get((row.period_start, row.period_end, allocation["recipient_id"]), Decimal("0.00"))
             due = Decimal(allocation["amount"]) - amount_paid
             enriched.append({**allocation, "paid_amount": format(amount_paid, ".2f"),
-                             "outstanding_amount": format(max(Decimal("0.00"), due), ".2f")})
+                             "outstanding_amount": format(max(Decimal("0.00"), due), ".2f"),
+                             "payment_review_required": amount_paid > Decimal(allocation["amount"])})
         data["owner_allocation_snapshot"] = enriched
         return data
     latest = {}
@@ -238,7 +239,7 @@ def confirm_company_period(*, actor, company_id, period_type, year, expected_sou
                                    idempotency_model=AccountingIdempotencyRecord, operation=operation)
 
 
-def configure_owner_distribution(*, actor, company_id, effective_from, recipients, reason):
+def configure_owner_distribution(*, actor, company_id, effective_from, recipients, reason, key=None, path=""):
     """Platform Back Office records protected, effective Owner split terms."""
     from django.core.exceptions import PermissionDenied
     from django.db import transaction
@@ -252,6 +253,8 @@ def configure_owner_distribution(*, actor, company_id, effective_from, recipient
     from apps.investment.finance import allocate_owner_distribution
     if not is_platform_actor(actor):
         raise PermissionDenied("An active Platform Back Office account is required.")
+    if not key or len(key) > 128:
+        raise ValidationError({"Idempotency-Key": "A key of 1 to 128 characters is required."})
     reason = reason.strip()
     company = Tenant.objects.filter(pk=company_id, is_active=True).first()
     if company is None:
@@ -262,21 +265,36 @@ def configure_owner_distribution(*, actor, company_id, effective_from, recipient
     except ValueError as exc:
         raise ValidationError(str(exc)) from exc
     owner_ids = [row.recipient_id for row in checked]
-    labels = {str(user.pk): (" ".join(part for part in (user.first_name, user.last_name) if part).strip() or user.login_id)
-              for user in User.objects.filter(pk__in=owner_ids)}
-    now = timezone.now()
-    owners = set(CompanyRoleGrant.objects.filter(
-        role="owner", branch__isnull=True, membership__tenant=company,
-        membership__user__is_active=True, membership__effective_from__lte=now,
-        effective_from__lte=now,
-    ).filter(Q(effective_until__isnull=True) | Q(effective_until__gt=now))
-      .filter(Q(membership__effective_until__isnull=True) | Q(membership__effective_until__gt=now))
-      .values_list("membership__user_id", flat=True))
-    owners = {str(owner_id) for owner_id in owners}
-    if set(owner_ids) != owners or not reason or len(reason) < 3:
+    if not reason or len(reason) < 3:
         raise ValidationError("Recipients must be exactly the Company's current Owners, with a reason.")
     with transaction.atomic():
-        Tenant.objects.select_for_update().get(pk=company.pk)
+        company = Tenant.objects.select_for_update().get(pk=company.pk)
+        if key:
+            from apps.common.domain_mutations import DomainConflict
+            from apps.accounting.models import AccountingIdempotencyRecord
+            import hashlib, json
+            body = {"effective_from": effective_from.isoformat(), "recipients": recipients, "reason": reason}
+            digest = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+            existing = AccountingIdempotencyRecord.objects.filter(tenant=company, actor=actor, key=key).first()
+            if existing:
+                if existing.method != "POST" or existing.path != path or existing.request_hash != digest:
+                    raise DomainConflict("Idempotency-Key was already used for a different request.", code="IDEMPOTENCY_KEY_REUSED")
+                return existing.response_body
+        from datetime import datetime, time
+        from zoneinfo import ZoneInfo
+        effective_at = timezone.make_aware(datetime.combine(effective_from, time.min), ZoneInfo("Asia/Kolkata"))
+        owners = set(CompanyRoleGrant.objects.filter(
+            role="owner", branch__isnull=True, membership__tenant=company,
+            membership__user__is_active=True, membership__effective_from__lte=effective_at,
+            effective_from__lte=effective_at,
+        ).filter(Q(effective_until__isnull=True) | Q(effective_until__gt=effective_at))
+          .filter(Q(membership__effective_until__isnull=True) | Q(membership__effective_until__gt=effective_at))
+          .values_list("membership__user_id", flat=True))
+        owners = {str(owner_id) for owner_id in owners}
+        if set(owner_ids) != owners:
+            raise ValidationError("Recipients must be exactly the Company's Owners on the effective date.")
+        labels = {str(user.pk): (" ".join(part for part in (user.first_name, user.last_name) if part).strip() or user.login_id)
+                  for user in User.objects.filter(pk__in=owner_ids)}
         version = (OwnerDistributionConfiguration.objects.filter(tenant=company).aggregate(v=Max("version"))["v"] or 0) + 1
         row = OwnerDistributionConfiguration.objects.create(
             tenant=company, version=version, effective_from=effective_from,
@@ -288,9 +306,14 @@ def configure_owner_distribution(*, actor, company_id, effective_from, recipient
                      company=company, resource=row, resource_type="accounting.owner_split", reason=reason,
                      metadata={"version": version, "effective_from": effective_from.isoformat(),
                                "recipient_count": len(row.recipients), "configuration_id": str(row.pk)})
-    return {"id": str(row.pk), "company_id": str(company.pk), "version": row.version,
-            "effective_from": row.effective_from.isoformat(), "recipients": row.recipients,
-            "actor_id": str(row.actor_id), "reason": row.reason}
+        response = {"id": str(row.pk), "company_id": str(company.pk), "version": row.version,
+                "effective_from": row.effective_from.isoformat(), "recipients": row.recipients,
+                "actor_id": str(row.actor_id), "reason": row.reason}
+        if key:
+            from apps.accounting.models import AccountingIdempotencyRecord
+            AccountingIdempotencyRecord.objects.create(tenant=company, actor=actor, key=key, method="POST", path=path,
+                request_hash=digest, response_status=201, response_body=response)
+        return response
 
 
 def pay_owner_distribution(*, actor, company_id, confirmation_id, recipient_id, branch_id,
@@ -330,7 +353,8 @@ def pay_owner_distribution(*, actor, company_id, confirmation_id, recipient_id, 
         if allocation is None:
             raise NotFound("Recipient is not part of this confirmed Owner distribution.")
         paid = OwnerDistributionPayment.objects.filter(
-            tenant=company, confirmation=confirmation, recipient_id=recipient_id,
+            tenant=company, confirmation__period_start=confirmation.period_start,
+            confirmation__period_end=confirmation.period_end, recipient_id=recipient_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         outstanding = Decimal(allocation["amount"]) - paid
         if amount > outstanding:

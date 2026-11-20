@@ -113,6 +113,13 @@ function VehicleFinancialPositionCard({ position, canConfirm, isConfirming, conf
   investorLossOffsetError: string | null;
   onCreateInvestorLossOffset: (lossResultId: string, profitResultId: string, amount: string, reason: string) => Promise<unknown>;
 }) {
+  const profitPaymentReady = Boolean(
+    position.capital_recovery?.is_complete
+      && position.confirmed_result?.is_current
+      && position.status === 'READY_FOR_REVIEW'
+      && moneyCents(position.buyer_receivable ?? '0.00') === 0n
+      && moneyCents(position.buyer_refund_payable ?? '0.00') === 0n,
+  );
   const [reason, setReason] = useState('');
   const [investorLoss, setInvestorLoss] = useState('');
   const [companyLoss, setCompanyLoss] = useState('');
@@ -214,7 +221,7 @@ function VehicleFinancialPositionCard({ position, canConfirm, isConfirming, conf
         {position.confirmed_result.investor_future_adjustment_applied && moneyCents(position.confirmed_result.investor_future_adjustment_applied) > 0n &&
           <p className="mt-1">Applied to earlier Investor recoverable {formatMoney(position.confirmed_result.investor_future_adjustment_applied)}</p>}
         {moneyCents(position.confirmed_result.investor_profit_overpaid) > 0n && <p role="status" className="mt-1 font-semibold text-amber-800 dark:text-amber-200">Paid exceeds the current confirmed share by {formatMoney(position.confirmed_result.investor_profit_overpaid)}. Review recovery manually; no automatic Fund deduction is made.</p>}
-        {canPayInvestorProfit && position.confirmed_result.result_kind === 'PROFIT' && moneyCents(position.confirmed_result.investor_profit_remaining) > 0n && <div className="mt-2"><button type="button" disabled={!position.capital_recovery?.is_complete || !position.confirmed_result.is_current || position.status !== "READY_FOR_REVIEW"} onClick={() => onPayInvestorProfit(position.confirmed_result!.id)} className="h-8 rounded-lg bg-[#18181b] px-3 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Record Investor Profit payment</button><p className="mt-1">Payment requires current capital recovery and resolved Buyer balances.</p></div>}
+        {canPayInvestorProfit && position.confirmed_result.result_kind === 'PROFIT' && moneyCents(position.confirmed_result.investor_profit_remaining) > 0n && <div className="mt-2"><button type="button" disabled={!profitPaymentReady} onClick={() => onPayInvestorProfit(position.confirmed_result!.id)} className="h-8 rounded-lg bg-[#18181b] px-3 text-[10px] font-bold text-white disabled:opacity-50 dark:bg-white dark:text-black">Record Investor Profit payment</button><p className="mt-1">{profitPaymentReady ? 'Current source-linked recovery and Buyer balances are resolved.' : 'Payment requires current source-linked Investor/Company recovery, a current result, and resolved Buyer balances.'}</p></div>}
         {canCreateInvestorLossOffset && position.confirmed_result.result_kind === 'LOSS' && <button type="button" onClick={() => setOffsetOpen((open) => !open)} className="mt-2 ml-1 h-8 rounded-lg border border-[#e2d8ce] px-3 text-[10px] font-bold dark:border-zinc-700">{offsetOpen ? 'Close Loss offset' : 'Apply Loss to available Profit'}</button>}
       </div>}
       {offsetOpen && canCreateInvestorLossOffset && lossOffsetOptions && <form onSubmit={submitLossOffset} className="mt-2 grid gap-2 rounded-lg border border-[#e2d8ce] bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900 sm:grid-cols-2">

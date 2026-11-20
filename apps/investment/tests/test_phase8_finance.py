@@ -83,6 +83,7 @@ class VehicleCapitalRecoverySuggestionTests(SimpleTestCase):
                 fund_balance=Decimal("1.00"),
             )
 
+
     def test_supported_large_amounts_preserve_exact_recovery(self):
         result = suggest_vehicle_capital_recovery(
             receipt_amount=Decimal("999999999999999999999999999999999999.99"),
@@ -149,6 +150,44 @@ class VehicleCapitalRecoverySuggestionTests(SimpleTestCase):
                 running_capital_outstanding=Decimal("300.00"),
                 mixed_funding=True, sale_fully_collected=False,
             )
+
+
+class SignedProfitPositionTests(SimpleTestCase):
+    def test_profit_payment_reduces_payable_without_being_counted_as_repayment(self):
+        from datetime import date, datetime
+        from types import SimpleNamespace
+        from apps.investment.period_positions import position_data
+
+        position = SimpleNamespace(
+            pk="11111111-1111-4111-8111-111111111111", tenant_id="tenant",
+            previous_position_id=None, created_at=datetime(2026, 1, 1), reason="confirmed",
+            reconciliation=SimpleNamespace(pk="33333333-3333-4333-8333-333333333333", investor_id="investor", period_start=date(2026, 1, 1),
+                period_end=date(2026, 7, 1), net_position=Decimal("100.00"), source_version="source"),
+        )
+        result = position_data(position, is_current=True, recovery_received=Decimal("0.00"),
+                               profit_paid=Decimal("40.00"), future_recovered=Decimal("0.00"),
+                               future_applied=Decimal("0.00"))
+        self.assertEqual(result["kind"], "PAYABLE")
+        self.assertEqual(result["amount"], "60.00")
+        self.assertEqual(result["recovery_received"], "0.00")
+        self.assertEqual(result["profit_paid"], "40.00")
+
+    def test_repayment_can_move_a_recoverable_position_across_zero(self):
+        from datetime import date, datetime
+        from types import SimpleNamespace
+        from apps.investment.period_positions import position_data
+
+        position = SimpleNamespace(
+            pk="22222222-2222-4222-8222-222222222222", tenant_id="tenant",
+            previous_position_id=None, created_at=datetime(2026, 1, 1), reason="confirmed",
+            reconciliation=SimpleNamespace(pk="44444444-4444-4444-8444-444444444444", investor_id="investor", period_start=date(2026, 1, 1),
+                period_end=date(2026, 7, 1), net_position=Decimal("-50.00"), source_version="source"),
+        )
+        result = position_data(position, is_current=True, recovery_received=Decimal("60.00"),
+                               profit_paid=Decimal("0.00"), future_recovered=Decimal("0.00"),
+                               future_applied=Decimal("0.00"))
+        self.assertEqual(result["kind"], "PAYABLE")
+        self.assertEqual(result["amount"], "10.00")
 
 
 class OwnerDistributionAllocationTests(SimpleTestCase):

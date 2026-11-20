@@ -153,6 +153,10 @@ def investor_fund_position(*, company, investor):
     adjustments = _totals(InvestorFundUseAdjustment.objects.filter(tenant=company, credit_id__in=credit_ids), "credit_id", "amount_delta")
     returned = _totals(InvestorPrincipalReturnAllocation.objects.filter(tenant=company, credit_id__in=credit_ids), "credit_id", "amount")
     recovered = _totals(allocations.filter(credit_id__in=credit_ids), "credit_id", "amount")
+    from apps.investment.models import InvestorExitLossAllocation
+    exit_loss_debits = _totals(InvestorExitLossAllocation.objects.filter(
+        tenant=company, credit_id__in=credit_ids,
+    ), "credit_id", "amount")
     debited = _totals(VehiclePrincipalRefundDebit.objects.filter(
         tenant=company, fund_credit_id__in=credit_ids,
     ), "fund_credit_id", "amount")
@@ -198,7 +202,7 @@ def investor_fund_position(*, company, investor):
         for credit in credits:
             balance = (credit.amount - (used.get(credit.pk) or 0) - (adjustments.get(credit.pk) or 0)
                        - (returned.get(credit.pk) or 0) + (recovered.get(credit.pk) or 0)
-                       - (debited.get(credit.pk) or 0))
+                       - (debited.get(credit.pk) or 0) - (exit_loss_debits.get(credit.pk) or 0))
             if balance < 0:
                 raise FundPositionReviewRequired("A Fund credit lot has a negative balance.")
             balances[credit.pk] = balance

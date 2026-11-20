@@ -272,6 +272,16 @@ def record_exit_loss_application(*, actor, company_id, investor_id, exit_request
         if branch is None or (source == InvestorExitLossApplication.Source.DIRECT_RECEIPT and account is None):
             raise NotFound("Payment Branch or Cash/Bank account not found.")
         if source == InvestorExitLossApplication.Source.DIRECT_RECEIPT:
+            from apps.investment.fund_position import FundPositionReviewRequired, investor_fund_position
+            try:
+                fund = investor_fund_position(company=company, investor=investor)
+            except FundPositionReviewRequired as exc:
+                raise DomainConflict(str(exc), code="EXIT_LOSS_FUND_REVIEW_REQUIRED") from exc
+            if fund.available > 0:
+                raise DomainConflict(
+                    "Use the Investor's eligible Available Fund before a direct Exit Loss receipt.",
+                    code="EXIT_LOSS_FUND_FIRST_REQUIRED",
+                )
             require_action(locked_actor, "accounting.receipt.create", company=company, branch=branch)
         application = InvestorExitLossApplication.objects.create(
             tenant=company, exit_request=exit_request, loss_result=result, branch=branch, account=account,
@@ -354,6 +364,11 @@ def record_exit_profit_payment(*, actor, company_id, investor_id, exit_request_i
         blocking = [item for item in current_exit["blockers"] if item != "EXIT_NOTICE_NOT_EXPIRED"]
         if blocking:
             raise DomainConflict("Resolve current Exit source blockers first: " + ", ".join(blocking), code="EXIT_SETTLEMENT_BLOCKED")
+        if Decimal(current_exit["principal_available"] or "0") != 0 or Decimal(current_exit["residual_confirmed_loss"]) != 0:
+            raise DomainConflict(
+                "Settle returnable Principal and confirmed residual Loss before Exit Profit.",
+                code="EXIT_PROFIT_SETTLEMENT_ORDER_REQUIRED",
+            )
         projection = list_investor_profit_period_projection(actor=locked_actor, company_id=company.pk, investor_id=investor.pk)
         position_data_current = next((row["confirmed_position"] for row in projection["periods"]
                                       if row["confirmed_position"] and row["confirmed_position"]["id"] == str(position_id)), None)

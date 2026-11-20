@@ -1087,7 +1087,7 @@ class VehicleSaleApiTests(TestCase):
             format="json", HTTP_IDEMPOTENCY_KEY="recovery-required-payment",
         )
         self.assertEqual(response.status_code, 409, response.content)
-        self.assertEqual(response.json()["code"], "PRINCIPAL_RECOVERY_REQUIRED")
+        self.assertEqual(response.json()["code"], "VEHICLE_CAPITAL_RECOVERY_REQUIRED")
         self.assertEqual(AccountMovement.objects.count(), before)
         with self.assertRaises(IntegrityError), transaction.atomic():
             InvestorVehicleProfitPayment.objects.create(

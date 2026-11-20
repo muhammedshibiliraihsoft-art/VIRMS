@@ -730,6 +730,7 @@ class OwnerDistributionConfigurationView(APIView):
         serializer.is_valid(raise_exception=True)
         from apps.accounting.company_periods import configure_owner_distribution
         return Response(configure_owner_distribution(actor=request.user, company_id=company_id,
+            key=request.headers.get("Idempotency-Key"), path=request.path,
             **serializer.validated_data), status=201)
 
 

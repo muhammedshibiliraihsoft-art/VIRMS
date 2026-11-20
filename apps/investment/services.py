@@ -514,22 +514,17 @@ def create_vehicle_profit_payment(
                 "Payment exceeds the unpaid Investor share for this Vehicle Sale.",
                 code="INVESTOR_PROFIT_PAYMENT_EXCEEDS_BALANCE",
             )
-        recoveries = VehicleCapitalRecovery.objects.filter(tenant=company, sale=result.sale)
-        recovered = recoveries.aggregate(principal=Sum("investor_principal"), capital=Sum("running_capital"))
+        recovery = position.get("capital_recovery") or {}
         if (
             Decimal(position["buyer_receivable"] or "0") != 0
             or Decimal(position["buyer_refund_payable"] or "0") != 0
-            or not recoveries.exists()
-            or not (
-                recoveries.filter(source_version=position["source_version"]).exists()
-                or recoveries.filter(reviews__source_version=position["source_version"],
-                                     reviews__result_confirmation=result).exists()
-            )
-            or (recovered["principal"] or Decimal("0")) != Decimal(position["investor_fund_cost"])
-            or (recovered["capital"] or Decimal("0")) != Decimal(position["running_capital_cost"])
+            or not recovery.get("is_complete")
         ):
-            raise DomainConflict("Confirm current capital recovery and resolve Buyer balances before Profit payment.",
-                                 code="PRINCIPAL_RECOVERY_REQUIRED")
+            raise DomainConflict(
+                "Confirm the current source-linked Investor principal and Company Running Capital recovery, "
+                "then resolve Buyer balances before Profit payment.",
+                code="VEHICLE_CAPITAL_RECOVERY_REQUIRED",
+            )
         from apps.investment.fund_position import FundPositionReviewRequired, investor_fund_position
         try:
             investor_fund_position(company=company, investor=investor)
@@ -1773,17 +1768,18 @@ def list_investor_profit_period_projection(*, actor, company_id, investor_id):
     gross_periods.sort(key=lambda row: (row["period_start"], row["period_end"]))
     from apps.investment.models import InvestorProfitPeriodPosition, InvestorProfitRecoveryReceipt, InvestorProfitFutureAdjustment, InvestorExitProfitPayment
     from apps.investment.period_positions import position_data
-    repaid_by_period = {
+    recovery_received_by_period = {
         (row["position__reconciliation__period_start"].isoformat(), row["position__reconciliation__period_end"].isoformat()): row["total"]
         for row in InvestorProfitRecoveryReceipt.objects.filter(
             tenant=company, position__reconciliation__investor=investor,
         ).values("position__reconciliation__period_start", "position__reconciliation__period_end").annotate(total=Sum("amount"))
     }
+    profit_paid_by_period = {}
     for row in InvestorExitProfitPayment.objects.filter(
         tenant=company, exit_request__investor=investor,
     ).values("position__reconciliation__period_start", "position__reconciliation__period_end").annotate(total=Sum("amount")):
         key = (row["position__reconciliation__period_start"].isoformat(), row["position__reconciliation__period_end"].isoformat())
-        repaid_by_period[key] = repaid_by_period.get(key, Decimal("0")) + row["total"]
+        profit_paid_by_period[key] = profit_paid_by_period.get(key, Decimal("0")) + row["total"]
     future_recovered, future_applied = {}, {}
     from apps.investment.finance import exact_money_difference
     for adjustment in InvestorProfitFutureAdjustment.objects.filter(
@@ -1793,8 +1789,8 @@ def list_investor_profit_period_projection(*, actor, company_id, investor_id):
         target = adjustment.profit_position.reconciliation
         source_key = (source.period_start.isoformat(), source.period_end.isoformat())
         target_key = (target.period_start.isoformat(), target.period_end.isoformat())
-        future_recovered[source_key] = exact_money_difference(future_recovered.get(source_key, 0), -adjustment.amount)
-        future_applied[target_key] = exact_money_difference(future_applied.get(target_key, 0), -adjustment.amount)
+        future_recovered[source_key] = future_recovered.get(source_key, Decimal("0")) + adjustment.amount
+        future_applied[target_key] = future_applied.get(target_key, Decimal("0")) + adjustment.amount
     confirmed_positions = {}
     for confirmed_position in InvestorProfitPeriodPosition.objects.filter(
         tenant=company, reconciliation__investor=investor,
@@ -1807,7 +1803,8 @@ def list_investor_profit_period_projection(*, actor, company_id, investor_id):
             confirmed_position,
             is_current=bool(not unassigned_count and period["reconciliation_status"] == "RECONCILED"
                             and period["reconciliation_id"] == str(confirmed_position.reconciliation_id)),
-            repaid=repaid_by_period.get((period["period_start"], period["period_end"]), Decimal("0")),
+            recovery_received=recovery_received_by_period.get((period["period_start"], period["period_end"]), Decimal("0")),
+            profit_paid=profit_paid_by_period.get((period["period_start"], period["period_end"]), Decimal("0")),
             future_recovered=future_recovered.get((period["period_start"], period["period_end"]), Decimal("0")),
             future_applied=future_applied.get((period["period_start"], period["period_end"]), Decimal("0")),
         ) if confirmed_position else None

@@ -14,23 +14,27 @@ from apps.investment.models import (
 from apps.tenants.models import CompanyModuleCode
 
 
-def position_data(position, *, is_current, repaid=None, future_recovered=None, future_applied=None):
+def position_data(position, *, is_current, repaid=None, profit_paid=None, recovery_received=None,
+                  future_recovered=None, future_applied=None):
     calculation = position.reconciliation
     from apps.investment.models import InvestorProfitRecoveryReceipt
     from apps.investment.models import InvestorExitProfitPayment
     from apps.investment.models import InvestorProfitFutureAdjustment
     from apps.investment.finance import exact_money_difference
+    if recovery_received is None:
+        recovery_received = InvestorProfitRecoveryReceipt.objects.filter(
+            tenant_id=position.tenant_id, position__reconciliation__investor_id=calculation.investor_id,
+            position__reconciliation__period_start=calculation.period_start,
+            position__reconciliation__period_end=calculation.period_end,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    if profit_paid is None:
+        profit_paid = InvestorExitProfitPayment.objects.filter(
+            tenant_id=position.tenant_id, position__reconciliation__investor_id=calculation.investor_id,
+            position__reconciliation__period_start=calculation.period_start,
+            position__reconciliation__period_end=calculation.period_end,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     if repaid is None:
-        repaid = InvestorProfitRecoveryReceipt.objects.filter(
-            tenant_id=position.tenant_id, position__reconciliation__investor_id=calculation.investor_id,
-            position__reconciliation__period_start=calculation.period_start,
-            position__reconciliation__period_end=calculation.period_end,
-        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
-        repaid += InvestorExitProfitPayment.objects.filter(
-            tenant_id=position.tenant_id, position__reconciliation__investor_id=calculation.investor_id,
-            position__reconciliation__period_start=calculation.period_start,
-            position__reconciliation__period_end=calculation.period_end,
-        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        repaid = exact_money_difference(recovery_received, -profit_paid)
     period_filter = {
         "reconciliation__investor_id": calculation.investor_id,
         "reconciliation__period_start": calculation.period_start,
@@ -44,22 +48,22 @@ def position_data(position, *, is_current, repaid=None, future_recovered=None, f
         future_applied = InvestorProfitFutureAdjustment.objects.filter(
             tenant_id=position.tenant_id, **{"profit_position__" + key: value for key, value in period_filter.items()},
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    if calculation.net_position < 0:
-        # A confirmed recoverable balance is a debit due back from the Investor.
-        # Actual receipts and future Profit applied to it move the signed debit
-        # toward zero; they must not increase the amount owed.
-        net = -exact_money_difference(-calculation.net_position, repaid, future_recovered)
-    elif calculation.net_position > 0:
-        # Actual Exit Profit payments and future adjustments discharge a payable.
-        net = exact_money_difference(calculation.net_position, repaid, future_applied)
-    else:
-        net = Decimal("0.00")
+    # Keep Investor-to-company receipts and company-to-Investor payments signed.
+    # A payment reduces a payable and increases a recoverable; a receipt does
+    # the opposite. Future adjustments move the signed position in their named
+    # direction and may cross zero after a restatement.
+    net = exact_money_difference(
+        calculation.net_position, profit_paid, future_applied,
+        -recovery_received, -future_recovered,
+    )
     return {
         "id": str(position.pk), "reconciliation_id": str(calculation.pk),
         "previous_position_id": str(position.previous_position_id) if position.previous_position_id else None,
         "kind": "PAYABLE" if net > 0 else "RECOVERABLE" if net < 0 else "BALANCED",
         "amount": format(net.copy_abs(), ".2f"),
         "repaid": format(repaid, ".2f"),
+        "profit_paid": format(profit_paid, ".2f"),
+        "recovery_received": format(recovery_received, ".2f"),
         "future_profit_recovered": format(future_recovered, ".2f"),
         "future_profit_applied": format(future_applied, ".2f"),
         "is_current": is_current, "source_version": calculation.source_version,
