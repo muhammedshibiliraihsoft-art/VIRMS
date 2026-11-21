@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
@@ -1301,6 +1301,40 @@ class AccountingApiTests(TestCase):
             **h2_body, "distributable_amount": "50.01",
         }, "company-period-h2-over-cap")
         self.assertEqual(too_much.status_code, 409, too_much.content)
+
+        refreshed_report = self.client.get(self.path("reports/accounting-result/?period=h2&year=2026"))
+        h2_v2_body = {**h2_body, "expected_source_version": refreshed_report.data["source_version"],
+                      "reason": "Reconfirm after the reviewed source change"}
+        h2_v2 = self.post("company-period-confirmations/", h2_v2_body, "company-period-h2-reconfirm")
+        self.assertEqual(h2_v2.status_code, 201, h2_v2.content)
+        stale_service_payment = self.client.post(owner_payment_path, {
+            **payment_body, "amount": "1.00",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="owner-payment-stale-confirmation")
+        self.assertEqual(stale_service_payment.status_code, 409, stale_service_payment.content)
+
+        from apps.accounting.services import _event_row
+        latest_accounting_revision = CompanyModuleState.objects.filter(
+            tenant=self.company, module_code="accounting",
+        ).order_by("-version").first()
+        forged = OwnerDistributionPayment(
+            tenant=self.company, confirmation=CompanyPeriodConfirmation.objects.get(pk=h2.data["id"]),
+            recipient=historical_owner, branch=self.branch_a, account=self.cash, amount=Decimal("1.00"),
+            effective_at=timezone.now(), reason="Direct stale confirmation attempt", actor=self.accountant,
+            accounting_revision=latest_accounting_revision,
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                forged.accounting_event = _event_row(
+                    tenant=self.company, branch=self.branch_a,
+                    event_type=AccountingEvent.EventType.OWNER_DISTRIBUTION_PAYMENT,
+                    amount=forged.amount, actor=self.accountant, revision=latest_accounting_revision,
+                    description=forged.reason, source_reference=f"OWNER-DISTRIBUTION-{forged.pk}",
+                    effective_at=forged.effective_at,
+                )
+                AccountMovement.objects.create(
+                    tenant=self.company, event=forged.accounting_event, account=self.cash, delta=-forged.amount,
+                )
+                forged.save(force_insert=True)
 
     def test_company_period_confirmation_is_company_accountant_only_and_non_overlapping(self):
         self.login()

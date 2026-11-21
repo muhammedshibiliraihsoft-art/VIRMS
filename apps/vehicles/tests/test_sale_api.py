@@ -20,6 +20,7 @@ from apps.investment.models import (
     InvestorFundCredit,
     InvestorProfitShareAgreement,
     InvestorProfitPeriodReconciliation,
+    InvestorProfitLossOffset,
     InvestorVehicleProfitPayment,
     VehicleResultConfirmation,
 )
@@ -1470,6 +1471,20 @@ class VehicleSaleApiTests(TestCase):
         self.assertEqual(settlement.data["residual_confirmed_loss"], "600.00")
         self.assertEqual(settlement.data["confirmed_positions"][0]["kind"], "PAYABLE")
         self.assertEqual(settlement.data["confirmed_losses"][0]["loss_result_id"], confirmed.data["id"])
+        principal_path = f"/api/v1/tenants/{self.company.pk}/investment/investors/{investor.pk}/exit-requests/{exit_request.data['id']}/principal-payments/"
+        principal_body = {"branch_id": str(self.branch.pk), "account_id": str(self.cash.pk),
+            "amount": "9750.00", "reference": "EXIT-PRINCIPAL-BEFORE-LOSS",
+            "effective_at": timezone.now().isoformat(), "expected_source_version": settlement.data["source_version"],
+            "reason": "Return available principal before Exit Loss settlement"}
+        principal = self.client.post(principal_path, principal_body, format="json",
+                                     HTTP_IDEMPOTENCY_KEY="exit-loss-principal-return")
+        principal_replay = self.client.post(principal_path, principal_body, format="json",
+                                            HTTP_IDEMPOTENCY_KEY="exit-loss-principal-return")
+        self.assertEqual(principal.status_code, 201, principal.content)
+        self.assertEqual(principal_replay.data["id"], principal.data["id"])
+        self.assertEqual(AccountMovement.objects.get(event_id=principal.data["accounting_event_id"]).delta,
+                         Decimal("-9750.00"))
+        settlement = self.client.get(settlement_path)
         available_body = {"loss_result_id": confirmed.data["id"], "branch_id": str(self.branch.pk),
             "source": "AVAILABLE_FUND", "amount": "250.00", "effective_at": timezone.now().isoformat(),
             "expected_source_version": settlement.data["source_version"], "reason": "Apply available Fund to Exit Loss"}
@@ -1480,11 +1495,82 @@ class VehicleSaleApiTests(TestCase):
         self.assertEqual(available_replay.data["id"], available.data["id"])
         self.assertEqual(available.data["allocations"][0]["amount"], "250.00")
         self.assertEqual(AccountingEvent.objects.count(), event_count)
+        movement_count = AccountMovement.objects.count()
+        offset_path = f"/api/v1/tenants/{self.company.pk}/investment/vehicle-results/{confirmed.data['id']}/profit-loss-offsets/"
+        offset_targets = self.client.get(offset_path)
+        self.assertEqual(offset_targets.status_code, 200, offset_targets.content)
+        self.assertEqual(offset_targets.data["loss_remaining_amount"], "350.00")
+        offset = self.client.post(offset_path, {
+            "profit_result_id": profit_result.data["id"], "amount": "100.00",
+            "reason": "Offset the remaining confirmed Loss against later Vehicle Profit",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-ordinary-offset")
+        offset_replay = self.client.post(offset_path, {
+            "profit_result_id": profit_result.data["id"], "amount": "100.00",
+            "reason": "Offset the remaining confirmed Loss against later Vehicle Profit",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-ordinary-offset")
+        self.assertEqual(offset.status_code, 201, offset.content)
+        self.assertEqual(offset_replay.data["offset_id"], offset.data["offset_id"])
+        self.assertEqual(offset.data["loss_remaining"], "250.00")
+        excess_offset = self.client.post(offset_path, {
+            "profit_result_id": profit_result.data["id"], "amount": "250.01",
+            "reason": "Try to settle the same Loss twice",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-offset-over-combined-cap")
+        self.assertEqual(excess_offset.status_code, 409, excess_offset.content)
+        self.assertEqual(AccountingEvent.objects.count(), event_count)
+        self.assertEqual(AccountMovement.objects.count(), movement_count)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                direct_offset = InvestorProfitLossOffset.objects.create(
+                    tenant=self.company,
+                    loss_result=VehicleResultConfirmation.objects.get(pk=confirmed.data["id"]),
+                    profit_result=VehicleResultConfirmation.objects.get(pk=profit_result.data["id"]),
+                    investor=investor, branch=self.branch, amount=Decimal("250.01"),
+                    effective_at=timezone.now(), actor=self.company_accountant,
+                    vehicle_module_revision=CompanyModuleState.objects.get(
+                        tenant=self.company, module_code="vehicle_management", version=1,
+                    ),
+                    investment_module_revision=CompanyModuleState.objects.get(
+                        tenant=self.company, module_code="investment", version=1,
+                    ),
+                    reason="Direct SQL combined Loss cap test",
+                )
+                record_event(
+                    action="investment.profit.loss_offset.create", actor=self.company_accountant,
+                    subject=self.company_accountant, company=self.company, branch=self.branch,
+                    resource=direct_offset, reason=direct_offset.reason,
+                    metadata={
+                        "offset_id": str(direct_offset.pk), "investor_id": str(investor.pk),
+                        "loss_result_id": str(direct_offset.loss_result_id),
+                        "profit_result_id": str(direct_offset.profit_result_id),
+                        "loss_vehicle_id": str(direct_offset.loss_result.vehicle_id),
+                        "profit_vehicle_id": str(direct_offset.profit_result.vehicle_id),
+                        "loss_branch_id": str(direct_offset.loss_result.sale.branch_id),
+                        "profit_branch_id": str(direct_offset.profit_result.sale.branch_id),
+                        "amount": "250.01", "cash_movement_created": False,
+                    },
+                )
+                with connection.cursor() as cursor:
+                    cursor.execute("SET CONSTRAINTS investment_profit_loss_offset_bounds IMMEDIATE")
+        updated_period = self.client.get(period_base + "profit-periods/").data["periods"][0]
+        refreshed_snapshot = self.client.post(period_base + "profit-period-reconciliations/", {
+            "period_start": updated_period["period_start"],
+            "expected_source_version": updated_period["source_version"],
+            "reason": "Refresh after the confirmed Loss offset",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-period-snapshot-after-offset")
+        self.assertEqual(refreshed_snapshot.status_code, 201, refreshed_snapshot.content)
+        refreshed_position = self.client.post(period_base + "profit-positions/", {
+            "reconciliation_id": refreshed_snapshot.data["id"],
+            "expected_source_version": updated_period["source_version"],
+            "reason": "Confirm the updated Investor position",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-period-position-after-offset")
+        self.assertEqual(refreshed_position.status_code, 201, refreshed_position.content)
+        position = refreshed_position
+        settlement = self.client.get(settlement_path)
         fund_summary = self.client.get(
             f"/api/v1/tenants/{self.company.pk}/investment/fund/summary/", {"investor_id": str(investor.pk)},
         )
         self.assertEqual(fund_summary.status_code, 200, fund_summary.content)
-        self.assertEqual(fund_summary.data["available_amount"], "9750.00")
+        self.assertEqual(fund_summary.data["available_amount"], "0.00")
         settlement = self.client.get(settlement_path)
         receipt_body = {**available_body, "source": "DIRECT_RECEIPT", "account_id": str(self.bank.pk),
             "amount": "100.00", "expected_source_version": settlement.data["source_version"],
@@ -1498,7 +1584,7 @@ class VehicleSaleApiTests(TestCase):
         self.assertEqual(AccountMovement.objects.get(event=receipt_event).delta, Decimal("100.00"))
         self.assertEqual(receipt_event.category_id, None)
         settlement = self.client.get(settlement_path)
-        self.assertEqual(settlement.data["residual_confirmed_loss"], "250.00")
+        self.assertEqual(settlement.data["residual_confirmed_loss"], "150.00")
         payable_before_exit_payment = Decimal(next(
             item["amount"] for item in settlement.data["confirmed_positions"] if item["id"] == position.data["id"]
         ))
@@ -1506,6 +1592,25 @@ class VehicleSaleApiTests(TestCase):
         payment_body = {"position_id": position.data["id"], "branch_id": str(self.branch.pk),
             "account_id": str(self.bank.pk), "amount": "200.00", "effective_at": timezone.now().isoformat(),
             "expected_source_version": settlement.data["source_version"], "reason": "Pay partial confirmed Exit Profit"}
+        blocked_event_count = AccountingEvent.objects.count()
+        blocked_movement_count = AccountMovement.objects.count()
+        blocked_profit_payment = self.client.post(
+            profit_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="exit-profit-blocked-by-loss",
+        )
+        self.assertEqual(blocked_profit_payment.status_code, 409, blocked_profit_payment.content)
+        self.assertEqual(AccountingEvent.objects.count(), blocked_event_count)
+        self.assertEqual(AccountMovement.objects.count(), blocked_movement_count)
+        remaining_loss_body = {**receipt_body, "amount": "150.00",
+            "expected_source_version": settlement.data["source_version"],
+            "reason": "Receive remaining Exit Loss repayment"}
+        remaining_loss = self.client.post(
+            loss_path, remaining_loss_body, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-direct-receipt-final",
+        )
+        self.assertEqual(remaining_loss.status_code, 201, remaining_loss.content)
+        settlement = self.client.get(settlement_path)
+        self.assertEqual(settlement.data["principal_available"], "0.00")
+        self.assertEqual(settlement.data["residual_confirmed_loss"], "0.00")
+        payment_body["expected_source_version"] = settlement.data["source_version"]
         profit_payment = self.client.post(profit_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="exit-profit-partial-payment")
         profit_payment_replay = self.client.post(profit_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="exit-profit-partial-payment")
         self.assertEqual(profit_payment.status_code, 201, profit_payment.content)
@@ -1523,7 +1628,7 @@ class VehicleSaleApiTests(TestCase):
         over_loss = {**receipt_body, "amount": "251.00", "expected_source_version": settlement.data["source_version"]}
         over_application = self.client.post(loss_path, over_loss, format="json", HTTP_IDEMPOTENCY_KEY="exit-loss-over-application")
         self.assertEqual(over_application.status_code, 409, over_application.content)
-        self.assertEqual(AccountingEvent.objects.filter(event_type=AccountingEvent.EventType.INVESTOR_EXIT_LOSS_RECOVERY).count(), 1)
+        self.assertEqual(AccountingEvent.objects.filter(event_type=AccountingEvent.EventType.INVESTOR_EXIT_LOSS_RECOVERY).count(), 2)
         with connection.cursor() as cursor:
             cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
             cursor.execute("SET CONSTRAINTS ALL DEFERRED")

@@ -321,7 +321,12 @@ export const InvestorProfitReviewView: React.FC = () => {
                   {settlementQuery.data.confirmed_losses.length > 0 && settlementQuery.data.blockers.every((blocker) => blocker === 'EXIT_NOTICE_NOT_EXPIRED') && currentCompany && user &&
                     <InvestorExitLossApplicationForm companyId={currentCompany.id} userId={user.id} investorId={investorId} position={settlementQuery.data}
                       onSaved={async () => { await settlementQuery.refetch(); }} />}
-                  {settlementQuery.data.confirmed_positions.some((item) => item.kind === 'PAYABLE' && item.is_current && Number(item.amount) > 0) && settlementQuery.data.blockers.every((blocker) => blocker === 'EXIT_NOTICE_NOT_EXPIRED') && currentCompany && user &&
+                  {settlementQuery.data.confirmed_positions.some((item) => item.kind === 'PAYABLE' && item.is_current && item.amount !== '0.00') &&
+                    (settlementQuery.data.principal_available !== '0.00' || settlementQuery.data.residual_confirmed_loss !== '0.00') &&
+                    <p className="mt-2 text-[10px] text-amber-800 dark:text-amber-200">Settle Principal and confirmed Loss first.</p>}
+                  {settlementQuery.data.confirmed_positions.some((item) => item.kind === 'PAYABLE' && item.is_current && item.amount !== '0.00') &&
+                    settlementQuery.data.principal_available === '0.00' && settlementQuery.data.residual_confirmed_loss === '0.00' &&
+                    settlementQuery.data.blockers.every((blocker) => blocker === 'EXIT_NOTICE_NOT_EXPIRED') && currentCompany && user &&
                     <InvestorExitProfitPaymentForm companyId={currentCompany.id} userId={user.id} investorId={investorId} position={settlementQuery.data}
                       onSaved={async () => { await settlementQuery.refetch(); }} />}
                   {!settlementQuery.data.blockers.length && settlementQuery.data.principal_available === '0.00' && Number(settlementQuery.data.residual_confirmed_loss) === 0 && settlementQuery.data.confirmed_positions.every((item) => item.kind === 'BALANCED' && Number(item.amount) === 0) && currentCompany && user &&

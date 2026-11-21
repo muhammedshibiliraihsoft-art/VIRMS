@@ -38,6 +38,7 @@ from apps.investment.models import (
     InvestorPrincipalReturn,
     InvestorPrincipalReturnAllocation,
     InvestorProfitLossOffset,
+    InvestorExitLossApplication,
     InvestorProfitPeriodReconciliation,
     InvestorVehicleProfitPayment,
     VehicleCapitalRecovery,
@@ -623,10 +624,21 @@ def _assert_investor_offsets_current(*, actor, company, investor):
             tenant=company, investor=investor,
         ).select_related("loss_result", "profit_result")
     )
+    from apps.investment.models import InvestorExitLossApplication
+    exit_loss_results = list(
+        VehicleResultConfirmation.objects.filter(
+            tenant=company,
+            pk__in=InvestorExitLossApplication.objects.filter(
+                tenant=company, exit_request__investor=investor,
+            ).values("loss_result_id"),
+        ).select_related("sale")
+    )
     result_by_id = {}
     for offset in offsets:
         result_by_id[offset.loss_result_id] = offset.loss_result
         result_by_id[offset.profit_result_id] = offset.profit_result
+    for result in exit_loss_results:
+        result_by_id[result.pk] = result
 
     current_by_vehicle = {}
     for result in result_by_id.values():
@@ -688,8 +700,11 @@ def list_profit_loss_offset_targets(*, actor, company_id, loss_result_id):
     loss_offset_total = InvestorProfitLossOffset.objects.filter(
         tenant=company, investor=loss.investor, loss_result=loss,
     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    exit_loss_total = InvestorExitLossApplication.objects.filter(
+        tenant=company, loss_result=loss,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     loss_remaining = max(
-        Decimal("0.00"), abs(Decimal(loss.investor_share_amount)) - loss_offset_total,
+        Decimal("0.00"), abs(Decimal(loss.investor_share_amount)) - loss_offset_total - exit_loss_total,
     )
     target_options = []
     if loss_remaining > 0:
@@ -872,6 +887,9 @@ def create_profit_loss_offset(
         loss_offset_total = InvestorProfitLossOffset.objects.filter(
             tenant=company, investor=investor, loss_result=loss,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        exit_loss_total = InvestorExitLossApplication.objects.filter(
+            tenant=company, loss_result=loss,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         target_offset_total = InvestorProfitLossOffset.objects.filter(
             tenant=company, investor=investor, profit_result=profit,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
@@ -879,7 +897,7 @@ def create_profit_loss_offset(
             tenant=company, investor=investor,
             result_confirmation__sale_id=profit.sale_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        loss_remaining = abs(Decimal(loss.investor_share_amount)) - loss_offset_total
+        loss_remaining = abs(Decimal(loss.investor_share_amount)) - loss_offset_total - exit_loss_total
         from apps.investment.models import InvestorProfitFutureAdjustment
         future_adjusted = InvestorProfitFutureAdjustment.objects.filter(
             tenant=company, profit_result__sale_id=profit.sale_id,
@@ -887,6 +905,11 @@ def create_profit_loss_offset(
         profit_remaining = Decimal(profit.investor_share_amount) - paid_total - target_offset_total - future_adjusted
         if requested_amount <= 0:
             raise ValidationError({"amount": "Offset amount must be greater than zero."})
+        if loss_remaining < 0:
+            raise DomainConflict(
+                "Existing Loss settlements exceed the current confirmed Loss and require review.",
+                code="INVESTOR_LOSS_SETTLEMENT_REVIEW_REQUIRED",
+            )
         if requested_amount > loss_remaining:
             raise DomainConflict(
                 "Offset exceeds the Investor's remaining confirmed Loss.",

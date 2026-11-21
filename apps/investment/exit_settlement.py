@@ -46,7 +46,7 @@ def exit_settlement_position(*, actor, company_id, investor_id, exit_request_id)
     }
     applied_losses = {
         row["loss_result_id"]: row["total"] for row in InvestorExitLossApplication.objects.filter(
-            tenant=company, exit_request=request,
+            tenant=company,
         ).values("loss_result_id").annotate(total=Sum("amount"))
     }
     purchases = VehiclePurchase.objects.filter(tenant=company).filter(
@@ -63,7 +63,19 @@ def exit_settlement_position(*, actor, company_id, investor_id, exit_request_id)
             blockers.append("BUYER_BALANCE_OPEN")
         if not confirmed or not confirmed["is_current"]:
             blockers.append("VEHICLE_RESULT_REVIEW_REQUIRED")
-        elif confirmed["result_kind"] == "LOSS":
+        else:
+            current_result_id = confirmed["id"]
+            stale_loss_settlement = (
+                InvestorProfitLossOffset.objects.filter(
+                    tenant=company, loss_result__sale_id=position["sale_id"],
+                ).exclude(loss_result_id=current_result_id).exists()
+                or InvestorExitLossApplication.objects.filter(
+                    tenant=company, loss_result__sale_id=position["sale_id"],
+                ).exclude(loss_result_id=current_result_id).exists()
+            )
+            if stale_loss_settlement:
+                blockers.append("VEHICLE_RESULT_REVIEW_REQUIRED")
+        if confirmed and confirmed["is_current"] and confirmed["result_kind"] == "LOSS":
             from uuid import UUID
             result_id = UUID(confirmed["id"])
             outstanding_loss = max(Decimal("0"), abs(Decimal(confirmed["investor_share_amount"]))
@@ -73,7 +85,7 @@ def exit_settlement_position(*, actor, company_id, investor_id, exit_request_id)
                 confirmed_losses.append({"loss_result_id": str(result_id), "vehicle_id": str(purchase.vehicle_id),
                                          "label": purchase.vehicle.registration,
                                          "amount": format(outstanding_loss, ".2f")})
-        elif Decimal(position["investor_fund_cost"]) > 0 and not position["capital_recovery"]["is_complete"]:
+        elif confirmed and confirmed["is_current"] and Decimal(position["investor_fund_cost"]) > 0 and not position["capital_recovery"]["is_complete"]:
             blockers.append("VEHICLE_CAPITAL_RECOVERY_REQUIRED")
         vehicles.append({"vehicle_id": str(purchase.vehicle_id), "label": purchase.vehicle.registration,
                          "source_version": position["source_version"], "status": position["status"]})

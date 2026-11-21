@@ -146,6 +146,49 @@ describe('InvestorProfitReviewView', () => {
     expect(await screen.findByText('BUYER PRINCIPAL REFUND OPEN')).toBeInTheDocument();
     expect(screen.getByText(/does not close Exit/)).toBeInTheDocument();
   });
+  it.each([
+    ['principal remains', '9000.00', '0.00'],
+    ['confirmed Loss remains', '0.00', '250.00'],
+    ['principal needs review', null, '0.00'],
+  ])('keeps Exit Profit payment unavailable while %s', async (_label, principal, loss) => {
+    mocks.investorExitRequests.mockResolvedValue({ count: 1, next: null, previous: null, results: [{
+      id: '55555555-5555-4555-8555-555555555555', status: 'REQUESTED',
+      requested_at: '2026-11-19T00:00:00Z', notice_deadline: '2027-02-19T00:00:00Z',
+      cancellation_reason: null,
+    }] });
+    mocks.investorExitSettlementPosition.mockResolvedValue({
+      investor_id: ids.investor, exit_request_id: '55555555-5555-4555-8555-555555555555',
+      notice_deadline: '2027-02-19T00:00:00Z', principal_available: principal,
+      residual_confirmed_loss: loss, vehicles: [], confirmed_positions: [{
+        id: '88888888-8888-4888-8888-888888888888', kind: 'PAYABLE', amount: '100.00',
+        is_current: true, source_version: 'a'.repeat(64),
+      }], confirmed_losses: [], blockers: ['EXIT_NOTICE_NOT_EXPIRED'],
+      settlement_order: ['PRINCIPAL', 'RESIDUAL_LOSS', 'REMAINING_PROFIT', 'CLOSE'],
+      closure_implemented: false, source_version: 'a'.repeat(64),
+    });
+    renderView();
+    expect(await screen.findByText('Settle Principal and confirmed Loss first.')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Exit Profit payment' })).not.toBeInTheDocument();
+  });
+  it('shows the Exit Profit payment form after server-confirmed Principal and Loss settlement', async () => {
+    mocks.investorExitRequests.mockResolvedValue({ count: 1, next: null, previous: null, results: [{
+      id: '55555555-5555-4555-8555-555555555555', status: 'REQUESTED',
+      requested_at: '2026-11-19T00:00:00Z', notice_deadline: '2027-02-19T00:00:00Z',
+      cancellation_reason: null,
+    }] });
+    mocks.investorExitSettlementPosition.mockResolvedValue({
+      investor_id: ids.investor, exit_request_id: '55555555-5555-4555-8555-555555555555',
+      notice_deadline: '2027-02-19T00:00:00Z', principal_available: '0.00',
+      residual_confirmed_loss: '0.00', vehicles: [], confirmed_positions: [{
+        id: '88888888-8888-4888-8888-888888888888', kind: 'PAYABLE', amount: '100.00',
+        is_current: true, source_version: 'a'.repeat(64),
+      }], confirmed_losses: [], blockers: [],
+      settlement_order: ['PRINCIPAL', 'RESIDUAL_LOSS', 'REMAINING_PROFIT', 'CLOSE'],
+      closure_implemented: false, source_version: 'a'.repeat(64),
+    });
+    renderView();
+    expect(await screen.findByRole('form', { name: 'Exit Profit payment' })).toBeInTheDocument();
+  });
   it('confirms a payable only through the position action and reloads server truth', async () => {
     const user = userEvent.setup();
     mocks.reconciliationSaved = true;

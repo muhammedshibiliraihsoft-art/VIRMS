@@ -189,6 +189,25 @@ class SignedProfitPositionTests(SimpleTestCase):
         self.assertEqual(result["kind"], "PAYABLE")
         self.assertEqual(result["amount"], "10.00")
 
+    def test_future_recovery_moves_a_signed_position_toward_payable(self):
+        from datetime import date, datetime
+        from types import SimpleNamespace
+        from apps.investment.period_positions import position_data
+
+        position = SimpleNamespace(
+            pk="33333333-3333-4333-8333-333333333333", tenant_id="tenant",
+            previous_position_id=None, created_at=datetime(2026, 1, 1), reason="confirmed",
+            reconciliation=SimpleNamespace(pk="55555555-5555-4555-8555-555555555555", investor_id="investor",
+                period_start=date(2026, 1, 1), period_end=date(2026, 7, 1),
+                net_position=Decimal("-50.00"), source_version="source"),
+        )
+        result = position_data(position, is_current=True, recovery_received=Decimal("0.00"),
+                               profit_paid=Decimal("0.00"), future_recovered=Decimal("60.00"),
+                               future_applied=Decimal("0.00"))
+        self.assertEqual(result["kind"], "PAYABLE")
+        self.assertEqual(result["amount"], "10.00")
+        self.assertEqual(result["future_profit_recovered"], "60.00")
+
 
 class OwnerDistributionAllocationTests(SimpleTestCase):
     def test_large_supported_amount_preserves_exact_paise(self):
