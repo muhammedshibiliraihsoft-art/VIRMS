@@ -122,9 +122,11 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** Implemented positive financial flows reconcile across modules, and unresolved exceptional behavior remains blocked from invented outcomes.
 
-**Status:** IN PROGRESS — INCOMPLETE LOCALLY; ACCEPTANCE BLOCKED
+**Status:** COMPLETE LOCALLY — Phase 8 integrated workflows and financial guard corrections verified 2026-11-22 on audit branch commit `253b2f091b936fd1772e7805ce7951bf53f1f33a`. CI, authenticated browser acceptance, staging, production, and deployment remain UNVERIFIED.
 
-**Decision boundary:** Sale-date deal Profit placement, manual Vehicle Loss confirmation, Available-Fund withdrawal, Company-level cross-Branch Profit/settlement correction, pre-OFF Exit continuation, manual Company distributable confirmation, negative-result carryforward, verified Vehicle Company Share recognition, and ordinary Investor Vehicle Profit payment authority have approved rules in V2. Typed Company Share recognition and a narrow deal-level Investor Profit payment are implemented locally. Interim payment, period reconciliation/Loss-offset/Exit-settlement records, and Company period/Owner Distribution records remain missing; do not infer amounts or post cash.
+**Verified end state:** Actual Buyer collection flows into source-linked Investor principal and Company Running Capital recovery; credit-lot allocations and Accountant-confirmed Buyer-refund reserve/split; confirmed Investor period positions with partial repayment and future-Profit adjustments; Exit principal, residual Loss and Profit settlement; Company period confirmation, negative carryforward, protected Owner split snapshots, exact allocations and partial Accounting payouts. Database guards enforce source freshness, settlement caps and cross-path Loss limits. The Accountant must confirm the principal amount reserved and the principal share of each mixed-funded partial refund. Exit waiver policy remains open; do not infer a waiver outcome. Exceptional behavior without a decided rule stays blocked.
+
+**Local acceptance evidence:** The Phase 8 closeout record and plan are in the audit branch worktree `D:/VIRMS/tmp/phase8-audit-corrections-20261120`. On 2026-11-22, a consolidated disposable-PostgreSQL run passed 32 selected Django tests on Python 3.12, Django 5.2.18 and PostgreSQL 15, covering Owner payout freshness, Exit Profit source freshness, signed-position/recovery behavior, and concurrent ordinary-offset/Exit-Loss caps. `manage.py check`, `makemigrations --check --dry-run`, and `git diff --check` passed. The plan records the detailed B1–B3 cases. This is local evidence only, not browser-wide Phase 9 acceptance or deployment evidence.
 
 ### Phase 9 — MAIN VIRMS SYSTEM CORE-COMPLETE
 
@@ -134,7 +136,7 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** The Main VIRMS operational system is usable for its required core workflows and is ready for the first separate user-facing portal.
 
-**Status:** BLOCKED — PHASE 8 INCOMPLETE; INTEGRATED ACCEPTANCE NOT RUN
+**Status:** NOT STARTED — Phase 8 prerequisite is COMPLETE LOCALLY; Phase 9 preflight and integrated acceptance have not been run in this worktree.
 
 ### Phase 10 — Investor Portal
 
