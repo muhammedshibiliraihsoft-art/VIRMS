@@ -1398,6 +1398,34 @@ class AccountingApiTests(TestCase):
         with connection.cursor() as cursor:
             cursor.execute("SELECT accounting_period_confirmation_current(%s, NULL)", [h2_v2.data["id"]])
             self.assertFalse(cursor.fetchone()[0])
+        direct_predecessor_stale = OwnerDistributionPayment(
+            tenant=self.company, confirmation=CompanyPeriodConfirmation.objects.get(pk=h2_v2.data["id"]),
+            recipient=historical_owner, branch=self.branch_a, account=self.cash,
+            amount=Decimal("1.00"), effective_at=timezone.now(),
+            reason="Direct payout with stale predecessor", actor=self.accountant,
+            accounting_revision=current_revision,
+        )
+        payment_count = OwnerDistributionPayment.objects.count()
+        event_count = AccountingEvent.objects.count()
+        movement_count = AccountMovement.objects.count()
+        with self.assertRaisesMessage(IntegrityError, "Owner payment requires current Company period sources"):
+            with transaction.atomic():
+                direct_predecessor_stale.accounting_event = _event_row(
+                    tenant=self.company, branch=self.branch_a,
+                    event_type=AccountingEvent.EventType.OWNER_DISTRIBUTION_PAYMENT,
+                    amount=direct_predecessor_stale.amount, actor=self.accountant,
+                    revision=current_revision, description=direct_predecessor_stale.reason,
+                    source_reference=f"OWNER-DISTRIBUTION-{direct_predecessor_stale.pk}",
+                    effective_at=direct_predecessor_stale.effective_at,
+                )
+                AccountMovement.objects.create(
+                    tenant=self.company, event=direct_predecessor_stale.accounting_event,
+                    account=self.cash, delta=-direct_predecessor_stale.amount,
+                )
+                direct_predecessor_stale.save(force_insert=True)
+        self.assertEqual(OwnerDistributionPayment.objects.count(), payment_count)
+        self.assertEqual(AccountingEvent.objects.count(), event_count)
+        self.assertEqual(AccountMovement.objects.count(), movement_count)
 
     def test_company_period_confirmation_is_company_accountant_only_and_non_overlapping(self):
         self.login()

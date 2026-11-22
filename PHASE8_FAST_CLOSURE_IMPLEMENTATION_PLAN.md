@@ -12,10 +12,10 @@
 
 ## Completion checklist
 
-- [x] B1 Owner payout: the worktree's `0044` migration and focused PostgreSQL test passed on Django 5.2.18. **Recheck** empty period fingerprint, Owner split change, predecessor carryforward, and SQL error reason before accepting B1 fully.
-- [ ] B2 Exit Profit: prove whether a latest reconciliation with changed underlying sources permits direct payout; fix with exact source parity if it does.
-- [ ] B3 Loss race: prove ordinary offset and Exit Loss application share the cap under concurrent writes; fix only if the race fails.
-- [ ] Final focused integration gate and honest Phase 8 closure decision.
+- [x] B1 Owner payout: disposable PostgreSQL verified empty/populated SQL fingerprints against Python, valid partial payout, stale event/split invalidation, and direct payout rejection after stale period event and predecessor changes. Rejections used the freshness error and rolled back payment/event/movement rows.
+- [x] B2 Exit Profit: SQL/Python source parity passed for populated periods with Interim and Deal payment sources. A supported Sale correction without a newer reconciliation invalidated the source; a structurally linked direct payout failed specifically for source freshness and left no payment/event/movement. Calendar correction invalidation passed.
+- [x] B3 Loss race: separate-connection PostgreSQL tests covered 80.00 ordinary offset vs 60.00 Exit Loss application against 100.00 confirmed Loss, both serial orders and concurrent interleaving. Committed totals stayed within cap; failed writes left no partial artifacts.
+- [x] Final focused gate: 32 selected Django tests passed on disposable PostgreSQL 15, Python 3.12 and Django 5.2.18. `manage.py check`, `makemigrations --check --dry-run`, and `git diff --check` passed. Phase 8 is verified locally; no deployment claim.
 
 ## Review focus
 
@@ -25,7 +25,7 @@
 - A newer source without a newer reconciliation must invalidate Exit Profit payout.
 - Two Loss settlement paths must not commit more than the confirmed Loss.
 
-**Target:** `D:\VIRMS\tmp\phase8-audit-corrections-20261120`, branch `codex/phase8-audit-corrections` at `166d4df` when inspected on 22 Nov 2026. Scope is Phase 8 only. Do not commit, push, merge, deploy, or update living docs without the user's later instruction.
+**Target:** `D:\VIRMS\tmp\phase8-audit-corrections-20261120`, branch `codex/phase8-audit-corrections`, Phase 8 locally verified at `f0b8b85f` with the added predecessor payout boundary rerun on 22 Nov 2026. Scope is Phase 8 only. No deployment or production-database check was performed.
 
 ## Start here
 
@@ -35,7 +35,7 @@
 
 ## B1 — Owner payout freshness (confirmed defect)
 
-**Evidence:** A valid direct DB Owner payout was accepted after a new income made the latest period confirmation stale. Python rejects stale sources; the existing SQL guard in `apps/accounting/migrations/0043_owner_payment_latest_confirmation_guard.py` checks only confirmation version. The in-progress `0044` migration and focused test now pass; remaining B1 boundary checks above still need evidence.
+**Evidence:** A valid direct DB Owner payout was accepted after a new income made the latest period confirmation stale. Python rejects stale sources; the former SQL guard checked only confirmation version. Migration `0044` and source/split/predecessor/hash/rollback boundary tests now pass.
 
 **Implementation:** Continue the existing `0044_owner_payment_source_freshness.py` and test diff; preserve their dirty state. Check the SQL helper against `apps/accounting/company_periods.py:current_confirmation_ids`: period Accounting event fingerprint, applicable Owner split, and predecessor carryforward freshness. Account for the pending Owner payment event so its own event does not invalidate the fingerprint. Keep the existing latest-version, allocation cap, role, Accounting ON, event, movement, and tenant checks. Repair `0044` only where a focused failing case proves a mismatch; first verify whether this migration has been applied to any database that must be preserved.
 
