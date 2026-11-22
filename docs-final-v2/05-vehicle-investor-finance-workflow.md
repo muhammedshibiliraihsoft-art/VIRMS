@@ -2071,3 +2071,13 @@ Eligible normal Investor Profit paid while Active remains valid history and cann
 - The Investor Loss percentage need not equal the Investor Profit percentage. The agreement-based split may be displayed as a suggestion, not enforced as the final Loss allocation.
 - Preserve the original calculation, confirmed amounts, actor, reason and history. Confirmation alone does not debit Investor Fund, move Cash/Bank or settle Exit.
 - This supersedes earlier wording that requires the agreement percentage to determine the final Investor Loss share. Existing explicitly confirmed Loss offset and Exit rules continue to apply to the confirmed impact.
+
+### IMPLEMENTATION VERIFICATION — Phase 8 financial source guards (2026-11-22)
+
+**Status:** Implemented and verified locally on the audit branch; not a deployment claim.
+
+- Exit Profit payout database guards compare the latest confirmed position with current period sources. Sale corrections and Investor calendar changes invalidate stale payout attempts without requiring a newer reconciliation row.
+- Owner Profit-period SQL source fingerprints match the Python canonical hash for empty and populated periods. Loss offsets and Exit Loss applications share a serialized Investor-level cap.
+- Verification used disposable PostgreSQL 15 with Django 5.2.18. The focused Phase 8 regression batch passed 32 tests, including stale direct-write rejection, no surviving payment/accounting artifacts after rejection, and cross-path Loss concurrency.
+- Local checks passed: `manage.py check`, `manage.py makemigrations --check --dry-run`, and `git diff --check`. No React source changed in this closure slice.
+- Source changes remain local to `codex/audit` until its push is verified. No deployment or production database was involved.

@@ -1376,3 +1376,12 @@ New Stock Vehicle Loss and Running-Capital Loss impacts remain manual under 01 a
 - No automatic Owner allocation or Cash/Bank movement follows from a calculation, negative result, or period boundary.
 
 **Supersedes:** Earlier unresolved period Loss carryforward and confirmation authority. The exact source recognition and remaining period-close mechanics still require implementation-specific validation against authoritative Accounting and Vehicle/Garage sources.
+
+### IMPLEMENTATION VERIFICATION — Owner payout freshness (2026-11-22)
+
+**Status:** Implemented and verified locally on the audit branch; not a deployment claim.
+
+- PostgreSQL rejects an Owner payout when the latest Company-period confirmation is stale against its Accounting event fingerprint, applicable protected Owner split, or predecessor carryforward confirmation.
+- A valid partial payout remains supported. The rejected direct-write case is checked for rollback of the payment, Accounting event, and account movement; populated and empty period SQL fingerprints match Python.
+- Focused Owner/Exit/Loss regression checks passed on disposable PostgreSQL 15 with Django 5.2.18. Local Django, migration-state, and diff checks passed.
+- Source changes remain local to `codex/audit` until its push is verified. No deployment or production database was involved.

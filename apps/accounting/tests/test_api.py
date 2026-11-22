@@ -1274,6 +1274,17 @@ class AccountingApiTests(TestCase):
         self.assertEqual(event_source_version(AccountingEvent.objects.filter(
             tenant=self.company, effective_at__gte=h2_starts_at, effective_at__lt=h2_ends_at,
         )), h2.data["source_version"])
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT accounting_period_event_source_version(%s, %s, %s, NULL)",
+                [str(self.company.pk), h2_starts_at, h2_ends_at],
+            )
+            self.assertEqual(cursor.fetchone()[0], h2.data["source_version"])
+            cursor.execute(
+                "SELECT accounting_period_event_source_version(%s, %s, %s, NULL)",
+                [str(self.company.pk), "2030-01-01T00:00:00+05:30", "2030-07-01T00:00:00+05:30"],
+            )
+            self.assertEqual(cursor.fetchone()[0], event_source_version(AccountingEvent.objects.none()))
         too_much_owner_payment = self.client.post(owner_payment_path, {
             **payment_body, "amount": "35.01",
         }, format="json", HTTP_IDEMPOTENCY_KEY="owner-payment-over-allocation")
@@ -1289,10 +1300,52 @@ class AccountingApiTests(TestCase):
         confirmations_after_split_change = self.client.get(self.path("company-period-confirmations/"))
         confirmed_h2 = next(row for row in confirmations_after_split_change.data["confirmations"] if row["period_type"] == "h2")
         self.assertFalse(confirmed_h2["source_current"])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT accounting_period_confirmation_current(%s, NULL)", [h2.data["id"]])
+            self.assertFalse(cursor.fetchone()[0])
         self.post("incomes/", {
             **self.income_payload(amount="1.00", source_reference="H2-LATE-INCOME"),
             "effective_at": "2026-09-01T10:00:00+05:30",
         }, "company-period-late-income")
+        _, _, h2_start_at, h2_end_at = period_bounds("h2", 2026)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT accounting_period_event_source_version(%s, %s, %s, NULL)",
+                [str(self.company.pk), h2_start_at, h2_end_at],
+            )
+            self.assertNotEqual(cursor.fetchone()[0], h2.data["source_version"])
+        from apps.accounting.services import _event_row
+        current_revision = CompanyModuleState.objects.filter(
+            tenant=self.company, module_code="accounting",
+        ).order_by("-version").first()
+        latest_stale = OwnerDistributionPayment(
+            tenant=self.company, confirmation=CompanyPeriodConfirmation.objects.get(pk=h2.data["id"]),
+            recipient=historical_owner, branch=self.branch_a, account=self.cash,
+            amount=Decimal("1.00"), effective_at=timezone.now(),
+            reason="Direct latest stale source attempt", actor=self.accountant,
+            accounting_revision=current_revision,
+        )
+        payment_count = OwnerDistributionPayment.objects.count()
+        event_count = AccountingEvent.objects.count()
+        movement_count = AccountMovement.objects.count()
+        with self.assertRaisesMessage(IntegrityError, "Owner payment requires current Company period sources"):
+            with transaction.atomic():
+                latest_stale.accounting_event = _event_row(
+                    tenant=self.company, branch=self.branch_a,
+                    event_type=AccountingEvent.EventType.OWNER_DISTRIBUTION_PAYMENT,
+                    amount=latest_stale.amount, actor=self.accountant,
+                    revision=current_revision, description=latest_stale.reason,
+                    source_reference=f"OWNER-DISTRIBUTION-{latest_stale.pk}",
+                    effective_at=latest_stale.effective_at,
+                )
+                AccountMovement.objects.create(
+                    tenant=self.company, event=latest_stale.accounting_event,
+                    account=self.cash, delta=-latest_stale.amount,
+                )
+                latest_stale.save(force_insert=True)
+        self.assertEqual(OwnerDistributionPayment.objects.count(), payment_count)
+        self.assertEqual(AccountingEvent.objects.count(), event_count)
+        self.assertEqual(AccountMovement.objects.count(), movement_count)
         confirmation_history = self.client.get(self.path("company-period-confirmations/"))
         self.assertFalse(next(row for row in confirmation_history.data["confirmations"] if row["period_type"] == "h2")["source_current"])
         stale = self.post("company-period-confirmations/", h2_body, "company-period-stale-confirm")
@@ -1335,6 +1388,16 @@ class AccountingApiTests(TestCase):
                     tenant=self.company, event=forged.accounting_event, account=self.cash, delta=-forged.amount,
                 )
                 forged.save(force_insert=True)
+
+        # A later change to the predecessor makes the latest H2 confirmation stale.
+        predecessor_change = self.post("incomes/", {
+            **self.income_payload(amount="1.00", source_reference="H1-LATE-INCOME"),
+            "effective_at": "2026-03-01T10:00:00+05:30",
+        }, "company-period-predecessor-change")
+        self.assertEqual(predecessor_change.status_code, 201, predecessor_change.content)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT accounting_period_confirmation_current(%s, NULL)", [h2_v2.data["id"]])
+            self.assertFalse(cursor.fetchone()[0])
 
     def test_company_period_confirmation_is_company_accountant_only_and_non_overlapping(self):
         self.login()

@@ -670,6 +670,9 @@ class VehicleSaleApiTests(TestCase):
             "reason": "Review actual advances",
         }, format="json", HTTP_IDEMPOTENCY_KEY="position-recoverable-snapshot")
         self.assertEqual(snapshot.status_code, 201, snapshot.content)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT investment_profit_period_source_version(%s)", [snapshot.data["id"]])
+            self.assertEqual(cursor.fetchone()[0], snapshot.data["source_version"])
         position = self.client.post(base + "profit-positions/", {
             "reconciliation_id": snapshot.data["id"], "expected_source_version": period["source_version"],
             "reason": "Confirm excess advance recoverable",
@@ -802,6 +805,17 @@ class VehicleSaleApiTests(TestCase):
         paid = self.client.post(payment_path, {"account_id": str(self.bank.pk), "amount": "300.00"},
                                 format="json", HTTP_IDEMPOTENCY_KEY="future-valid-payment")
         self.assertEqual(paid.status_code, 201, paid.content)
+        profit_period = next(row for row in self.client.get(base + "profit-periods/").data["periods"]
+                             if Decimal(row["gross_investor_profit"]) > 0)
+        payment_snapshot = self.client.post(base + "profit-period-reconciliations/", {
+            "period_start": profit_period["period_start"],
+            "expected_source_version": profit_period["source_version"],
+            "reason": "Review paid Deal source",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="future-paid-snapshot")
+        self.assertEqual(payment_snapshot.status_code, 201, payment_snapshot.content)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT investment_profit_period_source_version(%s)", [payment_snapshot.data["id"]])
+            self.assertEqual(cursor.fetchone()[0], payment_snapshot.data["source_version"])
         repay_path = base + f"profit-positions/{debt['id']}/repayments/"
         excess_receipt = self.client.post(repay_path, {
             "branch_id": str(self.branch.pk), "account_id": str(self.bank.pk), "amount": "600.01",
@@ -1610,6 +1624,9 @@ class VehicleSaleApiTests(TestCase):
         settlement = self.client.get(settlement_path)
         self.assertEqual(settlement.data["principal_available"], "0.00")
         self.assertEqual(settlement.data["residual_confirmed_loss"], "0.00")
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT investment_profit_period_source_version(%s)", [refreshed_snapshot.data["id"]])
+            self.assertEqual(cursor.fetchone()[0], refreshed_snapshot.data["source_version"])
         payment_body["expected_source_version"] = settlement.data["source_version"]
         profit_payment = self.client.post(profit_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="exit-profit-partial-payment")
         profit_payment_replay = self.client.post(profit_payment_path, payment_body, format="json", HTTP_IDEMPOTENCY_KEY="exit-profit-partial-payment")
@@ -1656,6 +1673,66 @@ class VehicleSaleApiTests(TestCase):
                            "suggested_investor_loss": "800.00", "suggested_company_loss": "1200.00"})
             with connection.cursor() as cursor:
                 cursor.execute("SET CONSTRAINTS investment_vehicle_result_audit IMMEDIATE")
+
+        # A source correction invalidates the latest position even without a newer reconciliation.
+        from apps.investment.models import InvestorExitProfitPayment
+        source_correction = self.post(
+            f"sales/{profit_sale.data['id']}/corrections/",
+            {"sale_price": "11999.00", "reason": "Correct Profit Sale source"},
+            "exit-profit-source-correction",
+        )
+        self.assertEqual(source_correction.status_code, 201, source_correction.content)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT investment_profit_period_source_version(%s)", [refreshed_snapshot.data["id"]])
+            self.assertNotEqual(cursor.fetchone()[0], refreshed_snapshot.data["source_version"])
+        prior = InvestorExitProfitPayment.objects.get(pk=profit_payment.data["id"])
+        stale_payment_count = InvestorExitProfitPayment.objects.count()
+        stale_event_count = AccountingEvent.objects.count()
+        stale_movement_count = AccountMovement.objects.count()
+        with self.assertRaisesMessage(IntegrityError, "current same-Company sources"):
+            with transaction.atomic():
+                direct = InvestorExitProfitPayment.objects.create(
+                    tenant=self.company, exit_request=prior.exit_request,
+                    position=prior.position, branch=prior.branch, account=prior.account,
+                    amount=Decimal("0.01"), effective_at=timezone.now(),
+                    reason="Direct payment against stale period", actor=self.company_accountant,
+                    investment_revision=prior.investment_revision,
+                    accounting_revision=prior.accounting_revision,
+                )
+                from apps.accounting.services import record_investor_exit_profit_payment
+                event, _ = record_investor_exit_profit_payment(
+                    tenant=self.company, payment=direct, actor=self.company_accountant,
+                    accounting_revision=prior.accounting_revision,
+                )
+                record_event(
+                    action="investment.exit.settlement.profit", actor=self.company_accountant,
+                    subject=self.company_accountant, company=self.company, branch=prior.branch,
+                    resource=direct, reason=direct.reason,
+                    metadata={"investor_id": str(investor.pk),
+                              "exit_request_id": str(direct.exit_request_id),
+                              "reconciliation_id": str(direct.position.reconciliation_id),
+                              "amount": "0.01", "accounting_event_id": str(event.pk),
+                              "branch_id": str(prior.branch_id)},
+                )
+                with connection.cursor() as cursor:
+                    cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+        self.assertEqual(InvestorExitProfitPayment.objects.count(), stale_payment_count)
+        self.assertEqual(AccountingEvent.objects.count(), stale_event_count)
+        self.assertEqual(AccountMovement.objects.count(), stale_movement_count)
+
+        calendar_correction = self.client.post(
+            period_base + "profit-calendar-configurations/",
+            {"effective_start": period["period_start"], "duration_months": 12},
+            format="json", HTTP_IDEMPOTENCY_KEY="exit-profit-calendar-correction",
+        )
+        self.assertEqual(calendar_correction.status_code, 201, calendar_correction.content)
+        stale_period = self.client.get(period_base + "profit-periods/")
+        self.assertEqual(stale_period.status_code, 200, stale_period.content)
+        self.assertFalse(any(
+            (row.get("confirmed_position") or {}).get("is_current")
+            for row in stale_period.data["periods"]
+            if (row.get("confirmed_position") or {}).get("id") == position.data["id"]
+        ))
 
     def test_financial_position_restates_sale_correction_and_rejects_other_company(self):
         vehicle = self.create_vehicle("KL 11 P 5082")
