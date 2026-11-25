@@ -1,4 +1,5 @@
 import hashlib
+import itertools
 import json
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from zoneinfo import ZoneInfo
@@ -380,14 +381,16 @@ def _vehicle_data(vehicle):
 def _sale_data(sale):
     corrections = sorted(sale.corrections.all(), key=lambda row: (row.version, str(row.pk)))
     correction = max(corrections, key=lambda row: (row.version, str(row.pk)), default=None)
-    price = correction.sale_price if correction else sale.sale_price
     receipts = sorted(sale.receipts.all(), key=lambda row: (row.effective_at, str(row.pk)))
     refunds = sorted(sale.refunds.all(), key=lambda row: (row.effective_at, str(row.pk)))
-    received = sum((row.amount for row in receipts), Decimal("0.00"))
-    refunded = sum((row.amount for row in refunds), Decimal("0.00"))
-    net_received = received - refunded
-    receivable = max(Decimal("0.00"), price - net_received)
-    refund_payable = max(Decimal("0.00"), net_received - price)
+    with localcontext() as context:
+        context.prec = 80
+        price = Decimal(correction.sale_price if correction else sale.sale_price)
+        received = sum((Decimal(row.amount) for row in receipts), Decimal("0.00"))
+        refunded = sum((Decimal(row.amount) for row in refunds), Decimal("0.00"))
+        net_received = received - refunded
+        receivable = max(Decimal("0.00"), price - net_received)
+        refund_payable = max(Decimal("0.00"), net_received - price)
     return {
         "id": str(sale.pk),
         "company_id": str(sale.tenant_id),
@@ -864,6 +867,85 @@ def _build_vehicle_financial_source_payload(*, company, vehicle, purchase, expen
     return payload, investor_fund_cost, running_capital_cost, result
 
 
+_SOURCE_FINGERPRINT_KEYS = (
+    "vehicle_id",
+    "company_id",
+    "branch_id",
+    "purchase_id",
+    "investor_id",
+    "investor_share_agreement_id",
+    "investor_share_percentage_snapshot",
+    "profit_share_status",
+    "sale_id",
+    "sale_effective_date",
+    "purchase_cost",
+    "vehicle_expense_cost",
+    "total_vehicle_cost",
+    "investor_fund_cost",
+    "running_capital_cost",
+    "sale_price",
+    "actual_net_collection",
+    "buyer_receivable",
+    "buyer_refund_payable",
+    "calculated_result",
+    "status",
+    "settlement_eligible",
+    "purchase_correction_version",
+    "expense_correction_versions",
+    "sale_correction_version",
+)
+
+
+def _hash_vehicle_financial_payload(payload):
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _matches_vehicle_financial_source_version(*, stored_version, payload, expenses):
+    """Compare stored source hashes without rewriting history or masking source edits.
+
+    Records confirmed prior to deterministic expense sorting carry an identical
+    payload whose ``expense_correction_versions`` list appeared in DB/prefetch
+    order. Accept only exact permutations of the current ``expense_correction_versions``
+    with all amounts, IDs, and correction versions unchanged; otherwise fail closed.
+    """
+    if not stored_version:
+        return False
+    if stored_version == payload["source_version"]:
+        return True
+    if len(expenses) < 2:
+        return False
+
+    current_versions = list(payload["expense_correction_versions"])
+    base_payload = {k: payload[k] for k in _SOURCE_FINGERPRINT_KEYS}
+    if len(current_versions) <= 6:
+        for perm in itertools.permutations(current_versions):
+            perm_list = list(perm)
+            if perm_list == current_versions:
+                continue
+            candidate = dict(base_payload, expense_correction_versions=perm_list)
+            if _hash_vehicle_financial_payload(candidate) == stored_version:
+                return True
+        return False
+
+    version_by_id = {entry["expense_id"]: entry for entry in current_versions}
+    candidate_orders = (
+        sorted(expenses, key=lambda row: (getattr(row, "created_at", 0) or 0, str(row.pk))),
+        sorted(expenses, key=lambda row: (getattr(row, "created_at", 0) or 0, str(row.pk)), reverse=True),
+        sorted(expenses, key=lambda row: (getattr(row, "effective_at", 0) or 0, str(row.pk))),
+        sorted(expenses, key=lambda row: (getattr(row, "effective_at", 0) or 0, str(row.pk)), reverse=True),
+    )
+    for ordered_rows in candidate_orders:
+        candidate_list = [version_by_id[str(row.pk)] for row in ordered_rows]
+        if candidate_list == current_versions:
+            continue
+        candidate = dict(base_payload, expense_correction_versions=candidate_list)
+        if _hash_vehicle_financial_payload(candidate) == stored_version:
+            return True
+    return False
+
+
 def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_investor_id=None):
     """Read current source amounts; this preview never confirms or posts Profit."""
     company = Tenant.objects.filter(pk=company_id, is_active=True).first()
@@ -969,7 +1051,11 @@ def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_
             "id": str(latest_result.pk),
             "version": latest_result.version,
             "source_version": latest_result.source_version,
-            "is_current": not unmatched_investor and latest_result.source_version == payload["source_version"],
+            "is_current": not unmatched_investor and _matches_vehicle_financial_source_version(
+                stored_version=latest_result.source_version,
+                payload=payload,
+                expenses=expenses,
+            ),
             "result_kind": latest_result.result_kind,
             "result_amount": format(latest_result.result_amount, ".2f"),
             "investor_share_amount": format(latest_result.investor_share_amount, ".2f"),
@@ -990,6 +1076,23 @@ def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_
     recovery_current = recovery_rows.filter(
         Q(source_version=payload["source_version"]) | Q(reviews__source_version=payload["source_version"]),
     ).exists()
+    if not recovery_current and len(expenses) >= 2:
+        recovery_current = any(
+            _matches_vehicle_financial_source_version(
+                stored_version=rec.source_version,
+                payload=payload,
+                expenses=expenses,
+            )
+            or any(
+                _matches_vehicle_financial_source_version(
+                    stored_version=rev.source_version,
+                    payload=payload,
+                    expenses=expenses,
+                )
+                for rev in rec.reviews.all()
+            )
+            for rec in recovery_rows.prefetch_related("reviews")
+        )
     payload["capital_recovery"] = {
         "investor_principal": format(recovered["principal"] or Decimal("0"), ".2f"),
         "running_capital": format(recovered["capital"] or Decimal("0"), ".2f"),
@@ -2606,10 +2709,20 @@ def operational_summary(*, actor, company_id, branch_id=None):
                     sale=rec_sale,
                 )
                 sale_recoveries = recoveries_by_sale.get(rec_sale.pk, []) if rec_sale else []
-                source_ver = payload["source_version"]
                 rec_current = any(
-                    rec.source_version == source_ver
-                    or any(rev.source_version == source_ver for rev in rec.reviews.all())
+                    _matches_vehicle_financial_source_version(
+                        stored_version=rec.source_version,
+                        payload=payload,
+                        expenses=rec_expenses,
+                    )
+                    or any(
+                        _matches_vehicle_financial_source_version(
+                            stored_version=rev.source_version,
+                            payload=payload,
+                            expenses=rec_expenses,
+                        )
+                        for rev in rec.reviews.all()
+                    )
                     for rec in sale_recoveries
                 )
                 with localcontext() as context:

@@ -2873,3 +2873,232 @@ class VehicleSaleApiTests(TestCase):
             with connection.cursor() as cursor:
                 cursor.execute("SET CONSTRAINTS investment_vehicle_profit_payment_bounds IMMEDIATE")
         self.assertIn("exceed the confirmed Profit share", str(trigger_exc.exception))
+
+    def test_historical_unsorted_expense_fingerprint_remains_compatible_until_source_changes(self):
+        from unittest.mock import patch
+        from apps.investment.models import VehicleCapitalRecovery, VehicleResultConfirmation
+        from apps.investment.services import create_vehicle_capital_recovery
+        from apps.vehicles import services as vehicle_services
+        from apps.vehicles.models import VehicleExpense
+
+        vehicle = self.create_vehicle("KL 11 H 0001")
+        self.create_purchase(vehicle)
+        exp_a = self.post(
+            f"vehicles/{vehicle.pk}/expenses/",
+            {"amount": "400.00", "description": "Battery", "running_capital_amount": "400.00"},
+            "hist-exp-a",
+        )
+        exp_b = self.post(
+            f"vehicles/{vehicle.pk}/expenses/",
+            {"amount": "600.00", "description": "Brakes", "running_capital_amount": "600.00"},
+            "hist-exp-b",
+        )
+        self.assertEqual(exp_a.status_code, 201, exp_a.content)
+        self.assertEqual(exp_b.status_code, 201, exp_b.content)
+
+        sale = self.create_sale(vehicle)
+        rcpt = self.post(
+            f"sales/{sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": "12000.00", "reference": "HIST-HASH-RCPT"},
+            "hist-hash-rcpt",
+            self.branch_accountant,
+        )
+        self.assertEqual(rcpt.status_code, 201, rcpt.content)
+
+        pos = self.financial_position(vehicle).data
+        canonical_hash = pos["source_version"]
+
+        # Simulate pre-remediation unsorted expense order during original confirmation and recovery
+        real_builder = vehicle_services._build_vehicle_financial_source_payload
+
+        def legacy_unsorted_builder(*args, **kwargs):
+            payload, inv_cost, rc_cost, res = real_builder(*args, **kwargs)
+            unsorted_versions = list(reversed(payload["expense_correction_versions"]))
+            legacy_payload = {k: v for k, v in payload.items() if k != "source_version"}
+            legacy_payload["expense_correction_versions"] = unsorted_versions
+            payload = dict(legacy_payload, source_version=vehicle_services._hash_vehicle_financial_payload(legacy_payload))
+            return payload, inv_cost, rc_cost, res
+
+        with patch.object(vehicle_services, "_build_vehicle_financial_source_payload", side_effect=legacy_unsorted_builder):
+            legacy_pos = self.financial_position(vehicle).data
+            legacy_hash = legacy_pos["source_version"]
+            self.assertNotEqual(legacy_hash, canonical_hash)
+
+            conf_resp = self.post(
+                f"vehicles/{vehicle.pk}/financial-position/confirm/",
+                {"expected_source_version": legacy_hash, "reason": "Historical pre-sort confirmation"},
+                "hist-legacy-confirm",
+            )
+            self.assertEqual(conf_resp.status_code, 201, conf_resp.content)
+
+            rec_resp = create_vehicle_capital_recovery(
+                actor=self.company_accountant,
+                company_id=self.company.pk,
+                sale_id=sale.data["id"],
+                expected_source_version=legacy_hash,
+                reason="Historical pre-sort capital recovery",
+                key="hist-legacy-rec",
+                path="/internal-test/capital-recovery/",
+            )
+            self.assertEqual(rec_resp.status, 201)
+
+        legacy_conf = VehicleResultConfirmation.objects.get(pk=conf_resp.data["id"])
+        legacy_rec = VehicleCapitalRecovery.objects.get(sale_id=sale.data["id"], source_version=legacy_hash)
+
+        # Unchanged sources: both individual position and batched operational_summary recognize legacy hash as current
+        checked_pos = self.financial_position(vehicle).data
+        self.assertEqual(checked_pos["source_version"], canonical_hash)
+        self.assertEqual(checked_pos["confirmed_result"]["id"], str(legacy_conf.pk))
+        self.assertEqual(checked_pos["confirmed_result"]["source_version"], legacy_hash)
+        self.assertTrue(checked_pos["confirmed_result"]["is_current"])
+        self.assertTrue(checked_pos["capital_recovery"]["is_current"])
+        self.assertTrue(checked_pos["capital_recovery"]["is_complete"])
+
+        summary_url = f"/api/v1/tenants/{self.company.pk}/vehicle-management/operational-summary/"
+        summary_ok = self.client.get(summary_url)
+        self.assertEqual(summary_ok.status_code, 200, summary_ok.content)
+        self.assertEqual(summary_ok.data["running_capital_recovered"], "11000.00")
+
+        # Attempting to duplicate-confirm unchanged sources is rejected cleanly
+        dup_confirm = self.post(
+            f"vehicles/{vehicle.pk}/financial-position/confirm/",
+            {"expected_source_version": canonical_hash, "reason": "Duplicate confirm check"},
+            "hist-dup-confirm",
+        )
+        self.assertEqual(dup_confirm.status_code, 409, dup_confirm.content)
+        self.assertEqual(dup_confirm.json()["code"], "VEHICLE_RESULT_ALREADY_CONFIRMED")
+
+        # Genuine source edit (expense correction) MUST invalidate the legacy confirmation and recovery
+        exp_a_obj = VehicleExpense.objects.get(pk=exp_a.data["id"])
+        exp_corr = self.post(
+            f"expenses/{exp_a_obj.pk}/corrections/",
+            {"amount": "500.00", "reason": "Genuine expense correction", "running_capital_amount": "500.00"},
+            "hist-exp-corr",
+            self.company_accountant,
+        )
+        self.assertEqual(exp_corr.status_code, 201, exp_corr.content)
+
+        stale_pos = self.financial_position(vehicle).data
+        self.assertFalse(stale_pos["confirmed_result"]["is_current"])
+        self.assertFalse(stale_pos["capital_recovery"]["is_current"])
+        self.assertFalse(stale_pos["capital_recovery"]["is_complete"])
+
+        summary_stale = self.client.get(summary_url)
+        self.assertEqual(summary_stale.status_code, 200, summary_stale.content)
+        self.assertIsNone(summary_stale.data["running_capital_recovered"])
+        self.assertIsNone(summary_stale.data["running_capital_outstanding"])
+        self.assertEqual(legacy_rec.source_version, legacy_hash)
+
+    def test_sale_data_and_sale_position_summary_preserve_exact_precision_parity(self):
+        from types import SimpleNamespace
+        from apps.vehicles.services import (
+            _build_vehicle_financial_source_payload,
+            _sale_data,
+            _sale_position_summary,
+        )
+
+        class QSList(list):
+            def all(self):
+                return self
+
+        now = timezone.now()
+        cases = [
+            # Ordinary amounts (fully collected)
+            (Decimal("12000.00"), [Decimal("12000.00")], [], "12000.00", "0.00", "0.00"),
+            # Large 30-digit Sale fully collected -> zero receivable & zero refund payable
+            (
+                Decimal("1000000000000000000000000000.00"),
+                [Decimal("600000000000000000000000000.00"), Decimal("400000000000000000000000000.00")],
+                [],
+                "1000000000000000000000000000.00",
+                "0.00",
+                "0.00",
+            ),
+            # Large 30-digit Sale partial collection losing 0.01 without prec=80
+            (
+                Decimal("1000000000000000000000000000.00"),
+                [Decimal("999999999999999999999999999.99")],
+                [],
+                "999999999999999999999999999.99",
+                "0.01",
+                "0.00",
+            ),
+            # Large 30-digit over-collection with refund retaining exact 0.03 paise
+            (
+                Decimal("1000000000000000000000000000.00"),
+                [Decimal("1000000000000000000000000000.05")],
+                [Decimal("0.02")],
+                "1000000000000000000000000000.03",
+                "0.00",
+                "0.03",
+            ),
+        ]
+
+        vehicle = self.create_vehicle("KL 11 D 0001")
+        purchase = SimpleNamespace(
+            pk="pur-d1",
+            investor_id=None,
+            investor_share_agreement_id=None,
+            investor_share_percentage_snapshot=None,
+            purchase_cost=Decimal("1000.00"),
+            investor_fund_amount=Decimal("0.00"),
+            running_capital_amount=Decimal("1000.00"),
+            corrections=QSList(),
+        )
+
+        for idx, (price, rcpts, rfnds, exp_net, exp_recv, exp_ref_pay) in enumerate(cases):
+            sale = SimpleNamespace(
+                pk=f"sale-d-{idx}",
+                tenant_id=self.company.pk,
+                vehicle_id=vehicle.pk,
+                vehicle=vehicle,
+                branch_id=self.branch.pk,
+                branch=self.branch,
+                sale_price=price,
+                buyer_name="Maya",
+                buyer_phone="9876543210",
+                sold_at=now,
+                created_at=now,
+                corrections=QSList(),
+                receipts=QSList([
+                    SimpleNamespace(
+                        pk=f"r-{idx}-{j}",
+                        amount=amt,
+                        account_id="acc-1",
+                        account=SimpleNamespace(name="Bank"),
+                        reference=f"REF-{idx}-{j}",
+                        note="",
+                        effective_at=now,
+                        created_at=now,
+                    )
+                    for j, amt in enumerate(rcpts)
+                ]),
+                refunds=QSList([
+                    SimpleNamespace(
+                        pk=f"f-{idx}-{j}",
+                        amount=amt,
+                        account_id="acc-1",
+                        account=SimpleNamespace(name="Bank"),
+                        reason="Refund",
+                        effective_at=now,
+                        created_at=now,
+                    )
+                    for j, amt in enumerate(rfnds)
+                ]),
+            )
+            individual = _sale_data(sale)
+            batched = _sale_position_summary(sale)
+            self.assertEqual(individual["sale_price"], format(price, ".2f"))
+            self.assertEqual(individual["net_received"], exp_net)
+            self.assertEqual(individual["receivable"], exp_recv)
+            self.assertEqual(individual["refund_payable"], exp_ref_pay)
+            for key_name in ("sale_price", "net_received", "receivable", "refund_payable", "correction_version"):
+                self.assertEqual(individual[key_name], batched[key_name])
+
+            payload_ind, _, _, _ = _build_vehicle_financial_source_payload(
+                company=self.company, vehicle=vehicle, purchase=purchase, expenses=[], sale=sale, sale_data=individual,
+            )
+            payload_bat, _, _, _ = _build_vehicle_financial_source_payload(
+                company=self.company, vehicle=vehicle, purchase=purchase, expenses=[], sale=sale,
+            )
+            self.assertEqual(payload_ind, payload_bat)

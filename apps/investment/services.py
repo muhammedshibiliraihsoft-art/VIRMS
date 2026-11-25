@@ -135,9 +135,12 @@ def confirm_vehicle_result(
                 "This Investor-funded Vehicle has no allocation-time agreement snapshot; manual review is required.",
                 code="INVESTOR_AGREEMENT_SNAPSHOT_MISSING",
             )
-        if VehicleResultConfirmation.objects.filter(
-            tenant=company, vehicle_id=vehicle_id, source_version=expected_source_version
-        ).exists():
+        if (
+            (position.get("confirmed_result") or {}).get("is_current")
+            or VehicleResultConfirmation.objects.filter(
+                tenant=company, vehicle_id=vehicle_id, source_version=expected_source_version
+            ).exists()
+        ):
             raise DomainConflict(
                 "This exact source version was already confirmed.",
                 code="VEHICLE_RESULT_ALREADY_CONFIRMED",
@@ -488,7 +491,6 @@ def create_vehicle_profit_payment(
         if (
             result.result_kind != VehicleResultConfirmation.ResultKind.PROFIT
             or result.investor_id is None
-            or result.source_version != position.get("source_version")
             or str(current_result.get("id")) != str(result.pk)
             or not current_result.get("is_current")
         ):
@@ -871,10 +873,8 @@ def create_profit_loss_offset(
         if (
             loss_current.get("id") != str(loss.pk)
             or not loss_current.get("is_current")
-            or loss_position.get("source_version") != loss.source_version
             or profit_current.get("id") != str(profit.pk)
             or not profit_current.get("is_current")
-            or profit_position.get("source_version") != profit.source_version
         ):
             raise DomainConflict(
                 "Both Vehicle results must still match their current source records.",
