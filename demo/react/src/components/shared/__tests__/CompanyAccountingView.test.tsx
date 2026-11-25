@@ -168,6 +168,26 @@ beforeEach(() => {
 });
 
 describe('CompanyAccountingView backend mutations', () => {
+  it('uses selected-period Accounting summary values for the Income KPI row', () => {
+    mocks.useAccountingResult.mockReturnValue({
+      data: {
+        period: 'annual', year: 2026, month: null, branch_id: null,
+        period_start: '2026-01-01', period_end: '2027-01-01', timezone: 'Asia/Kolkata',
+        starts_at: '2026-01-01T00:00:00Z', ends_before: '2027-01-01T00:00:00Z',
+        income_amount: '125.50', expense_amount: '25.25', accounting_result_amount: '100.25',
+        income_event_count: 3, expense_event_count: 1, actual_receipts_amount: '50.00', actual_payments_amount: '5.00',
+        transaction_event_count: 2, cash_inflow_amount: '50.00', cash_outflow_amount: '5.00', net_movement_amount: '45.00',
+        corrected_event_count: 0, reversal_event_count: 0, reallocation_event_count: 0,
+        source_version: 'a'.repeat(64), currency: 'INR', scope: 'recorded_accounting_events',
+      },
+      isPending: false, isError: false, isSuccess: true,
+    });
+    renderView('Company Income');
+    expect(screen.getByLabelText('Recognized Income: ₹125.50')).toBeInTheDocument();
+    expect(screen.getByLabelText('Income Events: 3')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actual Receipts: ₹50.00')).toBeInTheDocument();
+  });
+
   it.each(['GARAGE_RECEIPT', 'GARAGE_COST_PAYMENT', 'LABOUR_PAYMENT'] as const)('filters Accounting tools by %s', async (type) => {
     const user = userEvent.setup();
     renderView('Accounting');

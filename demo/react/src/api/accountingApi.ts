@@ -96,9 +96,34 @@ export interface AccountingResult {
   income_amount: string;
   expense_amount: string;
   accounting_result_amount: string;
+  income_event_count: number;
+  expense_event_count: number;
+  actual_receipts_amount: string;
+  actual_payments_amount: string;
+  transaction_event_count: number;
+  cash_inflow_amount: string;
+  cash_outflow_amount: string;
+  net_movement_amount: string;
+  corrected_event_count: number;
+  reversal_event_count: number;
+  reallocation_event_count: number;
   source_version: string | null;
   currency: 'INR';
   scope: 'recorded_accounting_events';
+}
+
+export interface AccountingMonthlyTrendPoint {
+  period: string;
+  label: string;
+  income_amount: string;
+  expense_amount: string;
+}
+
+export interface AccountingMonthlyTrend {
+  company_id: string;
+  branch_id: string | null;
+  timezone: 'Asia/Kolkata';
+  monthly_trend: AccountingMonthlyTrendPoint[];
 }
 
 export interface CompanyPeriodConfirmation {
@@ -274,12 +299,43 @@ export async function accountingResult(
     typeof value.period_start !== 'string' || typeof value.period_end !== 'string' ||
     typeof value.income_amount !== 'string' || typeof value.expense_amount !== 'string' ||
     typeof value.accounting_result_amount !== 'string' || value.timezone !== 'Asia/Kolkata' ||
+    !Number.isInteger(value.income_event_count) || !Number.isInteger(value.expense_event_count) ||
+    typeof value.actual_receipts_amount !== 'string' || typeof value.actual_payments_amount !== 'string' ||
+    !Number.isInteger(value.transaction_event_count) || typeof value.cash_inflow_amount !== 'string' ||
+    typeof value.cash_outflow_amount !== 'string' || typeof value.net_movement_amount !== 'string' ||
+    !Number.isInteger(value.corrected_event_count) || !Number.isInteger(value.reversal_event_count) ||
+    !Number.isInteger(value.reallocation_event_count) ||
     !(value.source_version === null || (typeof value.source_version === 'string' && /^[0-9a-f]{64}$/.test(value.source_version))) ||
     value.scope !== 'recorded_accounting_events'
   ) {
     throw new Error('Invalid Accounting result response.');
   }
   return value as unknown as AccountingResult;
+}
+
+export async function accountingMonthlyTrend(
+  companyId: string,
+  branchId?: string,
+  signal?: AbortSignal,
+): Promise<AccountingMonthlyTrend> {
+  const query = new URLSearchParams();
+  if (branchId) query.set('branch_id', branchId);
+  const suffix = `reports/accounting-monthly-trend/${query.size ? `?${query}` : ''}`;
+  const value = await requestApi<unknown>(companyPath(companyId, suffix), { signal });
+  if (!isRecord(value) || typeof value.company_id !== 'string' || !uuidPattern.test(value.company_id) ||
+      !(value.branch_id === null || (typeof value.branch_id === 'string' && uuidPattern.test(value.branch_id))) ||
+      value.timezone !== 'Asia/Kolkata' || !Array.isArray(value.monthly_trend) || value.monthly_trend.length !== 8) {
+    throw new Error('Invalid Accounting monthly trend response.');
+  }
+  const monthlyTrend = value.monthly_trend.map((entry) => {
+    if (!isRecord(entry) || typeof entry.period !== 'string' || !/^\d{4}-\d{2}$/.test(entry.period) ||
+        typeof entry.label !== 'string' || typeof entry.income_amount !== 'string' || !/^-?\d+\.\d{2}$/.test(entry.income_amount) ||
+        typeof entry.expense_amount !== 'string' || !/^-?\d+\.\d{2}$/.test(entry.expense_amount)) {
+      throw new Error('Invalid Accounting monthly trend point.');
+    }
+    return entry as unknown as AccountingMonthlyTrendPoint;
+  });
+  return { ...value, monthly_trend: monthlyTrend } as unknown as AccountingMonthlyTrend;
 }
 
 export async function companyPeriodConfirmations(companyId: string, signal?: AbortSignal) {

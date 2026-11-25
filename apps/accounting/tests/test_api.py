@@ -97,6 +97,28 @@ class AccountingApiTests(TestCase):
             "source_reference": source_reference,
         }
 
+    def test_accounting_monthly_trend_returns_zero_for_empty_months_and_scoped_values(self):
+        self.login()
+        endpoint = self.path("reports/accounting-monthly-trend/")
+        empty = self.client.get(endpoint)
+        self.assertEqual(empty.status_code, 200, empty.content)
+        self.assertEqual(len(empty.data["monthly_trend"]), 8)
+        self.assertTrue(all(point["income_amount"] == "0.00" and point["expense_amount"] == "0.00" for point in empty.data["monthly_trend"]))
+
+        self.assertEqual(self.post("incomes/", self.income_payload(amount="125.50"), "trend-income").status_code, 201)
+        self.assertEqual(self.post("expenses/", self.expense_payload(amount="25.25"), "trend-expense").status_code, 201)
+        trend = self.client.get(endpoint)
+        self.assertEqual(trend.status_code, 200, trend.content)
+        current_period = timezone.localtime(timezone.now()).strftime("%Y-%m")
+        current = next(point for point in trend.data["monthly_trend"] if point["period"] == current_period)
+        self.assertEqual((current["income_amount"], current["expense_amount"]), ("125.50", "25.25"))
+
+        self.login(self.branch_accountant)
+        scoped = self.client.get(endpoint, {"branch_id": str(self.branch_a.pk)})
+        self.assertEqual(scoped.status_code, 200, scoped.content)
+        denied = self.client.get(endpoint, {"branch_id": str(self.other_branch.pk)})
+        self.assertEqual(denied.status_code, 404, denied.content)
+
     def expense_payload(self, *, amount="100.00", branch_id=None):
         return {
             "amount": amount,
@@ -1161,6 +1183,17 @@ class AccountingApiTests(TestCase):
         self.assertEqual(response.data["income_amount"], "125.50")
         self.assertEqual(response.data["expense_amount"], "25.25")
         self.assertEqual(response.data["accounting_result_amount"], "100.25")
+        self.assertEqual(response.data["income_event_count"], 1)
+        self.assertEqual(response.data["expense_event_count"], 1)
+        self.assertEqual(response.data["actual_receipts_amount"], "50.00")
+        self.assertEqual(response.data["actual_payments_amount"], "5.00")
+        self.assertEqual(response.data["transaction_event_count"], 2)
+        self.assertEqual(response.data["cash_inflow_amount"], "50.00")
+        self.assertEqual(response.data["cash_outflow_amount"], "5.00")
+        self.assertEqual(response.data["net_movement_amount"], "45.00")
+        self.assertEqual(response.data["corrected_event_count"], 0)
+        self.assertEqual(response.data["reversal_event_count"], 0)
+        self.assertEqual(response.data["reallocation_event_count"], 0)
         self.assertEqual(response.data["timezone"], "Asia/Kolkata")
         result_queries = [
             query["sql"]
@@ -1443,3 +1476,18 @@ class AccountingApiTests(TestCase):
             **body, "period_type": "annual",
         }, "company-period-annual-overlap", user=self.accountant)
         self.assertEqual(overlap.status_code, 409, overlap.content)
+
+    def test_accounting_result_branch_filter_returns_200_without_aggregate_type_error(self):
+        self.post("incomes/", self.income_payload(amount="100.00", branch_id=self.branch_a.pk, source_reference="BR-A"), "branch-filter-a")
+        self.post("incomes/", self.income_payload(amount="40.00", branch_id=self.branch_b.pk, source_reference="BR-B"), "branch-filter-b")
+        self.login()
+        year = timezone.localdate().year
+        response = self.client.get(
+            self.path(f"reports/accounting-result/?period=annual&year={year}&branch_id={self.branch_a.pk}")
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["branch_id"], str(self.branch_a.pk))
+        self.assertEqual(response.data["income_amount"], "100.00")
+        self.assertEqual(response.data["expense_amount"], "0.00")
+        self.assertEqual(response.data["accounting_result_amount"], "100.00")
+        self.assertIsNone(response.data["source_version"])

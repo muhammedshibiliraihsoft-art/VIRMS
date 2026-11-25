@@ -182,6 +182,72 @@ class VehicleSaleApiTests(TestCase):
             f"/api/v1/tenants/{target.pk}/vehicle-management/vehicles/{vehicle.pk}/financial-position/"
         )
 
+    def test_operational_summary_uses_current_sale_corrections_receipts_and_scope(self):
+        vehicle = self.create_vehicle("KL 11 P 5991")
+        self.create_purchase(vehicle)
+        sale = self.create_sale(vehicle)
+        receipt = self.receipt(sale.data["id"], amount="2000.00")
+        self.assertEqual(receipt.status_code, 201, receipt.content)
+        correction = self.post(
+            f"sales/{sale.data['id']}/corrections/",
+            {"sale_price": "15000.00", "reason": "Correct signed price"},
+            "operational-summary-correction",
+        )
+        self.assertEqual(correction.status_code, 201, correction.content)
+
+        endpoint = f"/api/v1/tenants/{self.company.pk}/vehicle-management/operational-summary/"
+        summary = self.client.get(endpoint)
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.data["vehicle_count"], 1)
+        self.assertEqual(summary.data["unsold_vehicle_count"], 0)
+        self.assertEqual(summary.data["sold_vehicle_count"], 1)
+        self.assertEqual(summary.data["corrected_sale_count"], 1)
+        self.assertEqual(summary.data["sale_correction_count"], 1)
+        self.assertEqual(summary.data["buyer_receipt_count"], 1)
+        self.assertEqual(summary.data["current_sale_price_total"], "15000.00")
+        self.assertEqual(summary.data["buyer_receipts_received"], "2000.00")
+        self.assertEqual(summary.data["buyer_net_receipts"], "2000.00")
+        self.assertEqual(summary.data["buyer_receivable"], "13000.00")
+        self.assertEqual(summary.data["running_capital_contributed"], "10000.00")
+        self.assertEqual(summary.data["running_capital_recovered"], "0.00")
+        self.assertEqual(summary.data["running_capital_outstanding"], "10000.00")
+
+        scoped = self.client.get(endpoint, {"branch_id": str(self.branch.pk)})
+        self.assertEqual(scoped.status_code, 200, scoped.content)
+        self.assertEqual(scoped.data["branch_id"], str(self.branch.pk))
+        other_company = Tenant.objects.create(name="Other Company", slug="summary-other-company")
+        other_branch = Branch.objects.create(tenant=other_company, name="Other Branch")
+        forbidden = self.client.get(endpoint, {"branch_id": str(other_branch.pk)})
+        self.assertIn(forbidden.status_code, (403, 404))
+        self.assertNotIn("vehicle_count", forbidden.json())
+
+    def test_operational_summary_counts_confirmed_running_capital_recovery_once(self):
+        from apps.investment.services import create_vehicle_capital_recovery
+
+        vehicle = self.create_vehicle("KL 11 P 5992")
+        self.create_purchase(vehicle)
+        sale = self.create_sale(vehicle)
+        receipt = self.receipt(sale.data["id"], amount="12000.00")
+        self.assertEqual(receipt.status_code, 201, receipt.content)
+        position = self.financial_position(vehicle)
+        recovery = create_vehicle_capital_recovery(
+            actor=self.company_accountant,
+            company_id=self.company.pk,
+            sale_id=sale.data["id"],
+            expected_source_version=position.data["source_version"],
+            reason="Confirm Company capital recovery",
+            key="operational-summary-capital-recovery",
+            path="/internal-test/capital-recovery/",
+        )
+        self.assertEqual(recovery.status, 201)
+        summary = self.client.get(
+            f"/api/v1/tenants/{self.company.pk}/vehicle-management/operational-summary/"
+        )
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.data["running_capital_contributed"], "10000.00")
+        self.assertEqual(summary.data["running_capital_recovered"], "10000.00")
+        self.assertEqual(summary.data["running_capital_outstanding"], "0.00")
+
     def test_financial_position_reads_current_sources_without_posting_cash_or_profit(self):
         vehicle = self.create_vehicle("KL 11 P 5081")
         self.create_purchase(vehicle)
@@ -555,6 +621,14 @@ class VehicleSaleApiTests(TestCase):
         summary = self.client.get(f"/api/v1/tenants/{self.company.pk}/investment/fund/summary/?investor_id={investor.pk}")
         self.assertEqual(summary.status_code, 200, summary.content)
         self.assertEqual(summary.data["available_amount"], "8000.00")
+        self.assertEqual(summary.data["reserved_amount"], "2000.00")
+        branch_summary = self.client.get(f"/api/v1/tenants/{self.company.pk}/investment/fund/summary/", {"investor_id": str(investor.pk), "branch_id": str(self.branch.pk)})
+        self.assertEqual(branch_summary.status_code, 200, branch_summary.content)
+        self.assertEqual(branch_summary.data["reserved_amount"], "2000.00")
+        other_branch = Branch.objects.create(tenant=self.company, name="Empty Branch")
+        empty_summary = self.client.get(f"/api/v1/tenants/{self.company.pk}/investment/fund/summary/", {"investor_id": str(investor.pk), "branch_id": str(other_branch.pk)})
+        self.assertEqual(empty_summary.status_code, 200, empty_summary.content)
+        self.assertEqual(empty_summary.data["reserved_amount"], "0.00")
         with connection.cursor() as cursor:
             cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
             credit_id = investor.fund_credits.get().pk
@@ -802,8 +876,14 @@ class VehicleSaleApiTests(TestCase):
         double = self.client.post(payment_path, {"account_id": str(self.bank.pk), "amount": "400.00"},
                                   format="json", HTTP_IDEMPOTENCY_KEY="future-double-payment")
         self.assertEqual(double.status_code, 409, double.content)
-        paid = self.client.post(payment_path, {"account_id": str(self.bank.pk), "amount": "300.00"},
-                                format="json", HTTP_IDEMPOTENCY_KEY="future-valid-payment")
+        # Keep the SQL/Python freshness assertion deterministic when PostgreSQL
+        # JSON formatting would otherwise omit the final microsecond digits.
+        payment_time = (timezone.now() - timedelta(seconds=1)).replace(microsecond=123400)
+        paid = self.client.post(
+            payment_path,
+            {"account_id": str(self.bank.pk), "amount": "300.00", "effective_at": payment_time.isoformat()},
+            format="json", HTTP_IDEMPOTENCY_KEY="future-valid-payment",
+        )
         self.assertEqual(paid.status_code, 201, paid.content)
         profit_period = next(row for row in self.client.get(base + "profit-periods/").data["periods"]
                              if Decimal(row["gross_investor_profit"]) > 0)
@@ -890,6 +970,8 @@ class VehicleSaleApiTests(TestCase):
         self.assertEqual(confirmed.status_code, 201, confirmed.content)
         before_review = AccountMovement.objects.count()
         self.client.force_authenticate(user=self.company_accountant)
+        stale_summary = self.client.get(f"/api/v1/tenants/{self.company.pk}/investment/fund/summary/?investor_id={investor.pk}")
+        self.assertEqual(stale_summary.status_code, 409, stale_summary.content)
         request = {"expected_source_version": position.data["source_version"], "reason": "Revalidate unchanged capital"}
         reviewed = self.client.post(recovery_path, request, format="json", HTTP_IDEMPOTENCY_KEY="recovery-vertical-review")
         self.assertEqual(reviewed.status_code, 201, reviewed.content)
@@ -1000,6 +1082,10 @@ class VehicleSaleApiTests(TestCase):
         }, "refund-debit-actual")
         self.assertEqual(refunded.status_code, 201, refunded.content)
         self.assertEqual(investor_fund_position(company=self.company, investor=investor).available, Decimal("8000.00"))
+        self.client.force_authenticate(user=self.company_accountant)
+        summary = self.client.get(f"/api/v1/tenants/{self.company.pk}/investment/fund/summary/?investor_id={investor.pk}")
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.data["used_total"], "2000.00")
         with connection.cursor() as cursor:
             cursor.execute("SELECT investment_credit_available(%s)", [allocation.credit_id])
             self.assertEqual(cursor.fetchone()[0], Decimal("8000.00"))

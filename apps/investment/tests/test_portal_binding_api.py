@@ -71,6 +71,10 @@ class InvestorPortalBindingTests(TestCase):
         )
 
     def test_binding_and_self_profile_are_company_scoped(self):
+        self.client.force_authenticate(user=self.accountant)
+        empty = self.client.get(self.path(f"investors/{self.investor.pk}/portal-binding/"))
+        self.assertEqual(empty.status_code, 204)
+        self.assertEqual(empty.content, b"")
         denied = self.post(
             f"investors/{self.investor.pk}/portal-binding/",
             {"account_id": str(self.investor_user.pk)}, actor=self.investor_user,

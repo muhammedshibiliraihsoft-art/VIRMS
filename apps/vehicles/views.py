@@ -26,6 +26,7 @@ from .serializers import (
     VehicleSaleReceiptSerializer,
     VehicleSaleRefundSerializer,
     VehicleSaleWriteSerializer,
+    VehicleRegisterQuerySerializer,
     VehicleWriteSerializer,
 )
 
@@ -79,6 +80,53 @@ class VehicleListCreateView(VehicleAPIView):
             model=data["model"],
         )
         return Response(result.body, status=result.status)
+
+
+class VehicleRegisterProjectionView(VehicleAPIView):
+    def get(self, request, company_id):
+        query = VehicleRegisterQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        filters = query.validated_data
+        summary, rows, page = services.vehicle_register_projection(
+            actor=request.user,
+            company_id=company_id,
+            branch_id=filters.get("branch_id"),
+            search=filters.get("search", ""),
+            context=filters["context"],
+            status=filters["status"],
+            page=filters["page"],
+        )
+
+        def page_link(number):
+            if number is None:
+                return None
+            params = request.query_params.copy()
+            params["page"] = str(number)
+            return request.build_absolute_uri(f"{request.path}?{params.urlencode()}")
+
+        return Response({
+            "company_id": str(company_id),
+            "branch_id": str(filters["branch_id"]) if filters.get("branch_id") else None,
+            "count": page["count"],
+            "next": page_link(page["page"] + 1 if page["has_next"] else None),
+            "previous": page_link(page["page"] - 1 if page["has_previous"] else None),
+            "results": rows,
+            "summary": summary,
+        })
+
+
+class VehicleOperationalSummaryView(VehicleAPIView):
+    def get(self, request, company_id):
+        if set(request.query_params) - {"branch_id"}:
+            raise ValidationError({"query": "Only the branch filter is supported."})
+        filters = _query(request.query_params)
+        return Response(
+            services.operational_summary(
+                actor=request.user,
+                company_id=company_id,
+                branch_id=filters.get("branch_id"),
+            )
+        )
 
 
 class VehicleDetailView(VehicleAPIView):

@@ -8,6 +8,7 @@ import { GarageCustomerFinance } from './GarageCustomerFinance';
 import { LabourWorkspace } from './LabourWorkspace';
 import { GarageStockCosts } from './GarageStockCosts';
 import { GarageStatusHistory } from './GarageStatusHistory';
+import { PageKpiRow } from './PageKpiRow';
 
 /** Garage records are read from the Company API, never from the prototype dataset. */
 const GarageJobsWorkspace: React.FC = () => {
@@ -27,6 +28,7 @@ const GarageJobsWorkspace: React.FC = () => {
 
   useEffect(() => { setPage(1); setSelectedId(null); setWorkPage(1); setCreating(false); setFinanceBusy(false); }, [companyId, userId]);
   const jobs = useQuery({ queryKey: ['garage', userId, companyId, 'jobs', page], queryFn: ({ signal }) => garageApi.jobs(companyId, page, signal), enabled: allowed, retry: false });
+  const jobSummary = useQuery({ queryKey: ['garage', userId, companyId, 'jobs', 'dashboard-summary'], queryFn: ({ signal }) => garageApi.jobSummary(companyId, undefined, signal), enabled: allowed && modules.isSuccess && modules.data.modules.some(row => row.code === 'garage' && row.state === 'enabled'), retry: false });
   const job = useQuery({ queryKey: ['garage', userId, companyId, 'job', selectedId], queryFn: ({ signal }) => garageApi.job(companyId, selectedId!, signal), enabled: allowed && !!selectedId, retry: false });
   const work = useQuery({ queryKey: ['garage', userId, companyId, 'work', selectedId, workPage], queryFn: ({ signal }) => garageApi.work(companyId, selectedId!, workPage, signal), enabled: allowed && !!selectedId, retry: false });
   const addWork = useMutation({ mutationFn: (text: string) => garageApi.addWork(companyId, userId, selectedId!, text), onSuccess: async () => { setDescription(''); await queryClient.invalidateQueries({ queryKey: ['garage', userId, companyId, 'work', selectedId] }); } });
@@ -34,6 +36,15 @@ const GarageJobsWorkspace: React.FC = () => {
 
   return <div className="space-y-4">
     <header><div className="text-[11px] font-bold tracking-wider text-[var(--theme-primary)] uppercase">Garage operations</div><h1 className="mt-0.5 text-xl font-extrabold text-gray-950 dark:text-white">Garage Jobs</h1><p className="text-xs text-gray-500">Company records</p></header>
+    <PageKpiRow
+      items={[
+        { label: 'Total Jobs', value: String(jobSummary.data?.total_jobs ?? '—') },
+        { label: 'Open', value: String(jobSummary.data?.open_jobs ?? '—') },
+        { label: 'Completed', value: String(jobSummary.data?.completed_jobs ?? '—') },
+        { label: 'External Customer Jobs', value: String(jobSummary.data?.external_customer_jobs ?? '—') },
+      ]}
+      status={modules.isLoading || jobSummary.isLoading ? 'loading' : !allowed || !modules.data?.modules.some(row => row.code === 'garage' && row.state === 'enabled') || jobSummary.isError || !jobSummary.data ? 'unavailable' : 'ready'}
+    />
     {!allowed ? <p className="text-sm text-gray-500">A permitted Company account is required.</p> : <>
       {canWrite && !creating && <button type="button" disabled={financeBusy} onClick={() => setCreating(true)} className="rounded-full bg-[var(--theme-primary)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">New job</button>}
       {canWrite && creating && <GarageNewJob companyId={companyId} userId={userId} onClose={() => setCreating(false)} onCreated={created => { setCreating(false); setPage(1); setWorkPage(1); setSelectedId(created.id); void queryClient.invalidateQueries({ queryKey: ['garage', userId, companyId, 'jobs'] }); }} />}

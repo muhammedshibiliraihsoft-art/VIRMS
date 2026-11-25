@@ -45,7 +45,7 @@ export const navigationRegistry: NavGroup[] = [
     iconName: 'Car',
     primaryRouteKey: 'All Vehicles',
     status: 'implemented',
-    dataSourceStatus: 'demo',
+    dataSourceStatus: 'backend',
     children: [
       {
         id: 'stock-investor',
@@ -60,6 +60,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Customer Vehicles',
         routeKey: 'Customer Vehicles',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Customer registered vehicles & service intake',
       },
     ],
@@ -158,6 +159,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Investor Profit & Interim',
         routeKey: 'Investor Profit & Interim',
         status: 'read_only_by_business_rule',
+        dataSourceStatus: 'backend',
         description: 'Unapproved profit basis (Decision required)',
         badge: 'Read-only',
       },
@@ -166,6 +168,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Reconciliation & Settlement',
         routeKey: 'Reconciliation & Settlement',
         status: 'read_only_by_business_rule',
+        dataSourceStatus: 'backend',
         description: 'Unapproved settlement rules (Decision required)',
         badge: 'Read-only',
       },
@@ -184,6 +187,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Garage Revenue',
         routeKey: 'Garage Revenue',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Customer job charges & actual receipts',
       },
       {
@@ -215,6 +219,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Company Result',
         routeKey: 'Company Result',
         status: 'implemented',
+        dataSourceStatus: 'backend',
         description: 'Provisional accounting components',
       },
       {
@@ -230,6 +235,7 @@ export const navigationRegistry: NavGroup[] = [
         label: 'Owner Distribution',
         routeKey: 'Owner Distribution',
         status: 'read_only_by_business_rule',
+        dataSourceStatus: 'backend',
         description: 'Owner allocation governance notice; business rules remain pending',
       },
       {
@@ -336,6 +342,7 @@ export const navigationRegistry: NavGroup[] = [
 
 const ROUTE_GROUP_ALIASES: Record<string, string> = {
   Overview: 'dashboard',
+  Vehicles: 'vehicles',
   'All Vehicles': 'vehicles',
   'Vehicle Detail': 'vehicles',
   'Garage Job Detail': 'garage-operations',
@@ -374,6 +381,8 @@ const FORM_ROUTE_KEYS: Record<string, string> = {
  */
 export function getRouteDataSourceStatus(routeKey: string): DataSourceStatus {
   if (routeKey === 'Accounting') return 'backend';
+  if (routeKey === 'All Vehicles') return 'backend';
+  if (routeKey === 'Vehicle Detail') return 'demo';
   const group = navigationRegistry.find(
     (candidate) =>
       candidate.primaryRouteKey === routeKey ||

@@ -24,7 +24,7 @@ export const DASHBOARD_VIEWS: Record<DashboardViewId, DashboardViewMeta> = {
     label: 'Overview',
     shortLabel: 'Overview',
     description: 'Stay on top of your tasks, monitor progress, and track status.',
-    isBackendConnected: false,
+    isBackendConnected: true,
   },
   operations: {
     id: 'operations',

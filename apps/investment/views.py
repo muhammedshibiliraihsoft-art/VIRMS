@@ -233,9 +233,10 @@ class InvestorExitRequestListView(InvestmentAPIView):
 
 class InvestorPortalBindingView(InvestmentAPIView):
     def get(self, request, company_id, investor_id):
-        return Response(portal.get_binding(
+        binding = portal.get_binding(
             actor=request.user, company_id=company_id, investor_id=investor_id,
-        ))
+        )
+        return Response(binding, status=200 if binding is not None else 204)
 
     def post(self, request, company_id, investor_id):
         serializer = InvestorPortalBindingSerializer(data=request.data)

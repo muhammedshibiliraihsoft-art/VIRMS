@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from './auth/AuthContext';
 import { AppShell } from './components/AppShell';
 import { RolePresentationProvider } from './auth/RolePresentationContext';
 import {
@@ -54,6 +56,11 @@ const InvestorPortalView = React.lazy(() =>
     default: module.InvestorPortalView,
   }))
 );
+const GarageRevenueView = React.lazy(() =>
+  import('./components/shared/GarageRevenueView').then((module) => ({
+    default: module.GarageRevenueView,
+  }))
+);
 import { AllVehiclesView } from './components/AllVehiclesView';
 import { VehicleDetailView } from './components/VehicleDetailView';
 import { GarageWorkspaceView } from './components/shared/GarageWorkspaceView';
@@ -96,6 +103,8 @@ export interface AppProps {
 }
 
 export function App({ onLogout, loginId, companyName, companyWideRoles, branchContexts, branchesTruncated }: AppProps = {}) {
+  const queryClient = useQueryClient();
+  const { user, currentCompany } = useAuth();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [themePalette, setThemePalette] = useState<string>(getStoredThemePalette);
   const branchScopedRoles = branchContexts?.flatMap((branch) => branch.roles) ?? [];
@@ -106,6 +115,8 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
   const [selectedGarage, setSelectedGarage] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [statusMessages, setStatusMessages] = useState<StatusMessage[]>([]);
+  const [openVehicleRegistration, setOpenVehicleRegistration] = useState(false);
+  const [registerVehicleId, setRegisterVehicleId] = useState<string | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [jobDetailOrigin, setJobDetailOrigin] = useState<'vehicle' | 'garage-jobs'>('garage-jobs');
@@ -151,6 +162,29 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
     if (!getRoleDashboardViews(companyWideRoles).includes(dashboardViewId)) return;
     if (isRefreshingDashboard) return;
     setIsRefreshingDashboard(true);
+    if (dashboardViewId === 'overview' && user && currentCompany) {
+      const userId = user.id;
+      const companyId = currentCompany.id;
+      try {
+        await queryClient.refetchQueries({
+          type: 'active',
+          predicate: ({ queryKey: key }) => key[1] === userId && key[2] === companyId && (
+            (key[0] === 'garage' && key[3] === 'jobs' && key[4] === 'dashboard-summary') ||
+            (key[0] === 'companies' && (
+              (key[3] === 'vehicle-management' && key[4] === 'operational-summary') ||
+              (key[3] === 'phase5' && key[4] === 'fund-summary') ||
+              (key[3] === 'accounting' && ['accounts', 'events', 'monthly-trend'].includes(String(key[4])))
+            ))
+          ),
+        }, { throwOnError: true });
+        setCacheMeta((previous) => ({ ...previous, overview: { lastFetchedAt: Date.now() } }));
+      } catch {
+        showStatusMessage('error', 'Dashboard could not refresh', 'Check Company access and try again.', 4000);
+      } finally {
+        setIsRefreshingDashboard(false);
+      }
+      return;
+    }
     invalidateDashboardCache(dashboardViewId, selectedGarage);
     await new Promise((r) => setTimeout(r, 450));
     setCachedDashboardData(dashboardViewId, selectedGarage, { timestamp: Date.now() });
@@ -202,7 +236,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
     : 'overview';
 
   // Extract core entities for convenience
-  const { garages, investors, vehicles, jobs, batches, sales } = data;
+  const { garages, vehicles, jobs } = data;
 
   // Status Message Helper
   const showStatusMessage = (
@@ -254,6 +288,8 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
   const handleSelectRoute = (routeKey: string) => {
     if (!isRoleRouteVisible(roleNavigation, routeKey, companyWideRoles)) return;
     setActiveRoute(routeKey);
+    setRegisterVehicleId(null);
+    setOpenVehicleRegistration(false);
     if (routeKey !== 'Garage Job Detail') {
       setSelectedJobId(null);
     }
@@ -342,35 +378,6 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
     setStatusMessages((prev) => prev.filter((m) => m.id !== loadingId));
     showStatusMessage('success', 'Prototype data refreshed', 'Local records synchronized with baseline', 3000);
   };
-
-  // Filter items by selected garage
-  const filteredVehicles = vehicles.filter(
-    (v) => selectedGarage === 'all' || v.garageId === selectedGarage
-  );
-  const filteredJobs = jobs.filter(
-    (j) => selectedGarage === 'all' || j.garageId === selectedGarage
-  );
-
-  // Compute live dashboard metrics
-  const activeStockVehicles = filteredVehicles.filter(
-    (v) => v.type === 'Stock / Investor' && v.status !== 'Sold'
-  );
-  const totalStockCount = activeStockVehicles.length;
-  const openJobsCount = filteredJobs.filter((j) => j.status === 'Open').length;
-
-  const totalBuyerReceivable = sales.reduce((acc, s) => {
-    const veh = vehicles.find((v) => v.id === s.vehicleId);
-    if (selectedGarage !== 'all' && veh?.garageId !== selectedGarage) return acc;
-    return acc + Math.max(0, s.price - s.received);
-  }, 0);
-
-  const inventoryStockValue = batches.reduce((acc, b) => {
-    if (selectedGarage !== 'all' && b.garageId !== selectedGarage) return acc;
-    return acc + b.quantity * b.cost;
-  }, 0);
-
-  const totalInvestorPrincipal = investors.reduce((acc, i) => acc + i.principal, 0);
-  const totalInvestorUsed = investors.reduce((acc, i) => acc + (i.used || 0), 0);
 
   // Route Classification
   const isDashboardView = activeRoute === 'Dashboard' || activeRoute === 'Overview';
@@ -495,16 +502,8 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
           {/* View 1: Official Approved Overview Dashboard (Image 1 Layout - Eagerly loaded default with 0 delay) */}
           {dashboardViewForRole === 'overview' && (
             <DashboardOverviewView
-              totalBuyerReceivable={totalBuyerReceivable}
-              investors={investors}
-              stockVehiclesCount={totalStockCount}
-              openJobsCount={openJobsCount}
-              inventoryStockValue={inventoryStockValue}
-              totalInvestorUsed={totalInvestorUsed}
-              totalInvestorPrincipal={totalInvestorPrincipal}
-              activities={activities}
-              onRecordReceipt={() => setFormModalState({ isOpen: true, type: 'customerReceipt' })}
-              onNewSale={() => setFormModalState({ isOpen: true, type: 'sale' })}
+              onRecordReceipt={() => handleSelectRoute('Collections')}
+              onNewSale={() => handleSelectRoute('Vehicle Sales')}
               onSelectActivity={(item) =>
                 showStatusMessage('info', `Selected ${item.code}: ${item.title}`, undefined, 2500)
               }
@@ -635,7 +634,7 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
         <GarageWorkspaceView />
       ) : activeRoute === 'Stock / Investor' && !investorOnly ? (
         <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 p-4 text-xs text-gray-500 dark:border-zinc-800">Loading Vehicle workspace…</div>}>
-          <Phase5WorkspaceView routeKey="Stock / Investor" />
+          <Phase5WorkspaceView routeKey="Stock / Investor" initialVehicleId={registerVehicleId} openRegistration={openVehicleRegistration} />
         </React.Suspense>
       ) : isVehiclesView && investorOnly ? (
         <PendingViewPlaceholder
@@ -648,22 +647,22 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
         /* Reusable Card-Based Vehicles View */
         <AllVehiclesView
           mode={vehicleMode}
-          vehicles={vehicles}
-          garages={garages}
-          selectedGarage={selectedGarage}
           onSelectRoute={handleSelectRoute}
-          onRegisterVehicle={() => setFormModalState({ isOpen: true, type: 'vehicle' })}
-          onViewVehicleDetail={(veh) => {
-            setSelectedVehicleId(veh.id);
-            handleSelectRoute('Vehicle Detail');
+          onRegisterVehicle={() => {
+            handleSelectRoute('Stock / Investor');
+            setOpenVehicleRegistration(true);
+          }}
+          onViewVehicleDetail={(vehicle) => {
+            handleSelectRoute('Stock / Investor');
+            setRegisterVehicleId(vehicle.id);
           }}
         />
       ) : activeRoute === 'Investor Profit & Interim' ? (
         <InvestorProfitReviewView />
       ) : activeRoute === 'Reconciliation & Settlement' ? (
-        <InvestorProfitReviewView />
+        <InvestorProfitReviewView mode="settlement" />
       ) : activeRoute === 'Owner Distribution' ? (
-        <CompanyResultView />
+        <CompanyResultView mode="owner" />
       ) : activeRoute === 'Company Result' ? (
         <CompanyResultView />
       ) : activeRoute === 'Items & Purchases' ||
@@ -713,8 +712,11 @@ export function App({ onLogout, loginId, companyName, companyWideRoles, branchCo
             onSuccess={(message) => showStatusMessage('success', message, 'Saved to Company Accounting.', 3500)}
           />
         </React.Suspense>
-      ) : activeRoute === 'Garage Revenue' ||
-        activeRoute === 'Running Capital' ? (
+      ) : activeRoute === 'Garage Revenue' ? (
+        <React.Suspense fallback={<div role="status" className="rounded-xl border border-gray-200 p-4 text-xs text-gray-500 dark:border-zinc-800">Loading Garage Revenue…</div>}>
+          <GarageRevenueView onOpenGarageJobs={() => handleSelectRoute('Garage Jobs')} />
+        </React.Suspense>
+      ) : activeRoute === 'Running Capital' ? (
         /* Financial Ledgers & Registers */
         <FinancialLedgerView
           routeKey={activeRoute}

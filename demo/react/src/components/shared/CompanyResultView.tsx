@@ -4,6 +4,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { useAccountingAccounts, useAccountingBranches, useAccountingResult } from '../../api/accountingQueries';
 import { companyPeriodConfirmations, confirmCompanyPeriod, recordOwnerDistributionPayment } from '../../api/accountingApi';
 
+import { PageKpiRow } from './PageKpiRow';
+
 type ReportingPeriod = 'monthly' | 'h1' | 'h2' | 'annual';
 
 function formatINR(value: string | undefined): string {
@@ -32,7 +34,7 @@ function maxDistributableAfterLoss(result: string | undefined, priorLoss: string
   return `${available > 0n ? available / 100n : 0n}.${String(available > 0n ? available % 100n : 0n).padStart(2, '0')}`;
 }
 
-export const CompanyResultView: React.FC = () => {
+export const CompanyResultView: React.FC<{ mode?: 'result' | 'owner' }> = ({ mode = 'result' }) => {
   const { user, currentCompany } = useAuth();
   const queryClient = useQueryClient();
   const branchesQuery = useAccountingBranches();
@@ -89,6 +91,14 @@ export const CompanyResultView: React.FC = () => {
     onSuccess: async () => { setDistributable(''); setLiabilityReviewReason(''); setConfirmationReason(''); await queryClient.invalidateQueries({ queryKey: periodKey }); },
   });
   const confirmed = report ? confirmationsQuery.data?.confirmations.find((row) => row.period_start === report.period_start && row.period_end === report.period_end) : undefined;
+  const ownerAllocations = confirmed?.owner_allocation_snapshot ?? [];
+  const ownerSummaryReady = Boolean(confirmed?.source_current && !reportBranchId && confirmationsQuery.isSuccess && reportQuery.isSuccess &&
+    ownerAllocations.every((allocation) => allocation.paid_amount !== undefined && allocation.outstanding_amount !== undefined));
+  const ownerTotal = (field: 'paid_amount' | 'outstanding_amount') => {
+    if (!ownerSummaryReady) return '—';
+    const total = ownerAllocations.reduce((sum, allocation) => sum + BigInt(allocation[field]!.replace('.', '')), 0n);
+    return formatINR(`${total / 100n}.${String(total % 100n).padStart(2, '0')}`);
+  };
   const accounts = (accountsQuery.data ?? []).filter((account) => account.is_active);
   const selectedPayoutBranchId = payoutBranchId || (branchId !== 'all' ? branchId : branches[0]?.id ?? '');
   const selectedPayoutAccountId = payoutAccountId || accounts[0]?.id || '';
@@ -141,19 +151,24 @@ export const CompanyResultView: React.FC = () => {
       {!branchesQuery.isPending && !branchesQuery.isError && !reportReady && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">Select an authorized Branch to view this report.</p>}
       {reportQuery.isPending && reportReady && <p role="status" className="text-xs text-gray-500">Loading verified Accounting result…</p>}
       {reportQuery.isError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">Accounting result could not be loaded. No sample values are shown.</p>}
+      <PageKpiRow
+        status={mode === 'owner'
+          ? (confirmationsQuery.isLoading || reportQuery.isLoading ? 'loading' : ownerSummaryReady ? 'ready' : 'unavailable')
+          : (reportReady && reportQuery.isPending ? 'loading' : reportReady && report && !reportQuery.isError ? 'ready' : 'unavailable')}
+        items={mode === 'owner' ? [
+          { label: 'Confirmed Distributable', value: formatINR(confirmed?.distributable_amount) },
+          { label: 'Actual Paid', value: ownerTotal('paid_amount') },
+          { label: 'Outstanding', value: ownerTotal('outstanding_amount') },
+          { label: 'Current Confirmation', value: confirmed ? `Version ${confirmed.version}` : '—' },
+        ] : [
+          { label: 'Accounting Result', value: formatINR(report?.accounting_result_amount) },
+          { label: 'Recognized Income', value: formatINR(report?.income_amount) },
+          { label: 'Recognized Expense', value: formatINR(report?.expense_amount) },
+        ]}
+      />
       {report && <>
-        <section className="grid gap-2 sm:grid-cols-3" aria-label="Accounting result values">
-          {[
-            ['Recognized Income', report.income_amount],
-            ['Recognized Expense', report.expense_amount],
-            ['Accounting Result', report.accounting_result_amount],
-          ].map(([label, value], index) => <article key={label} className={`rounded-2xl border p-3.5 ${index === 2 ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-950' : 'border-[#eee6de] bg-white text-gray-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white'}`}>
-            <p className={`text-[11px] font-semibold ${index === 2 ? 'opacity-75' : 'text-gray-500 dark:text-gray-400'}`}>{label}</p>
-            <p className="mt-1 text-xl font-extrabold tabular-nums">{formatINR(value)}</p>
-          </article>)}
-        </section>
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-          {formatDate(report.starts_at)} through {formatDate(report.ends_before)} (exclusive), {report.timezone}. This is the Accounting Income − Expense result; it is not the final distributable Company Profit and does not include an unrecognized Vehicle Company Share or Garage Revenue.
+          {formatDate(report.period_start)} through {formatDate(report.period_end)} (exclusive), {report.timezone}. This is the Accounting Income − Expense result; it is not the final distributable Company Profit and does not include an unrecognized Vehicle Company Share or Garage Revenue.
         </p>
         {canConfirmPeriod && period !== 'monthly' && <section className="rounded-xl border border-gray-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900" aria-label="Company period distributable confirmation">
           <h2 className="text-sm font-bold">Confirm Company distributable amount</h2>

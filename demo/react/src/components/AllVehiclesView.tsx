@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Car,
   Search,
@@ -7,40 +8,80 @@ import {
   Layers,
   MapPin,
   User,
-  TrendingUp,
   Wrench,
   DollarSign,
-  ShieldCheck,
-  ArrowRight,
 } from 'lucide-react';
-import { Vehicle, Garage, VehicleStatus } from '../types';
+import { VehicleStatus } from '../types';
 import { useCanPresentBusinessWriteActions } from '../auth/RolePresentationContext';
-import { getFormDataSourceStatus } from '../data/navigationRegistry';
-import { DemoBadge } from './shared/DemoBadge';
+import { useAuth } from '../auth/AuthContext';
+import { queryKeys } from '../api/queryKeys';
+import { phase5Api, VehicleRegisterRow } from '../api/phase5Api';
+import { hasCompanyBranchReadRole, useCompanyModuleStates } from '../api/queries';
+import { PageKpiItem, PageKpiRow } from './shared/PageKpiRow';
 
 export type VehiclePageMode = 'all' | 'stock-investor' | 'customer';
 
 export interface AllVehiclesViewProps {
   mode?: VehiclePageMode;
-  vehicles: Vehicle[];
-  garages: Garage[];
-  selectedGarage: string;
   onRegisterVehicle: () => void;
-  onViewVehicleDetail?: (vehicle: Vehicle) => void;
+  onViewVehicleDetail?: (vehicle: VehicleRegisterRow) => void;
   onSelectRoute?: (routeKey: string) => void;
+}
+
+interface VehicleRegisterCard {
+  id: string;
+  number: string;
+  model: string;
+  type: string;
+  branchName: string;
+  person: string;
+  personLabel: string;
+  status: VehicleStatus | 'Registered';
+  totalCost: string | null;
+  financialAvailable: boolean;
+  source: VehicleRegisterRow;
+}
+
+function mapRegisterRow(row: VehicleRegisterRow): VehicleRegisterCard {
+  const statuses: Record<VehicleRegisterRow['status'], VehicleStatus | 'Registered'> = {
+    IN_WORK: 'In work', SOLD: 'Sold', IN_SERVICE: 'In service', COMPLETED: 'Completed',
+    PURCHASED: 'Purchased', REGISTERED: 'Registered',
+  };
+  return {
+    id: row.id,
+    number: row.registration,
+    model: row.model,
+    type: row.type,
+    branchName: row.branch_name,
+    person: row.person,
+    personLabel: row.person_label,
+    status: statuses[row.status],
+    totalCost: row.total_cost,
+    financialAvailable: row.financial_available,
+    source: row,
+  };
+}
+
+function formatApiMoney(value: string | null): string {
+  if (value === null) return 'Unavailable';
+  const match = /^(-?)(\d+)\.(\d{2})$/.exec(value);
+  if (!match) return 'Unavailable';
+  const grouped = new Intl.NumberFormat('en-IN').format(BigInt(match[2]));
+  return `₹${match[1]}${grouped}.${match[3]}`;
 }
 
 export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
   mode = 'all',
-  vehicles,
-  garages,
-  selectedGarage,
   onRegisterVehicle,
   onViewVehicleDetail,
   onSelectRoute,
 }) => {
   const canPresentWriteActions = useCanPresentBusinessWriteActions();
+  const { status: authStatus, user, currentCompany } = useAuth();
+  const moduleQuery = useCompanyModuleStates();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   // Internal filter state defaults based on mode
   const [typeFilter, setTypeFilter] = useState<'All' | 'Stock / Investor' | 'Customer'>(() => {
     if (mode === 'stock-investor') return 'Stock / Investor';
@@ -59,86 +100,79 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
       setTypeFilter('All');
     }
     setStatusFilter('All');
+    setPage(1);
   }, [mode]);
 
-  // Garage-filtered dataset (Respecting global garage filter from shared AppShell)
-  const garageFilteredVehicles = useMemo(() => {
-    return vehicles.filter(
-      (v) => selectedGarage === 'all' || v.garageId === selectedGarage
-    );
-  }, [vehicles, selectedGarage]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-  // Derived filter counts and financial summaries
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  const context = typeFilter === 'Stock / Investor' ? 'stock' : typeFilter === 'Customer' ? 'customer' : 'all';
+  const status = statusFilter === 'In work' ? 'in_work'
+    : statusFilter === 'Sold' ? 'sold'
+      : statusFilter === 'Purchased' ? 'purchased'
+        : statusFilter === 'Customer Vehicles' ? 'customer_vehicles' : 'all';
+  const canRead = authStatus === 'authenticated' && Boolean(currentCompany) && hasCompanyBranchReadRole(user);
+  const vehicleModuleOn = moduleQuery.isSuccess && moduleQuery.data.modules.some(
+    (row) => row.code === 'vehicle_management' && row.state === 'enabled',
+  );
+  const registerQuery = useQuery({
+    queryKey: currentCompany && user
+      ? queryKeys.phase5.vehicleRegister(user.id, currentCompany.id, page, debouncedSearch, context, status)
+      : ['companies', 'unavailable', 'vehicle-management', 'register-summary'],
+    queryFn: ({ signal }) => currentCompany
+      ? phase5Api.vehicleRegister(currentCompany.id, {
+        page, search: debouncedSearch || undefined, context, status,
+      }, signal)
+      : Promise.reject(new Error('A Company is required.')),
+    enabled: canRead && vehicleModuleOn,
+    retry: false,
+  });
+
+  const kpiStatus = authStatus === 'loading' || moduleQuery.isLoading || (canRead && vehicleModuleOn && registerQuery.isPending)
+    ? 'loading'
+    : !canRead || moduleQuery.isError || !moduleQuery.isSuccess || !vehicleModuleOn || registerQuery.isError || !registerQuery.data
+      ? 'unavailable'
+      : 'ready';
+
   const stats = useMemo(() => {
-    const total = garageFilteredVehicles.length;
-    const stockVehicles = garageFilteredVehicles.filter((v) => v.type === 'Stock / Investor');
-    const customerVehicles = garageFilteredVehicles.filter((v) => v.type === 'Customer');
-
-    const stockTotalCost = stockVehicles.reduce(
-      (acc, v) => acc + (v.totalCost ?? v.purchase ?? 0),
-      0
-    );
-
-    const inWork = garageFilteredVehicles.filter((v) => v.status === 'In work').length;
-    const sold = garageFilteredVehicles.filter((v) => v.status === 'Sold').length;
-    const purchased = garageFilteredVehicles.filter((v) => v.status === 'Purchased').length;
-    const customerJobs = customerVehicles.length;
-
-    const stockInWork = stockVehicles.filter((v) => v.status === 'In work').length;
-    const stockPurchased = stockVehicles.filter((v) => v.status === 'Purchased').length;
-    const stockSold = stockVehicles.filter((v) => v.status === 'Sold').length;
-
+    const summary = registerQuery.data?.summary;
     return {
-      total,
-      stockCount: stockVehicles.length,
-      customerCount: customerVehicles.length,
-      stockTotalCost,
-      inWork,
-      sold,
-      purchased,
-      customerJobs,
-      stockInWork,
-      stockPurchased,
-      stockSold,
+      total: summary?.total ?? 0,
+      stockCount: summary?.stock_count ?? 0,
+      customerCount: summary?.customer_count ?? 0,
+      stockTotalCost: summary?.stock_total_cost ?? null,
+      inWork: summary?.in_work ?? 0,
+      sold: summary?.sold ?? 0,
+      purchased: summary?.purchased ?? 0,
+      customerJobs: summary?.customer_jobs ?? 0,
+      openCustomerJobs: summary?.open_customer_jobs ?? 0,
+      completedCustomerJobs: summary?.completed_customer_jobs ?? 0,
+      stockInWork: summary?.stock_in_work ?? 0,
+      stockPurchased: summary?.stock_purchased ?? 0,
+      stockSold: summary?.stock_sold ?? 0,
     };
-  }, [garageFilteredVehicles]);
+  }, [registerQuery.data]);
 
-  // Search & Filtered vehicles list
-  const displayedVehicles = useMemo(() => {
-    return garageFilteredVehicles.filter((veh) => {
-      // Type filter
-      if (typeFilter !== 'All' && veh.type !== typeFilter) return false;
+  const displayedVehicles = useMemo(
+    () => (registerQuery.data?.results ?? []).map(mapRegisterRow),
+    [registerQuery.data?.results],
+  );
+  const displayCount = (value: number) => kpiStatus === 'ready' ? String(value) : kpiStatus === 'loading' ? '…' : 'Unavailable';
+  const pageKpis: PageKpiItem[] = mode === 'customer' ? [
+    { label: 'Customer Vehicles', value: String(stats.customerCount) },
+    { label: 'Open Customer Jobs', value: String(stats.openCustomerJobs) },
+    { label: 'Completed Customer Jobs', value: String(stats.completedCustomerJobs) },
+  ] : [
+    { label: 'Total Vehicles', value: String(stats.total) },
+    { label: 'Unsold Vehicles', value: String(Math.max(0, stats.total - stats.sold)) },
+    { label: 'Sold Vehicles', value: String(stats.sold) },
+  ];
 
-      // Status filter
-      if (statusFilter !== 'All') {
-        if (statusFilter === 'Customer Vehicles' && veh.type !== 'Customer') return false;
-        if (statusFilter !== 'Customer Vehicles' && veh.status !== statusFilter) return false;
-      }
-
-      // Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesNumber = veh.number.toLowerCase().includes(q);
-        const matchesModel = veh.model.toLowerCase().includes(q);
-        const matchesPerson = veh.person.toLowerCase().includes(q);
-        return matchesNumber || matchesModel || matchesPerson;
-      }
-
-      return true;
-    });
-  }, [garageFilteredVehicles, typeFilter, statusFilter, searchQuery]);
-
-  const formatCurrency = (val?: number) => {
-    if (val === undefined || val === null) return '₹0';
-    return '₹' + val.toLocaleString('en-IN');
-  };
-
-  const getGarageName = (garageId: string) => {
-    const g = garages.find((item) => item.id === garageId);
-    return g ? g.name : 'Central Garage';
-  };
-
-  const getStatusBadge = (status: VehicleStatus) => {
+  const getStatusBadge = (status: VehicleStatus | 'Registered') => {
     switch (status) {
       case 'In work':
         return (
@@ -190,7 +224,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
       default:
         return {
           title: 'All Vehicles',
-          subtitle: 'Shared synthetic data across vehicles, jobs, inventory and accounting.',
+          subtitle: 'Company vehicle register with Branch, purchase and Garage context.',
           badge: 'Consolidated Register',
         };
     }
@@ -226,6 +260,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                   onClick={() => {
                     setTypeFilter(type);
                     setStatusFilter('All');
+                    setPage(1);
                     if (onSelectRoute) {
                       if (type === 'Stock / Investor') onSelectRoute('Stock / Investor');
                       else if (type === 'Customer') onSelectRoute('Customer Vehicles');
@@ -249,9 +284,10 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
             <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
+              maxLength={80}
               placeholder="Search registration, model..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               className="pl-8 pr-3 py-1 rounded-full bg-white dark:bg-zinc-800/80 border border-gray-200/80 dark:border-zinc-700 text-[11px] font-medium text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[var(--theme-primary-border)] focus:border-[var(--theme-primary)] w-36 sm:w-44 shadow-2xs transition"
             />
           </div>
@@ -259,23 +295,37 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
           {/* + Register Vehicle */}
           {canPresentWriteActions && <button
             onClick={onRegisterVehicle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181b] hover:bg-black text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+            disabled={!canRead || !vehicleModuleOn}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#18181b] hover:bg-black text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
             <span>Register Vehicle</span>
-            {getFormDataSourceStatus('vehicle') === 'demo' && <DemoBadge size="compact" />}
           </button>}
         </div>
       </div>
+
+      <PageKpiRow items={pageKpis} status={kpiStatus} />
 
       {/* 2. Main Two-Zone Layout: Vehicle Cards (Left) + Vehicle Summary Panel (Right) */}
       <div className="flex flex-col lg:flex-row items-start gap-3.5 sm:gap-4">
         {/* Left Area: Responsive Compact Vehicle Card Grid (~50% visual size, 4-5 per row on desktop) */}
         <div className="flex-1 min-w-0 w-full">
-          {displayedVehicles.length > 0 ? (
+          {kpiStatus === 'loading' ? (
+            <div role="status" className="rounded-[18px] border border-[var(--theme-card-border)] bg-[var(--theme-card-bg)] p-8 text-center text-xs text-gray-500 dark:border-zinc-700/60 dark:bg-zinc-800/70">
+              Loading Vehicle records…
+            </div>
+          ) : kpiStatus === 'unavailable' ? (
+            <div className="rounded-[18px] border border-[var(--theme-card-border)] bg-[var(--theme-card-bg)] p-6 text-center text-xs text-gray-600 dark:border-zinc-700/60 dark:bg-zinc-800/70">
+              <p role="alert" className="text-red-700 dark:text-red-300">
+                {!canRead || moduleQuery.isError || !vehicleModuleOn
+                  ? 'Vehicle data is unavailable for this account or module.'
+                  : 'Vehicle records could not be loaded.'}
+              </p>
+              {registerQuery.isError && <button type="button" onClick={() => void registerQuery.refetch()} className="mt-2 font-bold text-[var(--theme-primary)] hover:underline">Retry</button>}
+            </div>
+          ) : displayedVehicles.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 sm:gap-2.5">
               {displayedVehicles.map((veh) => {
-                const isCustomer = veh.type === 'Customer';
                 return (
                   <div
                     key={veh.id}
@@ -291,7 +341,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
 
                         <div className="flex items-center gap-0.5 text-[8px] sm:text-[9px] font-semibold text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xs px-1.5 py-0.5 rounded-full border border-gray-200/50 dark:border-zinc-700/60 truncate max-w-[100px]">
                           <MapPin className="w-2 h-2 text-gray-400 shrink-0" />
-                          <span className="truncate">{getGarageName(veh.garageId)}</span>
+                          <span className="truncate">{veh.branchName}</span>
                         </div>
                       </div>
 
@@ -330,7 +380,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                         <span className="truncate">{veh.person}</span>
                         <span className="text-[9px] opacity-60">·</span>
                         <span className="text-[9px] opacity-75 shrink-0">
-                          {isCustomer ? 'Customer' : 'Investor'}
+                          {veh.personLabel}
                         </span>
                       </div>
                     </div>
@@ -342,12 +392,12 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                           Total Cost
                         </div>
                         <div className="text-xs sm:text-sm font-extrabold text-gray-950 dark:text-white">
-                          {formatCurrency(veh.totalCost ?? veh.purchase)}
+                          {veh.financialAvailable ? formatApiMoney(veh.totalCost) : 'Unavailable'}
                         </div>
                       </div>
 
                       <button
-                        onClick={() => onViewVehicleDetail?.(veh)}
+                        onClick={() => onViewVehicleDetail?.(veh.source)}
                         title="View details"
                         className="flex items-center gap-0.5 text-[10px] font-bold text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white px-1.5 py-0.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition cursor-pointer"
                       >
@@ -374,6 +424,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                   setSearchQuery('');
                   setTypeFilter(mode === 'stock-investor' ? 'Stock / Investor' : mode === 'customer' ? 'Customer' : 'All');
                   setStatusFilter('All');
+                  setPage(1);
                 }}
                 className="mt-2 text-xs font-bold text-[var(--theme-primary)] hover:underline cursor-pointer"
               >
@@ -410,26 +461,26 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
             <div className="bg-[var(--theme-primary-soft)] border border-[var(--theme-primary-border)] rounded-xl p-2.5 flex flex-col gap-1">
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--theme-primary)]">
                 <DollarSign className="w-3.5 h-3.5 text-[var(--theme-primary)]" />
-                <span>Total Capital Invested</span>
+                <span>Total Vehicle Cost</span>
               </div>
               <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white">
-                {formatCurrency(stats.stockTotalCost)}
+                {kpiStatus === 'ready' ? formatApiMoney(stats.stockTotalCost) : displayCount(0)}
               </div>
               <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                Across {stats.stockCount} stock/inventory vehicles
+                Across {displayCount(stats.stockCount)} stock/inventory vehicles
               </div>
             </div>
           ) : mode === 'customer' ? (
             <div className="bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl p-2.5 flex flex-col gap-1">
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
                 <Wrench className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Active Service Intake</span>
+                <span>External Customer Vehicles</span>
               </div>
               <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white">
-                {stats.customerCount} Units
+                {displayCount(stats.customerCount)} Units
               </div>
               <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                Under customer repair & maintenance
+                With external customer Garage jobs
               </div>
             </div>
           ) : null}
@@ -445,6 +496,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
               onClick={() => {
                 setTypeFilter('All');
                 setStatusFilter('All');
+                setPage(1);
                 if (onSelectRoute) onSelectRoute('All Vehicles');
               }}
               className={`w-full flex flex-col gap-1 p-2 rounded-xl text-left transition cursor-pointer ${
@@ -455,7 +507,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
             >
               <div className="flex items-center justify-between text-[11px] font-semibold">
                 <span>All Vehicles</span>
-                <span className="text-[10px] opacity-80">{stats.total} items</span>
+                <span className="text-[10px] opacity-80">{displayCount(stats.total)} items</span>
               </div>
               <div className="w-full h-1 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
                 <div className="h-full bg-[var(--theme-primary)] rounded-full" style={{ width: '100%' }} />
@@ -467,6 +519,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
               onClick={() => {
                 setTypeFilter('Stock / Investor');
                 setStatusFilter('All');
+                setPage(1);
                 if (onSelectRoute) onSelectRoute('Stock / Investor');
               }}
               className={`w-full flex flex-col gap-1 p-2 rounded-xl text-left transition cursor-pointer ${
@@ -477,7 +530,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
             >
               <div className="flex items-center justify-between text-[11px] font-semibold">
                 <span>Stock / Investor</span>
-                <span className="text-[10px] opacity-80">{stats.stockCount} items</span>
+                <span className="text-[10px] opacity-80">{displayCount(stats.stockCount)} items</span>
               </div>
               <div className="w-full h-1 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
                 <div
@@ -494,6 +547,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
               onClick={() => {
                 setTypeFilter('Customer');
                 setStatusFilter('All');
+                setPage(1);
                 if (onSelectRoute) onSelectRoute('Customer Vehicles');
               }}
               className={`w-full flex flex-col gap-1 p-2 rounded-xl text-left transition cursor-pointer ${
@@ -504,7 +558,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
             >
               <div className="flex items-center justify-between text-[11px] font-semibold">
                 <span>Customer Vehicles</span>
-                <span className="text-[10px] opacity-80">{stats.customerCount} items</span>
+                <span className="text-[10px] opacity-80">{displayCount(stats.customerCount)} items</span>
               </div>
               <div className="w-full h-1 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
                 <div
@@ -525,7 +579,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
 
             {/* In work */}
             <button
-              onClick={() => setStatusFilter((prev) => (prev === 'In work' ? 'All' : 'In work'))}
+              onClick={() => { setStatusFilter((prev) => (prev === 'In work' ? 'All' : 'In work')); setPage(1); }}
               className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer ${
                 statusFilter === 'In work'
                   ? 'bg-amber-50 text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-200'
@@ -537,13 +591,13 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                 <span>In work</span>
               </div>
               <span className="text-[10px] font-bold">
-                {mode === 'stock-investor' ? stats.stockInWork : stats.inWork}
+                {displayCount(mode === 'stock-investor' ? stats.stockInWork : stats.inWork)}
               </span>
             </button>
 
             {/* Purchased */}
             <button
-              onClick={() => setStatusFilter((prev) => (prev === 'Purchased' ? 'All' : 'Purchased'))}
+              onClick={() => { setStatusFilter((prev) => (prev === 'Purchased' ? 'All' : 'Purchased')); setPage(1); }}
               className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer ${
                 statusFilter === 'Purchased'
                   ? 'bg-blue-50 text-blue-900 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-200'
@@ -555,13 +609,13 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                 <span>Purchased</span>
               </div>
               <span className="text-[10px] font-bold">
-                {mode === 'stock-investor' ? stats.stockPurchased : stats.purchased}
+                {displayCount(mode === 'stock-investor' ? stats.stockPurchased : stats.purchased)}
               </span>
             </button>
 
             {/* Sold */}
             <button
-              onClick={() => setStatusFilter((prev) => (prev === 'Sold' ? 'All' : 'Sold'))}
+              onClick={() => { setStatusFilter((prev) => (prev === 'Sold' ? 'All' : 'Sold')); setPage(1); }}
               className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer ${
                 statusFilter === 'Sold'
                   ? 'bg-gray-200 text-gray-900 border border-gray-300 dark:bg-zinc-800 dark:text-white'
@@ -573,7 +627,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                 <span>Sold</span>
               </div>
               <span className="text-[10px] font-bold">
-                {mode === 'stock-investor' ? stats.stockSold : stats.sold}
+                {displayCount(mode === 'stock-investor' ? stats.stockSold : stats.sold)}
               </span>
             </button>
 
@@ -583,6 +637,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                 onClick={() => {
                   setTypeFilter('Customer');
                   setStatusFilter('All');
+                  setPage(1);
                 }}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition cursor-pointer ${
                   typeFilter === 'Customer'
@@ -594,7 +649,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   <span>Customer Service</span>
                 </div>
-                <span className="text-[10px] font-bold">{stats.customerCount}</span>
+                <span className="text-[10px] font-bold">{displayCount(stats.customerCount)}</span>
               </button>
             )}
           </div>
@@ -602,7 +657,7 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
           {/* Bottom Counter */}
           <div className="pt-2.5 border-t border-gray-100 dark:border-zinc-750 text-[11px] font-bold text-gray-900 dark:text-white flex items-baseline gap-1.5">
             <span className="text-lg font-extrabold text-[var(--theme-primary)]">
-              {displayedVehicles.length}
+              {kpiStatus === 'ready' ? registerQuery.data?.count ?? 0 : kpiStatus === 'loading' ? '…' : 'Unavailable'}
             </span>
             <span className="text-gray-500 dark:text-gray-400 font-medium">
               vehicles listed in view
@@ -610,6 +665,18 @@ export const AllVehiclesView: React.FC<AllVehiclesViewProps> = ({
           </div>
         </aside>
       </div>
+
+      {kpiStatus === 'ready' && (registerQuery.data?.previous || registerQuery.data?.next) && (
+        <div className="flex items-center justify-end gap-2 text-xs">
+          <span className="mr-1 text-gray-500">Page {page} of {Math.max(1, Math.ceil((registerQuery.data?.count ?? 0) / 20))}</span>
+          <button type="button" disabled={!registerQuery.data?.previous} onClick={() => setPage((current) => Math.max(1, current - 1))} className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2.5 font-semibold disabled:opacity-40 dark:border-zinc-700">
+            Previous
+          </button>
+          <button type="button" disabled={!registerQuery.data?.next} onClick={() => setPage((current) => current + 1)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2.5 font-semibold disabled:opacity-40 dark:border-zinc-700">
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };

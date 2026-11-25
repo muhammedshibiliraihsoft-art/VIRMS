@@ -1,12 +1,16 @@
 import hashlib
 import json
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, localcontext
+from zoneinfo import ZoneInfo
 
+from django.core.paginator import EmptyPage, Paginator
 from django.db import IntegrityError
-from django.db.models import OuterRef, Q, Subquery, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import Count, DecimalField, Exists, ExpressionWrapper, F, OuterRef, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
+
+VEHICLE_FINANCIAL_TIME_ZONE = ZoneInfo("Asia/Kolkata")
 
 from apps.accounts.audit import record_event
 from apps.accounts.policy import require_action
@@ -480,6 +484,261 @@ def list_vehicles(*, actor, company_id, branch_id=None, search=""):
     return queryset.order_by("normalized_registration", "id")
 
 
+def vehicle_register_projection(
+    *, actor, company_id, branch_id=None, search="", context="all", status="all", page=1,
+):
+    """Project Vehicle, Purchase and Garage context for the Main Vehicle register.
+
+    The Vehicle remains the only identity. Garage and Purchase data are read-only
+    context; inaccessible historical Branch sources are omitted or marked
+    unavailable instead of being partially added to a cost.
+    """
+    from apps.garage.models import GarageJob
+
+    company, scope, _ = read_scope(
+        actor=actor, company_id=company_id, action="vehicle.read", branch_id=branch_id,
+    )
+    vehicles = Vehicle.objects.filter(tenant=company, is_active=True).select_related(
+        "current_branch", "confirmed_sale",
+    )
+    vehicles = _queryset_for_scope(vehicles, scope=scope, branch_id=branch_id)
+
+    purchases = VehiclePurchase.objects.filter(tenant=company)
+    jobs = GarageJob.objects.filter(tenant=company)
+    if not scope.is_company_reader:
+        allowed_branch_ids = scope.allowed_branch_ids
+        purchases = purchases.filter(branch_id__in=allowed_branch_ids)
+        jobs = jobs.filter(branch_id__in=allowed_branch_ids)
+    stock_jobs = jobs.filter(context=GarageJob.Context.STOCK)
+    customer_jobs = jobs.filter(context=GarageJob.Context.EXTERNAL_CUSTOMER)
+
+    vehicles = vehicles.annotate(
+        has_stock_purchase=Exists(purchases.filter(vehicle_id=OuterRef("pk"))),
+        has_customer_job=Exists(customer_jobs.filter(vehicle_id=OuterRef("pk"))),
+        has_open_stock_job=Exists(stock_jobs.filter(vehicle_id=OuterRef("pk"), status=GarageJob.Status.OPEN)),
+        has_open_customer_job=Exists(customer_jobs.filter(vehicle_id=OuterRef("pk"), status=GarageJob.Status.OPEN)),
+    )
+
+    if context == "stock":
+        vehicles = vehicles.filter(has_stock_purchase=True)
+    elif context == "customer":
+        vehicles = vehicles.filter(has_customer_job=True)
+    if status == "in_work":
+        if context == "stock":
+            vehicles = vehicles.filter(has_open_stock_job=True)
+        elif context == "customer":
+            vehicles = vehicles.filter(has_open_customer_job=True)
+        else:
+            vehicles = vehicles.filter(Q(has_open_stock_job=True) | Q(has_open_customer_job=True))
+    elif status == "sold":
+        vehicles = vehicles.filter(confirmed_sale__isnull=False)
+    elif status == "purchased":
+        vehicles = vehicles.filter(has_stock_purchase=True, confirmed_sale__isnull=True, has_open_stock_job=False)
+    elif status == "customer_vehicles":
+        vehicles = vehicles.filter(has_customer_job=True)
+
+    if search:
+        search_jobs = customer_jobs.filter(contact_name__icontains=search).values("vehicle_id")
+        search_purchases = purchases.filter(
+            Q(seller_name__icontains=search) | Q(investor__name__icontains=search)
+        ).values("vehicle_id")
+        vehicles = vehicles.filter(
+            Q(normalized_registration__icontains=normalize_registration(search))
+            | Q(model__icontains=search.strip())
+            | Q(pk__in=search_jobs)
+            | Q(pk__in=search_purchases)
+        )
+
+    # The page rows can be filtered and paginated, while the side-panel counts
+    # continue to describe the full authorized Branch scope as before.
+    summary_vehicles = Vehicle.objects.filter(tenant=company, is_active=True).select_related(
+        "current_branch", "confirmed_sale",
+    )
+    summary_vehicles = _queryset_for_scope(summary_vehicles, scope=scope, branch_id=branch_id)
+    summary_vehicles = summary_vehicles.annotate(
+        has_stock_purchase=Exists(purchases.filter(vehicle_id=OuterRef("pk"))),
+        has_customer_job=Exists(customer_jobs.filter(vehicle_id=OuterRef("pk"))),
+        has_open_stock_job=Exists(stock_jobs.filter(vehicle_id=OuterRef("pk"), status=GarageJob.Status.OPEN)),
+        has_open_customer_job=Exists(customer_jobs.filter(vehicle_id=OuterRef("pk"), status=GarageJob.Status.OPEN)),
+    )
+    summary_counts = summary_vehicles.aggregate(
+        total=Count("id"),
+        stock_count=Count("id", filter=Q(has_stock_purchase=True)),
+        customer_count=Count("id", filter=Q(has_customer_job=True)),
+        in_work=Count("id", filter=Q(has_open_stock_job=True) | Q(has_open_customer_job=True)),
+        sold=Count("id", filter=Q(confirmed_sale__isnull=False)),
+        purchased=Count("id", filter=Q(has_stock_purchase=True, confirmed_sale__isnull=True, has_open_stock_job=False)),
+        stock_in_work=Count("id", filter=Q(has_stock_purchase=True, has_open_stock_job=True)),
+        stock_purchased=Count("id", filter=Q(has_stock_purchase=True, confirmed_sale__isnull=True, has_open_stock_job=False)),
+        stock_sold=Count("id", filter=Q(has_stock_purchase=True, confirmed_sale__isnull=False)),
+    )
+
+    from .models import VehiclePurchaseCorrection
+
+    money = DecimalField(max_digits=38, decimal_places=2)
+    zero = Value(Decimal("0.00"), output_field=money)
+    current_purchase_cost = VehiclePurchaseCorrection.objects.filter(
+        purchase_id=OuterRef("purchase__pk")
+    ).order_by("-version", "-id").values("purchase_cost")[:1]
+    expense_amount_correction = VehicleExpenseCorrection.objects.filter(
+        expense_id=OuterRef("pk")
+    ).order_by("-version", "-id").values("amount")[:1]
+    expense_total = VehicleExpense.objects.filter(
+        tenant=company, vehicle_id=OuterRef("pk")
+    ).annotate(
+        current_amount=Coalesce(Subquery(expense_amount_correction, output_field=money), F("amount"), output_field=money)
+    ).order_by().values("vehicle_id").annotate(
+        amount_total=Sum("current_amount")
+    ).values("amount_total")[:1]
+    cost_vehicles = summary_vehicles.annotate(
+        current_purchase_cost=Coalesce(
+            Subquery(current_purchase_cost, output_field=money), F("purchase__purchase_cost"), zero, output_field=money,
+        ),
+        current_expense_total=Coalesce(Subquery(expense_total, output_field=money), zero, output_field=money),
+    ).annotate(
+        current_total_cost=ExpressionWrapper(F("current_purchase_cost") + F("current_expense_total"), output_field=money)
+    ).filter(has_stock_purchase=True)
+
+    all_summary_vehicle_ids = summary_vehicles.order_by().values_list("id", flat=True)
+    if scope.is_company_reader:
+        inaccessible_cost_vehicles = set()
+    else:
+        inaccessible_cost_vehicles = set(VehiclePurchase.objects.filter(
+            tenant=company, vehicle_id__in=all_summary_vehicle_ids,
+        ).exclude(branch_id__in=scope.allowed_branch_ids).values_list("vehicle_id", flat=True))
+        inaccessible_cost_vehicles.update(VehicleExpense.objects.filter(
+            tenant=company, vehicle_id__in=all_summary_vehicle_ids,
+        ).exclude(branch_id__in=scope.allowed_branch_ids).values_list("vehicle_id", flat=True))
+    stock_total_cost = None if inaccessible_cost_vehicles else cost_vehicles.aggregate(total=Sum("current_total_cost"))["total"]
+    customer_job_counts = customer_jobs.aggregate(
+        total=Count("id"),
+        open=Count("id", filter=Q(status=GarageJob.Status.OPEN)),
+        completed=Count("id", filter=Q(status=GarageJob.Status.COMPLETED)),
+    )
+    summary_counts.update({
+        "customer_jobs": customer_job_counts["total"] or 0,
+        "open_customer_jobs": customer_job_counts["open"] or 0,
+        "completed_customer_jobs": customer_job_counts["completed"] or 0,
+        "stock_total_cost": format(stock_total_cost or Decimal("0.00"), ".2f") if stock_total_cost is not None else None,
+    })
+
+    paginator = Paginator(vehicles.order_by("normalized_registration", "id"), 20)
+    try:
+        page_obj = paginator.page(page)
+    except EmptyPage as exc:
+        raise NotFound("Vehicle page not found.") from exc
+    rows = list(page_obj.object_list)
+    vehicle_ids = [row.pk for row in rows]
+    purchase_rows = VehiclePurchase.objects.filter(
+        tenant=company, vehicle_id__in=vehicle_ids,
+    ).select_related("investor", "branch").prefetch_related("corrections")
+    job_rows = GarageJob.objects.filter(
+        tenant=company, vehicle_id__in=vehicle_ids,
+    ).select_related("branch").order_by("-created_at", "-id")
+    expense_rows = VehicleExpense.objects.filter(
+        tenant=company, vehicle_id__in=vehicle_ids,
+    ).select_related("branch").prefetch_related("corrections")
+    if not scope.is_company_reader:
+        purchase_rows = purchase_rows.filter(branch_id__in=scope.allowed_branch_ids)
+        job_rows = job_rows.filter(branch_id__in=scope.allowed_branch_ids)
+        expense_rows = expense_rows.filter(branch_id__in=scope.allowed_branch_ids)
+
+    purchase_by_vehicle = {row.vehicle_id: row for row in purchase_rows}
+    jobs_by_vehicle = {}
+    for row in job_rows:
+        jobs_by_vehicle.setdefault(row.vehicle_id, []).append(row)
+    expenses_by_vehicle = {}
+    for row in expense_rows:
+        expenses_by_vehicle.setdefault(row.vehicle_id, []).append(row)
+
+    projected_rows = []
+    for vehicle in rows:
+        purchase = purchase_by_vehicle.get(vehicle.pk)
+        jobs_for_vehicle = jobs_by_vehicle.get(vehicle.pk, [])
+        customer_jobs_for_vehicle = [row for row in jobs_for_vehicle if row.context == GarageJob.Context.EXTERNAL_CUSTOMER]
+        stock_jobs_for_vehicle = [row for row in jobs_for_vehicle if row.context == GarageJob.Context.STOCK]
+        contexts = []
+        if purchase:
+            contexts.append("STOCK")
+        if customer_jobs_for_vehicle:
+            contexts.append("EXTERNAL_CUSTOMER")
+
+        if vehicle.pk in inaccessible_cost_vehicles:
+            total_cost = None
+            purchase_cost = None
+        else:
+            purchase_correction = max(purchase.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None) if purchase else None
+            purchase_cost_value = purchase_correction.purchase_cost if purchase_correction else purchase.purchase_cost if purchase else Decimal("0.00")
+            expense_cost_value = Decimal("0.00")
+            for expense in expenses_by_vehicle.get(vehicle.pk, []):
+                correction = max(expense.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
+                expense_cost_value += correction.amount if correction else expense.amount
+            purchase_cost = format(purchase_cost_value, ".2f") if purchase else None
+            total_cost = format(purchase_cost_value + expense_cost_value, ".2f")
+
+        if getattr(vehicle, "confirmed_sale", None) is not None:
+            row_status = "SOLD"
+        elif any(row.status == GarageJob.Status.OPEN for row in stock_jobs_for_vehicle):
+            row_status = "IN_WORK"
+        elif any(row.status == GarageJob.Status.OPEN for row in customer_jobs_for_vehicle):
+            row_status = "IN_SERVICE"
+        elif customer_jobs_for_vehicle or any(row.status == GarageJob.Status.COMPLETED for row in stock_jobs_for_vehicle):
+            row_status = "COMPLETED"
+        elif purchase:
+            row_status = "PURCHASED"
+        else:
+            row_status = "REGISTERED"
+
+        if context == "customer":
+            display_type = "Customer"
+            person = "Multiple jobs" if len(customer_jobs_for_vehicle) > 1 else customer_jobs_for_vehicle[0].contact_name if customer_jobs_for_vehicle else "—"
+            person_label = "Customer"
+        elif context == "stock":
+            display_type = "Stock / Investor"
+            person = purchase.investor.name if purchase and purchase.investor_id else purchase.seller_name if purchase else "—"
+            person_label = "Investor" if purchase and purchase.investor_id else "Seller"
+        elif purchase:
+            display_type = "Stock / Investor"
+            person = purchase.investor.name if purchase.investor_id else purchase.seller_name
+            person_label = "Investor" if purchase.investor_id else "Seller"
+        elif customer_jobs_for_vehicle:
+            display_type = "Customer"
+            person = "Multiple jobs" if len(customer_jobs_for_vehicle) > 1 else customer_jobs_for_vehicle[0].contact_name
+            person_label = "Customer"
+        else:
+            display_type = "Vehicle"
+            person = "—"
+            person_label = "Source"
+
+        projected_rows.append({
+            **_vehicle_data(vehicle),
+            "contexts": contexts,
+            "type": display_type,
+            "person": person,
+            "person_label": person_label,
+            "status": row_status,
+            "purchase_cost": purchase_cost,
+            "total_cost": total_cost,
+            "financial_available": vehicle.pk not in inaccessible_cost_vehicles,
+            "customer_job_count": len(customer_jobs_for_vehicle),
+            "customer_contact": (
+                "Multiple jobs" if len(customer_jobs_for_vehicle) > 1
+                else customer_jobs_for_vehicle[0].contact_name if customer_jobs_for_vehicle else None
+            ),
+            "customer_status": (
+                "IN_SERVICE" if any(row.status == GarageJob.Status.OPEN for row in customer_jobs_for_vehicle)
+                else "COMPLETED" if customer_jobs_for_vehicle else None
+            ),
+        })
+
+    return summary_counts, projected_rows, {
+        "count": paginator.count,
+        "page": page_obj.number,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+    }
+
+
 def get_vehicle(*, actor, company_id, vehicle_id):
     company = Tenant.objects.filter(pk=company_id, is_active=True).first()
     if company is None:
@@ -588,7 +847,7 @@ def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_
             else "AVAILABLE" if purchase else "NOT_PURCHASED"
         ),
         "sale_id": str(sale.pk) if sale else None,
-        "sale_effective_date": timezone.localdate(sale.sold_at).isoformat() if sale else None,
+        "sale_effective_date": timezone.localdate(sale.sold_at, VEHICLE_FINANCIAL_TIME_ZONE).isoformat() if sale else None,
         "purchase_cost": format(purchase_cost, ".2f"),
         "vehicle_expense_cost": format(expense_cost, ".2f"),
         "total_vehicle_cost": format(total_cost, ".2f"),
@@ -2140,6 +2399,145 @@ def list_sales(*, actor, company_id, branch_id=None):
     elif not scope.is_company_reader:
         queryset = queryset.filter(branch_id__in=scope.allowed_branch_ids)
     return queryset.order_by("-sold_at", "id")
+
+
+def operational_summary(*, actor, company_id, branch_id=None):
+    """Return bounded, scoped Vehicle and Sale totals for Main-System KPIs."""
+    company, scope, _ = read_scope(
+        actor=actor, company_id=company_id, action="vehicle.read", branch_id=branch_id,
+    )
+    vehicles = Vehicle.objects.filter(tenant=company, is_active=True).select_related(
+        "current_branch", "confirmed_sale",
+    )
+    vehicles = _queryset_for_scope(vehicles, scope=scope, branch_id=branch_id)
+    vehicle_counts = vehicles.aggregate(
+        total=Count("id"),
+        sold=Count("id", filter=Q(confirmed_sale__isnull=False)),
+    )
+
+    sales = list_sales(actor=actor, company_id=company_id, branch_id=branch_id)
+    money = DecimalField(max_digits=38, decimal_places=2)
+    zero = Value(Decimal("0.00"), output_field=money)
+    latest_price = VehicleSaleCorrection.objects.filter(
+        sale_id=OuterRef("pk")
+    ).order_by("-version", "-id").values("sale_price")[:1]
+    receipts = VehicleSaleReceipt.objects.filter(sale_id=OuterRef("pk"))
+    refunds = VehicleSaleRefund.objects.filter(sale_id=OuterRef("pk"))
+    sales = sales.annotate(
+        current_sale_price=Coalesce(
+            Subquery(latest_price, output_field=money), F("sale_price"), output_field=money
+        ),
+        actual_receipts=Coalesce(
+            Subquery(receipts.order_by().values("sale_id").annotate(total=Sum("amount")).values("total")[:1], output_field=money),
+            zero,
+            output_field=money,
+        ),
+        actual_refunds=Coalesce(
+            Subquery(refunds.order_by().values("sale_id").annotate(total=Sum("amount")).values("total")[:1], output_field=money),
+            zero,
+            output_field=money,
+        ),
+    ).annotate(
+        buyer_due=Greatest(
+            ExpressionWrapper(
+                F("current_sale_price") - F("actual_receipts") + F("actual_refunds"),
+                output_field=money,
+            ),
+            zero,
+            output_field=money,
+        ),
+        refund_obligation=Greatest(
+            ExpressionWrapper(
+                F("actual_receipts") - F("actual_refunds") - F("current_sale_price"),
+                output_field=money,
+            ),
+            zero,
+            output_field=money,
+        ),
+    )
+    sale_totals = sales.aggregate(
+        sales=Count("id"),
+        current_sale_price_sum=Sum("current_sale_price"),
+        buyer_receivable=Sum("buyer_due"),
+        refund_obligation_sum=Sum("refund_obligation"),
+    )
+    sale_ids = sales.order_by().values("id")
+    corrections = VehicleSaleCorrection.objects.filter(sale_id__in=Subquery(sale_ids))
+    correction_count = corrections.count()
+    corrected_sale_count = corrections.values("sale_id").distinct().count()
+    receipt_totals = VehicleSaleReceipt.objects.filter(sale_id__in=Subquery(sale_ids)).aggregate(
+        count=Count("id"), amount=Sum("amount")
+    )
+    refund_totals = VehicleSaleRefund.objects.filter(sale_id__in=Subquery(sale_ids)).aggregate(
+        count=Count("id"), amount=Sum("amount")
+    )
+    receipt_amount = receipt_totals["amount"] or Decimal("0.00")
+    refund_amount = refund_totals["amount"] or Decimal("0.00")
+    with localcontext() as context:
+        context.prec = 80
+        net_receipts = receipt_amount - refund_amount
+    stock_vehicle_ids = vehicles.filter(purchase__isnull=False).order_by().values("id")
+    purchases = VehiclePurchase.objects.filter(tenant=company, vehicle_id__in=Subquery(stock_vehicle_ids))
+    expenses = VehicleExpense.objects.filter(tenant=company, vehicle_id__in=Subquery(stock_vehicle_ids))
+    capital_recoveries = None
+    inaccessible_capital_sources = False
+    if not scope.is_company_reader:
+        allowed = scope.allowed_branch_ids
+        inaccessible_capital_sources = (
+            purchases.exclude(branch_id__in=allowed).exists()
+            or expenses.exclude(branch_id__in=allowed).exists()
+            or VehiclePurchaseCorrection.objects.filter(
+                purchase_id__in=purchases.values("id"),
+            ).exclude(branch_id__in=allowed).exists()
+            or VehicleExpenseCorrection.objects.filter(
+                expense_id__in=expenses.values("id"),
+            ).exclude(branch_id__in=allowed).exists()
+        )
+    if not inaccessible_capital_sources:
+        latest_purchase_capital = VehiclePurchaseCorrection.objects.filter(
+            purchase_id=OuterRef("pk")
+        ).order_by("-version", "-id").values("running_capital_amount")[:1]
+        latest_expense_capital = VehicleExpenseCorrection.objects.filter(
+            expense_id=OuterRef("pk")
+        ).order_by("-version", "-id").values("running_capital_amount")[:1]
+        purchase_capital = purchases.annotate(
+            current_capital=Coalesce(Subquery(latest_purchase_capital, output_field=money), F("running_capital_amount"), output_field=money)
+        ).aggregate(total=Sum("current_capital"))["total"] or Decimal("0.00")
+        expense_capital = expenses.annotate(
+            current_capital=Coalesce(Subquery(latest_expense_capital, output_field=money), F("running_capital_amount"), output_field=money)
+        ).aggregate(total=Sum("current_capital"))["total"] or Decimal("0.00")
+        contributed = purchase_capital + expense_capital
+        from apps.investment.models import VehicleCapitalRecovery
+        capital_recoveries = VehicleCapitalRecovery.objects.filter(
+            tenant=company,
+            sale__vehicle_id__in=Subquery(stock_vehicle_ids),
+        )
+        if not scope.is_company_reader and capital_recoveries.exclude(sale__branch_id__in=allowed).exists():
+            inaccessible_capital_sources = True
+        recovered = capital_recoveries.aggregate(total=Sum("running_capital"))["total"] or Decimal("0.00")
+    else:
+        contributed = recovered = None
+    outstanding = contributed - recovered if contributed is not None and recovered is not None and recovered <= contributed else None
+    return {
+        "company_id": str(company_id),
+        "branch_id": str(branch_id) if branch_id else None,
+        "vehicle_count": vehicle_counts["total"] or 0,
+        "unsold_vehicle_count": (vehicle_counts["total"] or 0) - (vehicle_counts["sold"] or 0),
+        "sold_vehicle_count": vehicle_counts["sold"] or 0,
+        "sale_count": sale_totals["sales"] or 0,
+        "current_sale_price_total": format(sale_totals["current_sale_price_sum"] or Decimal("0.00"), ".2f"),
+        "corrected_sale_count": corrected_sale_count,
+        "sale_correction_count": correction_count,
+        "buyer_receipt_count": receipt_totals["count"] or 0,
+        "buyer_receipts_received": format(receipt_amount, ".2f"),
+        "buyer_refunds_paid": format(refund_amount, ".2f"),
+        "buyer_net_receipts": format(net_receipts, ".2f"),
+        "buyer_receivable": format(sale_totals["buyer_receivable"] or Decimal("0.00"), ".2f"),
+        "refund_obligation": format(sale_totals["refund_obligation_sum"] or Decimal("0.00"), ".2f"),
+        "running_capital_contributed": format(contributed, ".2f") if not inaccessible_capital_sources and contributed is not None else None,
+        "running_capital_recovered": format(recovered, ".2f") if not inaccessible_capital_sources and recovered is not None else None,
+        "running_capital_outstanding": format(outstanding, ".2f") if not inaccessible_capital_sources and outstanding is not None else None,
+    }
 
 
 def get_sale(*, actor, company_id, sale_id):

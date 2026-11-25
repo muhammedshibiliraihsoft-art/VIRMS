@@ -5,6 +5,7 @@ import {
   accountingCategories,
   accountingEvent,
   accountingEvents,
+  accountingMonthlyTrend,
   accountingResult,
   AccountingEventType,
 } from './accountingApi';
@@ -122,6 +123,21 @@ export function useAccountingResult(options: {
     queryFn: ({ signal }) => {
       if (!currentCompany) throw new Error('A single authorized Company context is required.');
       return accountingResult(currentCompany.id, options, signal);
+    },
+    enabled: enabled && options.enabled !== false,
+    retry: false,
+  });
+}
+
+export function useAccountingMonthlyTrend(options: { branchId?: string; enabled?: boolean }) {
+  const { user, currentCompany, enabled } = useAccountingContext();
+  return useQuery({
+    queryKey: user && currentCompany
+      ? ['companies', user.id, currentCompany.id, 'accounting', 'monthly-trend', options.branchId ?? null]
+      : ['companies', 'unavailable', 'accounting', 'monthly-trend'] as const,
+    queryFn: ({ signal }) => {
+      if (!currentCompany) throw new Error('A single authorized Company context is required.');
+      return accountingMonthlyTrend(currentCompany.id, options.branchId, signal);
     },
     enabled: enabled && options.enabled !== false,
     retry: false,

@@ -20,6 +20,59 @@ beforeEach(() => {
 });
 
 describe('Phase 5 API contracts', () => {
+  it('validates scoped Vehicle register rows, summary counts, costs and pagination', async () => {
+    const row = {
+      id: ids.vehicle, company_id: ids.company, branch_id: ids.branch, branch_name: 'Central',
+      registration: 'KL 11 P 5050', model: 'Jeep Wrangler', is_active: true, is_sold: false, sale_id: null,
+      contexts: ['STOCK', 'EXTERNAL_CUSTOMER'], type: 'Stock / Investor', person: 'North Motors',
+      person_label: 'Seller', status: 'IN_SERVICE', purchase_cost: '9000.00', total_cost: '9500.00',
+      financial_available: true, customer_job_count: 2, customer_contact: 'Multiple jobs', customer_status: 'IN_SERVICE',
+    };
+    const result = {
+      company_id: ids.company, branch_id: ids.branch, count: 21, next: '?page=2', previous: null,
+      results: [row],
+      summary: {
+        total: 21, stock_count: 4, customer_count: 2, stock_total_cost: '9500.00',
+        in_work: 1, sold: 2, purchased: 1, customer_jobs: 3, open_customer_jobs: 2,
+        completed_customer_jobs: 1, stock_in_work: 1, stock_purchased: 1, stock_sold: 2,
+      },
+    };
+    requestMock.mockResolvedValueOnce(result);
+
+    const projection = await phase5Api.vehicleRegister(ids.company, {
+      page: 1, branchId: ids.branch, search: 'KL 11', context: 'customer', status: 'in_work',
+    });
+
+    expect(projection.results[0]?.total_cost).toBe('9500.00');
+    expect(projection.summary.open_customer_jobs).toBe(2);
+    expect(projection.next).toBe('?page=2');
+    expect(requestMock).toHaveBeenLastCalledWith(
+      `tenants/${ids.company}/vehicle-management/register-summary/?page=1&branch_id=${ids.branch}&search=KL+11&context=customer&status=in_work`,
+      { signal: undefined },
+    );
+
+    requestMock.mockResolvedValueOnce({ ...result, summary: { ...result.summary, completed_customer_jobs: -1 } });
+    await expect(phase5Api.vehicleRegister(ids.company)).rejects.toThrow('Invalid Vehicle register summary count.');
+  });
+
+  it('accepts zero fund reserve and rejects a missing reserve', async () => {
+    const summary = { company_id: ids.company, branch_id: null, investor_id: null, credit_total: '0.00', principal_return_total: '0.00', used_total: '0.00', reserved_amount: '0.00', available_amount: '0.00' };
+    requestMock.mockResolvedValueOnce(summary);
+    await expect(phase5Api.fundSummary(ids.company, {})).resolves.toEqual(summary);
+    const missingReserve = { ...summary };
+    Reflect.deleteProperty(missingReserve, 'reserved_amount');
+    requestMock.mockResolvedValueOnce(missingReserve);
+    await expect(phase5Api.fundSummary(ids.company, {})).rejects.toThrow();
+  });
+  it('accepts an empty vehicle summary and rejects a negative count', async () => {
+    const summary = { company_id: ids.company, branch_id: null, vehicle_count: 0, unsold_vehicle_count: 0, sold_vehicle_count: 0, sale_count: 0, corrected_sale_count: 0, sale_correction_count: 0, buyer_receipt_count: 0, current_sale_price_total: '0.00', buyer_receipts_received: '0.00', buyer_refunds_paid: '0.00', buyer_net_receipts: '0.00', buyer_receivable: '0.00', refund_obligation: '0.00', running_capital_contributed: '0.00', running_capital_recovered: '0.00', running_capital_outstanding: '0.00' };
+    requestMock.mockResolvedValueOnce({ ...summary, running_capital_outstanding: null });
+    await expect(phase5Api.operationalSummary(ids.company)).resolves.toMatchObject({ running_capital_outstanding: null });
+    requestMock.mockResolvedValueOnce(summary);
+    await expect(phase5Api.operationalSummary(ids.company)).resolves.toEqual(summary);
+    requestMock.mockResolvedValueOnce({ ...summary, vehicle_count: -1 });
+    await expect(phase5Api.operationalSummary(ids.company)).rejects.toThrow();
+  });
   it('validates the notice-extension response before accepting success', async () => {
     const result = { id: ids.sale, version: 1, previous_deadline: '2027-02-19T00:00:00Z',
       deadline: '2027-04-19T00:00:00Z', reason: 'Vehicle remains open' };
@@ -413,6 +466,8 @@ describe('Phase 5 API contracts', () => {
   });
 
   it('reads and mutates Investor portal bindings through the Company-scoped API', async () => {
+    requestMock.mockResolvedValueOnce(undefined);
+    expect(await phase5Api.investorPortalBinding(ids.company, ids.vehicle)).toBeNull();
     const binding = {
       id: ids.sale, investor_id: ids.vehicle, account_id: ids.user,
       login_id: 'investor.login', effective_from: '2026-11-19T00:00:00Z', effective_until: null,

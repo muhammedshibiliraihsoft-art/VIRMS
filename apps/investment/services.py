@@ -2,11 +2,14 @@ import hashlib
 import json
 from decimal import Decimal, localcontext
 from datetime import date
+from zoneinfo import ZoneInfo
 
 from django.db import transaction
-from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q, Sum
+from django.db.models import Count, DecimalField, Exists, F, Func, Max, OuterRef, Prefetch, Q, Sum
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
+
+INVESTOR_PROFIT_TIME_ZONE = ZoneInfo("Asia/Kolkata")
 
 from apps.accounts.audit import record_event
 from apps.accounts.policy import require_action
@@ -1070,12 +1073,12 @@ def create_profit_share_agreement(
         )
         record_event(
             action="investor.agreement.configure", actor=locked_actor,
-            subject=investor, company=company, resource=row,
+            subject=locked_actor, company=company, resource=row,
             metadata={
-                "agreement_id": str(row.pk),
+                "investor_share_agreement_id": str(row.pk),
                 "investor_id": str(investor.pk),
-                "share_percentage": format(share_percentage, ".4f"),
-                "effective_at": effective_at.isoformat(),
+                "investor_share_percentage_snapshot": format(share_percentage, ".4f"),
+                "effective_from": effective_at.isoformat(),
             },
         )
         return DomainMutationResult(201, _profit_share_agreement_data(row))
@@ -1578,7 +1581,7 @@ def list_investor_profit_period_projection(*, actor, company_id, investor_id):
              "duration_months": row.duration_months, "version": row.version}
             for row in configured
         ]
-        active = [row for row in configured if row.effective_start <= timezone.localdate()]
+        active = [row for row in configured if row.effective_start <= timezone.localdate(timezone=INVESTOR_PROFIT_TIME_ZONE)]
         calendar = {
             "status": "CONFIGURED" if active else "SCHEDULED",
             "start_date": active[-1].effective_start.isoformat() if active else configured[0].effective_start.isoformat(),
@@ -1586,7 +1589,7 @@ def list_investor_profit_period_projection(*, actor, company_id, investor_id):
             "versions": [_profit_calendar_data(row) for row in configured],
         }
     elif first_credit_at:
-        first_credit_date = timezone.localdate(first_credit_at)
+        first_credit_date = timezone.localdate(first_credit_at, INVESTOR_PROFIT_TIME_ZONE)
         calendar_versions = [{
             "effective_start": first_credit_date.isoformat(),
             "duration_months": 6,
@@ -1689,7 +1692,7 @@ def list_investor_profit_period_projection(*, actor, company_id, investor_id):
     interim_payments = [
         {
             "id": str(payment.pk),
-            "effective_payment_date": timezone.localdate(payment.effective_at).isoformat(),
+            "effective_payment_date": timezone.localdate(payment.effective_at, INVESTOR_PROFIT_TIME_ZONE).isoformat(),
             "amount": format(payment.amount, ".2f"),
             "effective_at": payment.effective_at.isoformat(),
         }
@@ -2060,7 +2063,7 @@ def configure_profit_calendar(
                 for row in rows
             ]
             current_period = investor_profit_period_for_date(
-                timezone.localdate(), versions,
+                timezone.localdate(timezone=INVESTOR_PROFIT_TIME_ZONE), versions,
             )
             if current_period is None:
                 raise DomainConflict(
@@ -2258,20 +2261,35 @@ def fund_summary(*, actor, company_id, investor_id=None, branch_id=None):
         returns = returns.filter(branch_id__in=scope.allowed_branch_ids)
 
     credits = with_fund_credit_available(credits)
+    credits = credits.annotate(fund_gross=Func(F("pk"), function="investment_credit_gross_available", output_field=DecimalField(max_digits=38, decimal_places=2)))
     credit_totals = credits.aggregate(
         total=Sum("amount"), available=Sum("fund_available"),
+        gross=Sum("fund_gross"),
         review_count=Count("id", filter=Q(fund_available__isnull=True)),
     )
     if credit_totals["review_count"]:
         raise DomainConflict("Fund recovery sources require review.", code="FUND_RECOVERY_REVIEW_REQUIRED")
     credit_total = credit_totals["total"] or Decimal("0.00")
     return_total = returns.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    use_credit_ids = credits.order_by().values("id")
+    from apps.investment.models import VehiclePrincipalRefundDebit
+    with localcontext() as context:
+        context.prec = 80
+        used_total = (
+            (InvestorFundUseAllocation.objects.filter(credit_id__in=use_credit_ids).aggregate(total=Sum("amount"))["total"] or Decimal("0.00"))
+            + (InvestorFundUseAdjustment.objects.filter(credit_id__in=use_credit_ids).aggregate(total=Sum("amount_delta"))["total"] or Decimal("0.00"))
+            - (VehicleCapitalRecoveryCreditAllocation.objects.filter(credit_id__in=use_credit_ids).aggregate(total=Sum("amount"))["total"] or Decimal("0.00"))
+            + (VehiclePrincipalRefundDebit.objects.filter(fund_credit_id__in=use_credit_ids).aggregate(total=Sum("amount"))["total"] or Decimal("0.00"))
+        )
+        reserved_amount = (credit_totals["gross"] or Decimal("0.00")) - (credit_totals["available"] or Decimal("0.00"))
     result = {
         "company_id": str(company.pk),
         "investor_id": str(investor_id) if investor_id else None,
         "branch_id": str(branch_id) if branch_id else None,
         "credit_total": format(credit_total, ".2f"),
         "principal_return_total": format(return_total, ".2f"),
+        "used_total": format(used_total, ".2f"),
+        "reserved_amount": format(reserved_amount, ".2f"),
         "available_amount": format(credit_totals["available"] or Decimal("0.00"), ".2f"),
     }
     # The Branch Accountant receives only the sum inside their authorized

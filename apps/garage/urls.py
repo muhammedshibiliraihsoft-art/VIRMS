@@ -1,7 +1,8 @@
 from django.urls import path
-from apps.garage.views import GarageReceiptCorrectionView, JobCustomerChargeView, JobCustomerCostCorrectionView, JobCustomerCostPaymentCorrectionView, JobCustomerCostPaymentView, JobCustomerCostRefundPreviewView, JobCustomerCostRefundView, JobCustomerCostView, JobCustomerReceiptView, JobDetailView, JobListCreateView, JobStatusHistoryView, JobStatusView, JobStockCostCreateView, JobStockCostView, JobWorkView
+from apps.garage.views import GarageReceiptCorrectionView, JobCustomerChargeView, JobCustomerCostCorrectionView, JobCustomerCostPaymentCorrectionView, JobCustomerCostPaymentView, JobCustomerCostRefundPreviewView, JobCustomerCostRefundView, JobCustomerCostView, JobCustomerReceiptView, JobDashboardSummaryView, JobDetailView, JobListCreateView, JobStatusHistoryView, JobStatusView, JobStockCostCreateView, JobStockCostView, JobWorkView
 
 urlpatterns = [
+    path("jobs/dashboard-summary/", JobDashboardSummaryView.as_view(), name="job-dashboard-summary"),
     path("jobs/", JobListCreateView.as_view(), name="job-list-create"),
     path("jobs/<uuid:job_id>/", JobDetailView.as_view(), name="job-detail"),
     path("jobs/<uuid:job_id>/work/", JobWorkView.as_view(), name="job-work"),

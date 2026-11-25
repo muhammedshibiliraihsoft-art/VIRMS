@@ -95,7 +95,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
 
         {/* Company Identity Label */}
-        <div className="flex items-baseline gap-1">
+        <div className="hidden min-[380px]:flex items-baseline gap-1">
           <span className="font-extrabold text-base tracking-tight text-gray-950 dark:text-white">
             VIRMS
           </span>
@@ -108,7 +108,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       {/* 2. Center: Reusable Navigation Tabs (Hidden on small viewports) */}
       <nav
         aria-label="Quick section navigation"
-        className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-none px-1"
+        className="hidden lg:flex items-center gap-1 overflow-x-auto scrollbar-none px-1"
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;

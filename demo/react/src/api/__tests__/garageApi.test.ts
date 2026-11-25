@@ -10,6 +10,13 @@ const job = { id, branch_id: id, vehicle_id: id, vehicle_registration: 'KL01AB12
 beforeEach(() => { sessionStorage.clear(); vi.clearAllMocks(); });
 
 describe('Garage API', () => {
+  it('accepts an empty summary and rejects invalid counts', async () => {
+    const summary = { company_id: id, branch_id: null, total_jobs: 0, open_jobs: 0, completed_jobs: 0, external_customer_jobs: 0 };
+    request.mockResolvedValueOnce(summary);
+    await expect(garageApi.jobSummary(id)).resolves.toEqual(summary);
+    request.mockResolvedValueOnce({ ...summary, open_jobs: -1 });
+    await expect(garageApi.jobSummary(id)).rejects.toThrow();
+  });
   it('validates customer cost balances and retains a payment retry key after an invalid response', async () => {
     const cost = { id, actor_id: id, version: 0, description: 'Parts', amount: '50.00', paid: '10.00', refunded: '0.00', payable: '40.00', created_at: '2026-11-17T00:00:00Z' };
     request.mockResolvedValueOnce({ count: 1, next: null, previous: null, results: [cost] });

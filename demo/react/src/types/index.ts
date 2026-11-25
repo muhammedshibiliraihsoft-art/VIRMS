@@ -220,7 +220,7 @@ export interface ActivityItem {
   status: string;
   statusVariant: 'success' | 'warning' | 'info' | 'neutral';
   date: string;
-  type: 'vehicle' | 'job' | 'sale' | 'purchase';
+  type: 'vehicle' | 'job' | 'sale' | 'purchase' | 'accounting';
 }
 
 export interface Data {

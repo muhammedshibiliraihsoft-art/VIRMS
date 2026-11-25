@@ -555,7 +555,66 @@ export interface Phase5FundSummary {
   branch_id: string | null;
   credit_total: string;
   principal_return_total: string;
+  used_total: string;
+  reserved_amount: string;
   available_amount: string;
+}
+
+export interface VehicleOperationalSummary {
+  company_id: string;
+  branch_id: string | null;
+  vehicle_count: number;
+  unsold_vehicle_count: number;
+  sold_vehicle_count: number;
+  sale_count: number;
+  current_sale_price_total: string;
+  corrected_sale_count: number;
+  sale_correction_count: number;
+  buyer_receipt_count: number;
+  buyer_receipts_received: string;
+  buyer_refunds_paid: string;
+  buyer_net_receipts: string;
+  buyer_receivable: string;
+  refund_obligation: string;
+  running_capital_contributed: string | null;
+  running_capital_recovered: string | null;
+  running_capital_outstanding: string | null;
+}
+
+export interface VehicleRegisterSummary {
+  total: number;
+  stock_count: number;
+  customer_count: number;
+  stock_total_cost: string | null;
+  in_work: number;
+  sold: number;
+  purchased: number;
+  customer_jobs: number;
+  open_customer_jobs: number;
+  completed_customer_jobs: number;
+  stock_in_work: number;
+  stock_purchased: number;
+  stock_sold: number;
+}
+
+export interface VehicleRegisterRow extends Phase5Vehicle {
+  contexts: Array<'STOCK' | 'EXTERNAL_CUSTOMER'>;
+  type: 'Stock / Investor' | 'Customer' | 'Vehicle';
+  person: string;
+  person_label: 'Investor' | 'Seller' | 'Customer' | 'Source';
+  status: 'IN_WORK' | 'SOLD' | 'IN_SERVICE' | 'COMPLETED' | 'PURCHASED' | 'REGISTERED';
+  purchase_cost: string | null;
+  total_cost: string | null;
+  financial_available: boolean;
+  customer_job_count: number;
+  customer_contact: string | null;
+  customer_status: 'IN_SERVICE' | 'COMPLETED' | null;
+}
+
+export interface VehicleRegisterPage extends ApiPage<VehicleRegisterRow> {
+  company_id: string;
+  branch_id: string | null;
+  summary: VehicleRegisterSummary;
 }
 
 export interface Phase5PrincipalReturn {
@@ -625,7 +684,7 @@ function parseProfitCalendarConfiguration(value: unknown): Phase5ProfitCalendarC
 }
 
 function parseInvestorPortalBinding(value: unknown): InvestorPortalBinding | null {
-  if (value === null) return null;
+  if (value === null || value === undefined) return null;
   const row = requireRecord(value, 'Investor portal binding');
   for (const field of ['id', 'investor_id', 'account_id']) requireUuid(row[field], `Investor binding ${field}`);
   if (typeof row.login_id !== 'string' || !row.login_id || typeof row.effective_from !== 'string' ||
@@ -777,6 +836,42 @@ function parseVehicle(value: unknown): Phase5Vehicle {
     !(row.sale_id === null || (typeof row.sale_id === 'string' && uuid.test(row.sale_id)))
   ) throw new Error('Invalid Vehicle response.');
   return row as unknown as Phase5Vehicle;
+}
+
+function parseVehicleRegisterRow(value: unknown): VehicleRegisterRow {
+  const row = requireRecord(value, 'Vehicle register row');
+  const vehicle = parseVehicle(row);
+  if (!Array.isArray(row.contexts) || row.contexts.some((entry) => !['STOCK', 'EXTERNAL_CUSTOMER'].includes(String(entry))) ||
+      !['Stock / Investor', 'Customer', 'Vehicle'].includes(String(row.type)) ||
+      !['Investor', 'Seller', 'Customer', 'Source'].includes(String(row.person_label)) ||
+      typeof row.person !== 'string' ||
+      !['IN_WORK', 'SOLD', 'IN_SERVICE', 'COMPLETED', 'PURCHASED', 'REGISTERED'].includes(String(row.status)) ||
+      typeof row.financial_available !== 'boolean' ||
+      !Number.isSafeInteger(row.customer_job_count) || Number(row.customer_job_count) < 0 ||
+      !(row.customer_contact === null || typeof row.customer_contact === 'string') ||
+      !(row.customer_status === null || ['IN_SERVICE', 'COMPLETED'].includes(String(row.customer_status)))) {
+    throw new Error('Invalid Vehicle register projection.');
+  }
+  for (const field of ['purchase_cost', 'total_cost']) {
+    if (!(row[field] === null || (typeof row[field] === 'string' && money.test(row[field] as string)))) {
+      throw new Error('Invalid Vehicle register amount.');
+    }
+  }
+  if (!row.financial_available && row.total_cost !== null) {
+    throw new Error('An unavailable Vehicle cost cannot contain an amount.');
+  }
+  return { ...vehicle, ...row } as VehicleRegisterRow;
+}
+
+function parseVehicleRegisterSummary(value: unknown): VehicleRegisterSummary {
+  const row = requireRecord(value, 'Vehicle register summary');
+  for (const field of ['total', 'stock_count', 'customer_count', 'in_work', 'sold', 'purchased', 'customer_jobs', 'open_customer_jobs', 'completed_customer_jobs', 'stock_in_work', 'stock_purchased', 'stock_sold']) {
+    if (!Number.isSafeInteger(row[field]) || Number(row[field]) < 0) throw new Error('Invalid Vehicle register summary count.');
+  }
+  if (!(row.stock_total_cost === null || (typeof row.stock_total_cost === 'string' && money.test(row.stock_total_cost)))) {
+    throw new Error('Invalid Vehicle register summary cost.');
+  }
+  return row as unknown as VehicleRegisterSummary;
 }
 
 function parsePayment(value: unknown): Phase5Payment {
@@ -1359,6 +1454,46 @@ export async function phase5Mutation<T>(
 }
 
 export const phase5Api = {
+  vehicleRegister(companyId: string, options: {
+    page?: number; branchId?: string; search?: string;
+    context?: 'all' | 'stock' | 'customer';
+    status?: 'all' | 'in_work' | 'sold' | 'purchased' | 'customer_vehicles';
+  } = {}, signal?: AbortSignal): Promise<VehicleRegisterPage> {
+    const path = queryPath(apiBase(companyId, 'vehicle-management'), 'register-summary/', {
+      page: options.page, branch_id: options.branchId, search: options.search,
+      context: options.context, status: options.status,
+    });
+    return requestApi<unknown>(path, { signal }).then((value) => {
+      const row = requireRecord(value, 'Vehicle register response');
+      requireUuid(row.company_id, 'Vehicle register Company id');
+      if (row.branch_id !== null && !uuid.test(String(row.branch_id))) throw new Error('Invalid Vehicle register Branch id.');
+      const page = parsePage(row, 'Vehicle register', parseVehicleRegisterRow);
+      return { ...page, company_id: row.company_id as string, branch_id: row.branch_id as string | null,
+        summary: parseVehicleRegisterSummary(row.summary) };
+    });
+  },
+  operationalSummary(companyId: string, options: { branchId?: string } = {}, signal?: AbortSignal) {
+    const path = queryPath(apiBase(companyId, 'vehicle-management'), 'operational-summary/', {
+      branch_id: options.branchId,
+    });
+    return requestApi<unknown>(path, { signal }).then((value) => {
+      const row = requireRecord(value, 'Vehicle operational summary');
+      requireUuid(row.company_id, 'Vehicle operational summary Company id');
+      for (const field of ['vehicle_count', 'unsold_vehicle_count', 'sold_vehicle_count', 'sale_count', 'corrected_sale_count', 'sale_correction_count', 'buyer_receipt_count']) {
+        if (!Number.isSafeInteger(row[field]) || (row[field] as number) < 0) throw new Error(`Invalid Vehicle operational summary ${field}.`);
+      }
+      for (const field of ['current_sale_price_total', 'buyer_receipts_received', 'buyer_refunds_paid', 'buyer_net_receipts', 'buyer_receivable', 'refund_obligation']) {
+        requireMoney(row[field], `Vehicle operational summary ${field}`);
+      }
+      for (const field of ['running_capital_contributed', 'running_capital_recovered', 'running_capital_outstanding']) {
+        if (row[field] !== null) requireMoney(row[field], `Vehicle operational summary ${field}`);
+      }
+      if (!(row.branch_id === null || (typeof row.branch_id === 'string' && uuid.test(row.branch_id)))) {
+        throw new Error('Invalid Vehicle operational summary Branch id.');
+      }
+      return row as unknown as VehicleOperationalSummary;
+    });
+  },
   investorPortalSelf(companyId: string, signal?: AbortSignal) {
     return requestApi<unknown>(`${apiBase(companyId, 'investment')}portal/self/`, { signal }).then(parseInvestorPortalSnapshot);
   },
@@ -1744,7 +1879,7 @@ export const phase5Api = {
     return requestApi<unknown>(path, { signal }).then((value) => {
       const row = requireRecord(value, 'Fund summary');
       requireUuid(row.company_id, 'Fund summary Company id');
-      for (const field of ['credit_total', 'principal_return_total', 'available_amount']) requireMoney(row[field], `Fund summary ${field}`);
+      for (const field of ['credit_total', 'principal_return_total', 'used_total', 'reserved_amount', 'available_amount']) requireMoney(row[field], `Fund summary ${field}`);
       return row as unknown as Phase5FundSummary;
     });
   },

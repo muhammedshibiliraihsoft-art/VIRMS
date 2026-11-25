@@ -1,6 +1,6 @@
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import OuterRef, Subquery, Sum
+from django.db.models import Count, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from decimal import Decimal
@@ -14,7 +14,7 @@ from apps.common.domain_mutations import DomainConflict, DomainMutationResult, e
 from apps.garage.models import GarageCustomerCharge, GarageCustomerCost, GarageCustomerCostCorrection, GarageCustomerCostPayment, GarageCustomerCostPaymentCorrection, GarageCustomerCostRefund, GarageCustomerReceipt, GarageReceiptCorrection, GarageJob, GarageJobStatusChange, GarageStockCostLink, GarageWorkEntry, LabourPayment, LabourPaymentCorrection, LabourPerson, LabourStatusChange
 from apps.accounting.models import AccountingAccount, AccountingApplication, AccountingCategory, AccountingEvent, AccountMovement
 from apps.accounting.services import _event_row, _reverse_event
-from apps.tenants.models import BranchAssignment, CompanyModuleCode, Tenant
+from apps.tenants.models import Branch, BranchAssignment, CompanyModuleCode, Tenant
 from apps.tenants.selectors import current_interval
 from apps.vehicles.models import Vehicle, VehicleExpense, VehicleIdempotencyRecord
 from apps.vehicles.services import _vehicle_investor_ids, create_vehicle_expense
@@ -239,6 +239,38 @@ def list_jobs(*, actor, company_id):
     if not scope.is_company_reader:
         rows = rows.filter(branch_id__in=scope.allowed_branch_ids)
     return rows.order_by("-created_at", "id")
+
+
+def job_summary(*, actor, company_id, branch_id=None):
+    """Return full, permission-scoped Garage Job counts without paging rows."""
+    company = Tenant.objects.filter(pk=company_id, is_active=True).first()
+    if company is None:
+        raise NotFound("Company not found.")
+    current = require_action(actor, "garage.job.read", company=company)
+    scope = business_scope(actor=current, company=company)
+    rows = GarageJob.objects.filter(tenant=company)
+    if not scope.is_company_reader:
+        rows = rows.filter(branch_id__in=scope.allowed_branch_ids)
+    if branch_id is not None:
+        branch_exists = Branch.objects.filter(pk=branch_id, tenant=company).exists()
+        if not branch_exists or (not scope.is_company_reader and branch_id not in scope.allowed_branch_ids):
+            # Do not turn an unauthorized or cross-Company Branch into a successful zero.
+            raise NotFound("Branch not found.")
+        rows = rows.filter(branch_id=branch_id)
+    totals = rows.aggregate(
+        total=Count("id"),
+        open=Count("id", filter=Q(status=GarageJob.Status.OPEN)),
+        completed=Count("id", filter=Q(status=GarageJob.Status.COMPLETED)),
+        external_customer=Count("id", filter=Q(context=GarageJob.Context.EXTERNAL_CUSTOMER)),
+    )
+    return {
+        "company_id": str(company.pk),
+        "branch_id": str(branch_id) if branch_id else None,
+        "total_jobs": totals["total"] or 0,
+        "open_jobs": totals["open"] or 0,
+        "completed_jobs": totals["completed"] or 0,
+        "external_customer_jobs": totals["external_customer"] or 0,
+    }
 
 
 def get_job(*, actor, company_id, job_id):

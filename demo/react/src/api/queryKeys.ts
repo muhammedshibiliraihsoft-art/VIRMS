@@ -48,6 +48,14 @@ export const queryKeys = {
       ['companies', userId, companyId, 'phase10', 'investor-portal-binding', investorId] as const,
     vehicles: (userId: string, companyId: string, page: number, branchId?: string, search?: string) =>
       ['companies', userId, companyId, 'phase5', 'vehicles', page, branchId ?? 'all', search ?? ''] as const,
+    vehicleRegister: (
+      userId: string,
+      companyId: string,
+      page: number,
+      search: string,
+      context: string,
+      status: string,
+    ) => ['companies', userId, companyId, 'vehicle-management', 'register-summary', page, search, context, status] as const,
     vehicle: (userId: string, companyId: string, vehicleId: string) =>
       ['companies', userId, companyId, 'phase5', 'vehicle', vehicleId] as const,
     vehicleFinancialPosition: (userId: string, companyId: string, vehicleId: string) =>

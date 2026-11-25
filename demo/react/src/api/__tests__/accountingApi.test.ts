@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { accountingCorrectionPath, accountingMutation, parseAccountingEventsPage } from '../accountingApi';
+import { accountingCorrectionPath, accountingMonthlyTrend, accountingMutation, parseAccountingEventsPage } from '../accountingApi';
 import { requestApi } from '../client';
 
 vi.mock('../client', () => ({ requestApi: vi.fn() }));
@@ -7,6 +7,16 @@ vi.mock('../client', () => ({ requestApi: vi.fn() }));
 const requestMock = vi.mocked(requestApi);
 
 const eventId = '11111111-1111-4111-8111-111111111111';
+
+it('accepts negative monthly corrections and rejects malformed amounts', async () => {
+  const point = { period: '2026-01', label: 'Jan', income_amount: '-500.00', expense_amount: '0.00' };
+  const response = { company_id: eventId, branch_id: null, timezone: 'Asia/Kolkata', monthly_trend: Array(8).fill(point) };
+  requestMock.mockResolvedValueOnce(response);
+  const result = await accountingMonthlyTrend(eventId);
+  expect(result.monthly_trend[0]).toEqual(point);
+  requestMock.mockResolvedValueOnce({ ...response, monthly_trend: Array(8).fill({ ...point, income_amount: 'invalid' }) });
+  await expect(accountingMonthlyTrend(eventId)).rejects.toThrow('Invalid Accounting monthly trend point.');
+});
 
 beforeEach(() => {
   sessionStorage.clear();

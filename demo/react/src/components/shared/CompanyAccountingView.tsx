@@ -22,6 +22,15 @@ import { queryKeys } from '../../api/queryKeys';
 
 type Action = 'INCOME' | 'EXPENSE' | 'RECEIPT' | 'PAYMENT' | 'OPENING_BALANCE' | 'TRANSFER' | 'CORRECTION' | 'REALLOCATION' | 'ACCOUNT' | 'CATEGORY';
 type DialogState = { mode: 'tools' } | { mode: 'form'; action: Action; eventId?: string; applicationId?: string };
+import { PageKpiRow } from './PageKpiRow';
+
+const registerKpiLabels: Record<string, string[]> = {
+  'Company Income': ['Recognized Income', 'Income Events', 'Actual Receipts'],
+  'Company Expenses': ['Recognized Expense', 'Expense Events', 'Actual Payments'],
+  Transactions: ['Event Count', 'Cash/Bank Inflow', 'Cash/Bank Outflow', 'Net Movement'],
+  'Audit & Corrections': ['Corrected Events', 'Reversal Events', 'Reallocation Events'],
+};
+
 type AccountingModuleState = 'unconfigured' | 'enabled' | 'disabled' | 'unknown';
 
 export function resolveFormTargetEventId(
@@ -137,7 +146,8 @@ export const CompanyAccountingView: React.FC<{
   const reportReady = isCompanyAccountant || Boolean(reportBranchId);
 
   const eventQuery = useAccountingEvents({ page: eventPage, eventType, branchId });
-  const reportQuery = useAccountingResult({ period, year, month: period === 'monthly' ? month : undefined, branchId: reportBranchId, enabled: routeKey === 'Accounting' });
+  const isAccountingKpiRoute = routeKey === 'Accounting' || Boolean(registerKpiLabels[routeKey]);
+  const reportQuery = useAccountingResult({ period, year, month: period === 'monthly' ? month : undefined, branchId: reportBranchId, enabled: isAccountingKpiRoute });
   const selectedEventQuery = useAccountingEvent(selectedEventId);
   const eventDetail = selectedEventQuery.data;
   const selectedApplication = dialog?.mode === 'form' && dialog.action === 'REALLOCATION' && eventDetail
@@ -489,6 +499,31 @@ export const CompanyAccountingView: React.FC<{
         </div>
       )}
 
+      {registerKpiLabels[routeKey] && (
+        <PageKpiRow
+          status={moduleStatesQuery.isLoading || reportQuery.isPending ? 'loading'
+            : writeStateKnown && moduleState === 'enabled' && reportReady && reportQuery.isSuccess ? 'ready' : 'unavailable'}
+          items={routeKey === 'Company Income' ? [
+            { label: 'Recognized Income', value: formatINR(reportQuery.data?.income_amount) },
+            { label: 'Income Events', value: reportQuery.data?.income_event_count?.toLocaleString('en-IN') ?? 'Unavailable' },
+            { label: 'Actual Receipts', value: formatINR(reportQuery.data?.actual_receipts_amount) },
+          ] : routeKey === 'Company Expenses' ? [
+            { label: 'Recognized Expense', value: formatINR(reportQuery.data?.expense_amount) },
+            { label: 'Expense Events', value: reportQuery.data?.expense_event_count?.toLocaleString('en-IN') ?? 'Unavailable' },
+            { label: 'Actual Payments', value: formatINR(reportQuery.data?.actual_payments_amount) },
+          ] : routeKey === 'Transactions' ? [
+            { label: 'Event Count', value: reportQuery.data?.transaction_event_count?.toLocaleString('en-IN') ?? 'Unavailable' },
+            { label: 'Cash/Bank Inflow', value: formatINR(reportQuery.data?.cash_inflow_amount) },
+            { label: 'Cash/Bank Outflow', value: formatINR(reportQuery.data?.cash_outflow_amount) },
+            { label: 'Net Movement', value: formatINR(reportQuery.data?.net_movement_amount) },
+          ] : [
+            { label: 'Corrected Events', value: reportQuery.data?.corrected_event_count?.toLocaleString('en-IN') ?? 'Unavailable' },
+            { label: 'Reversal Events', value: reportQuery.data?.reversal_event_count?.toLocaleString('en-IN') ?? 'Unavailable' },
+            { label: 'Reallocation Events', value: reportQuery.data?.reallocation_event_count?.toLocaleString('en-IN') ?? 'Unavailable' },
+          ]}
+        />
+      )}
+
       {routeKey === 'Accounting' && (
         <section className="dashboard-card-solid rounded-[24px] p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -504,20 +539,15 @@ export const CompanyAccountingView: React.FC<{
               {period === 'monthly' && <select aria-label="Reporting month" className={inputClass + ' w-auto'} value={month} onChange={(event) => setMonth(Number(event.target.value))}>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{new Date(2000, index, 1).toLocaleString('en', { month: 'long' })}</option>)}</select>}
             </div>
           </div>
-          {!reportReady ? <p role="status" className="text-xs text-amber-700 dark:text-amber-300">Select one assigned Branch to calculate this report.</p> : reportQuery.isPending ? <p className="text-xs text-gray-500">Loading verified Accounting result…</p> : reportQuery.isError ? <p role="alert" className="text-xs text-red-700 dark:text-red-300">{reportQuery.error instanceof Error ? reportQuery.error.message : 'Accounting result could not be loaded.'}</p> : reportQuery.data && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {[
-                ['Recognized Income', reportQuery.data.income_amount],
-                ['Recognized Expense', reportQuery.data.expense_amount],
-                ['Accounting Result', reportQuery.data.accounting_result_amount],
-              ].map(([label, value], index) => (
-                <div key={label} className={`rounded-[20px] p-4 ${index === 2 ? 'dashboard-card-orange text-white' : 'dashboard-card-solid'}`}>
-                  <div className={`text-[11px] font-medium ${index === 2 ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>{label}</div>
-                  <div className={`mt-2 text-xl font-bold ${index === 2 ? 'text-white' : 'text-gray-950 dark:text-white'}`}>{formatINR(value)}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          {!reportReady ? <p role="status" className="text-xs text-amber-700 dark:text-amber-300">Select one assigned Branch to calculate this report.</p> : reportQuery.isPending ? <p className="text-xs text-gray-500">Loading verified Accounting result…</p> : reportQuery.isError ? <p role="alert" className="text-xs text-red-700 dark:text-red-300">{reportQuery.error instanceof Error ? reportQuery.error.message : 'Accounting result could not be loaded.'}</p> : null}
+          <PageKpiRow
+            status={reportReady && reportQuery.isPending ? 'loading' : reportReady && reportQuery.isSuccess ? 'ready' : 'unavailable'}
+            items={[
+              { label: 'Accounting Result', value: formatINR(reportQuery.data?.accounting_result_amount) },
+              { label: 'Recognized Income', value: formatINR(reportQuery.data?.income_amount) },
+              { label: 'Recognized Expense', value: formatINR(reportQuery.data?.expense_amount) },
+            ]}
+          />
           <p className="mt-3 text-[10px] text-gray-500 dark:text-gray-400">Source: {reportQuery.data?.timezone ?? 'Asia/Kolkata'} effective-date records. Cash Receipts and Payments remain separate.</p>
         </section>
       )}

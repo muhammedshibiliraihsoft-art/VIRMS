@@ -615,6 +615,13 @@ class InvestmentApiTests(TestCase):
         )
         self.assertEqual(principal_return.status_code, 201, principal_return.content)
 
+        summary = self.client.get(
+            self.path("fund/summary/"),
+            {"branch_id": str(self.branch_a.pk), "investor_id": original.data["id"]},
+        )
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.data["used_total"], "5000.00")
+
         credit_row = InvestorFundCredit.objects.get(pk=credit.data["id"])
         use_row = InvestorFundUse.objects.get(purchase_id=purchase.data["id"])
         use_allocation = InvestorFundUseAllocation.objects.get(fund_use=use_row)
@@ -786,3 +793,30 @@ class InvestmentApiTests(TestCase):
         )
         self.assertEqual(disabled.status_code, 403, disabled.content)
         self.assertEqual(InvestorFundCreditCorrection.objects.count(), 1)
+
+    def test_create_profit_share_agreement_records_actor_on_security_event(self):
+        investor = self.post("investors/", {"name": "Agreement Investor"}, "agreement-investor-create")
+        self.assertEqual(investor.status_code, 201, investor.content)
+        back_office = make_user(
+            "p5-agreement-backoffice",
+            role="back_office",
+            tenant=self.company,
+            account_kind="platform",
+            scoped_grant=False,
+        )
+        effective_at = timezone.now().isoformat()
+        created = self.post(
+            f"investors/{investor.data['id']}/profit-share-agreements/",
+            {"share_percentage": "40.0000", "effective_at": effective_at},
+            "agreement-configure-1",
+            user=back_office,
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+        self.assertEqual(created.data["share_percentage"], "40.0000")
+        event = AccountSecurityEvent.objects.filter(
+            company_id=self.company.pk, action="investor.agreement.configure"
+        ).order_by("-created_at").first()
+        self.assertIsNotNone(event)
+        self.assertEqual(event.subject_id, back_office.pk)
+        self.assertEqual(event.metadata.get("investor_share_agreement_id"), created.data["id"])
+        self.assertEqual(event.metadata.get("investor_id"), investor.data["id"])

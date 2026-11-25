@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   useCompanyModuleStates: vi.fn(),
   hasCompanyBranchReadRole: vi.fn(),
   phase5Api: {
+    operationalSummary: vi.fn(),
     vehicles: vi.fn(),
     vehicleFinancialPosition: vi.fn(),
     purchases: vi.fn(),
@@ -110,6 +111,14 @@ beforeEach(() => {
   });
   mocks.hasCompanyBranchReadRole.mockReturnValue(true);
   mocks.phase5Api.vehicles.mockResolvedValue(baseVehicles);
+  mocks.phase5Api.operationalSummary.mockResolvedValue({
+    company_id: ids.company, branch_id: ids.branch,
+    vehicle_count: 1, unsold_vehicle_count: 1, sold_vehicle_count: 0, sale_count: 0,
+    current_sale_price_total: '0.00', corrected_sale_count: 0, sale_correction_count: 0,
+    buyer_receipt_count: 0, buyer_receipts_received: '0.00', buyer_refunds_paid: '0.00',
+    buyer_net_receipts: '0.00', buyer_receivable: '0.00', refund_obligation: '0.00',
+    running_capital_contributed: '35000.00', running_capital_recovered: '5000.00', running_capital_outstanding: '30000.00',
+  });
   mocks.phase5Api.vehicleFinancialPosition.mockResolvedValue({
     vehicle_id: ids.vehicle, company_id: ids.company, branch_id: ids.branch,
     purchase_id: '55555555-5555-4555-8555-555555555555', sale_id: '66666666-6666-4666-8666-666666666666',
@@ -143,6 +152,13 @@ beforeEach(() => {
 });
 
 describe('Phase 5 Vehicle API workspace', () => {
+  it('fills Running Capital KPIs from the scoped server summary', async () => {
+    renderView('Running Capital');
+    expect(await screen.findByLabelText('Actual Contributed: ₹35,000.00')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actual Recovered: ₹5,000.00')).toBeInTheDocument();
+    expect(screen.getByLabelText('Outstanding: ₹30,000.00')).toBeInTheDocument();
+  });
+
   it('blocks result confirmation when the Investor agreement needs review', async () => {
     const user = userEvent.setup();
     mocks.phase5Api.vehicleFinancialPosition.mockResolvedValue({

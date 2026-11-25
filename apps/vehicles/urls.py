@@ -5,6 +5,8 @@ from apps.vehicles.views import (
     VehicleDetailView,
     VehicleFinancialPositionView,
     VehicleListCreateView,
+    VehicleOperationalSummaryView,
+    VehicleRegisterProjectionView,
     VehiclePurchaseDetailView,
     VehiclePurchaseInstallmentView,
     VehiclePurchaseListCreateView,
@@ -26,6 +28,8 @@ from apps.vehicles.views import (
 app_name = "vehicles"
 
 urlpatterns = [
+    path("operational-summary/", VehicleOperationalSummaryView.as_view(), name="vehicle-operational-summary"),
+    path("register-summary/", VehicleRegisterProjectionView.as_view(), name="vehicle-register-summary"),
     path("vehicles/", VehicleListCreateView.as_view(), name="vehicle-list-create"),
     path("vehicles/<uuid:vehicle_id>/", VehicleDetailView.as_view(), name="vehicle-detail"),
     path("vehicles/<uuid:vehicle_id>/financial-position/", VehicleFinancialPositionView.as_view(), name="vehicle-financial-position"),

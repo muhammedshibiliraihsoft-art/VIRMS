@@ -6,9 +6,10 @@ import { accountingAccounts, accountingCategories, AccountingAccount, Accounting
 import { authApi } from '../../api/authApi';
 import { queryKeys } from '../../api/queryKeys';
 import { useCompanyModuleStates, hasCompanyBranchReadRole } from '../../api/queries';
-import { phase5Api, phase5Mutation, InvestorProfitLossOffsetOptions, Phase5Expense, Phase5FundCredit, Phase5FundSummary, Phase5Investor, Phase5PrincipalReturn, Phase5Purchase, Phase5Sale, Phase5SaleCorrection, Phase5Vehicle, VehicleFinancialPosition } from '../../api/phase5Api';
+import { phase5Api, phase5Mutation, InvestorProfitLossOffsetOptions, Phase5Expense, Phase5FundCredit, Phase5Investor, Phase5PrincipalReturn, Phase5Purchase, Phase5Sale, Phase5SaleCorrection, Phase5Vehicle, VehicleFinancialPosition } from '../../api/phase5Api';
 import { BranchListItem, BranchSummary } from '../../api/types';
 import type { CompanyModuleCode } from '../../api/types';
+import { PageKpiRow, PageKpiItem } from './PageKpiRow';
 
 type RouteKey = 'Stock / Investor' | 'Investor Fund' | 'Vehicle Sales' | 'Collections' | 'Sale Corrections & Refunds' | 'Running Capital';
 type FormKind =
@@ -259,7 +260,7 @@ function VehicleFinancialPositionCard({ position, canConfirm, isConfirming, conf
   );
 }
 
-export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey }) => {
+export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey; initialVehicleId?: string | null; openRegistration?: boolean }> = ({ routeKey, initialVehicleId = null, openRegistration = false }) => {
   const { status, user, currentCompany } = useAuth();
   const queryClient = useQueryClient();
   const moduleQuery = useCompanyModuleStates();
@@ -271,9 +272,9 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   const [detailPage, setDetailPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(initialVehicleId);
   const [investorFilterId, setInvestorFilterId] = useState('');
-  const [formAction, setFormAction] = useState<FormAction | null>(null);
+  const [formAction, setFormAction] = useState<FormAction | null>(() => openRegistration && routeKey === 'Stock / Investor' ? { kind: 'vehicle' } : null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
 
@@ -372,7 +373,36 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
     enabled: canRead && isSalesRoute,
     retry: false,
   });
-  const selectedSaleId = vehiclesQuery.data?.results.find((vehicle) => vehicle.id === selectedVehicleId)?.sale_id ?? null;
+  const operationalSummaryQuery = useQuery({
+    queryKey: currentCompany && user ? ['companies', user.id, currentCompany.id, 'vehicle-management', 'operational-summary', branchId || null] : ['companies', 'unavailable', ...PHASE5_ROOT, 'operational-summary'],
+    queryFn: ({ signal }) => currentCompany ? phase5Api.operationalSummary(currentCompany.id, { branchId: branchId || undefined }, signal) : Promise.reject(new Error('A Company is required.')),
+    enabled: canRead && moduleOn(VEHICLE_MODULE) && (isSalesRoute || routeKey === 'Running Capital'),
+    retry: false,
+  });
+  const stockSummaryQuery = useQuery({
+    queryKey: ['companies', user?.id, currentCompany?.id, 'vehicle-management', 'stock-summary', branchId || null],
+    queryFn: ({ signal }) => currentCompany
+      ? phase5Api.vehicleRegister(currentCompany.id, { context: 'stock', branchId: branchId || undefined }, signal)
+      : Promise.reject(new Error('A Company is required.')),
+    enabled: canRead && moduleOn(VEHICLE_MODULE) && routeKey === 'Stock / Investor',
+    retry: false,
+    select: (response) => response.summary,
+  });
+  const selectedListVehicle = vehiclesQuery.data?.results.find((vehicle) => vehicle.id === selectedVehicleId);
+  const requestedVehicleQuery = useQuery({
+    queryKey: currentCompany && user && initialVehicleId
+      ? queryKeys.phase5.vehicle(user.id, currentCompany.id, initialVehicleId)
+      : ['companies', 'unavailable', ...PHASE5_ROOT, 'vehicle-detail'],
+    queryFn: ({ signal }) => currentCompany && initialVehicleId
+      ? phase5Api.vehicle(currentCompany.id, initialVehicleId, signal)
+      : Promise.reject(new Error('A Company and Vehicle are required.')),
+    enabled: canRead && isVehicleRoute && Boolean(initialVehicleId && selectedVehicleId === initialVehicleId) && !selectedListVehicle,
+    retry: false,
+  });
+  const selectedVehicle = selectedListVehicle ?? (
+    initialVehicleId && initialVehicleId === selectedVehicleId ? requestedVehicleQuery.data ?? null : null
+  );
+  const selectedSaleId = selectedVehicle?.sale_id ?? null;
   const saleDetailQuery = useQuery({
     queryKey: currentCompany && user && selectedSaleId ? queryKeys.phase5.sale(user.id, currentCompany.id, selectedSaleId) : ['companies', 'unavailable', ...PHASE5_ROOT, 'sale-detail'],
     queryFn: ({ signal }) => currentCompany && selectedSaleId ? phase5Api.sale(currentCompany.id, selectedSaleId, signal) : Promise.reject(new Error('A Sale is required.')),
@@ -401,7 +431,6 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   const investors = investorsQuery.data ?? [];
   const accounts = (accountsQuery.data ?? []) as AccountingAccount[];
   const vehicles = vehiclesQuery.data?.results ?? [];
-  const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null;
   const purchase = purchasesQuery.data?.results[0] ?? null;
   const expenses = expensesQuery.data?.results ?? [];
   const sales = salesQuery.data?.results ?? [];
@@ -501,6 +530,9 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
       if (!currentCompany || !user) return;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['companies', user.id, currentCompany.id, 'phase5'] }),
+        queryClient.invalidateQueries({ queryKey: ['companies', user.id, currentCompany.id, 'vehicle-management', 'operational-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['companies', user.id, currentCompany.id, 'vehicle-management', 'stock-summary'] }),
+        queryClient.invalidateQueries({ queryKey: ['companies', user.id, currentCompany.id, 'vehicle-management', 'register-summary'] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.accountingBase(user.id, currentCompany.id) }),
       ]);
       setMessage('Saved successfully. The latest server records are refreshing.');
@@ -606,7 +638,69 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
   };
   const currentPage = isFundRoute ? fundCreditsQuery.data : isSalesRoute ? salesQuery.data : vehiclesQuery.data;
   const isLoading = moduleQuery.isLoading || (isFundRoute ? fundCreditsQuery.isLoading || investorsQuery.isLoading : isSalesRoute ? salesQuery.isLoading : isVehicleRoute ? vehiclesQuery.isLoading : false);
-  const pageError = moduleQuery.error || (isFundRoute ? fundCreditsQuery.error || investorsQuery.error || fundSummaryQuery.error || returnsQuery.error : isSalesRoute ? salesQuery.error : isVehicleRoute ? vehiclesQuery.error || (selectedVehicleId ? purchasesQuery.error || expensesQuery.error || saleDetailQuery.error || financialPositionQuery.error : null) : null);
+  const pageError = moduleQuery.error || (isFundRoute ? fundCreditsQuery.error || investorsQuery.error || fundSummaryQuery.error || returnsQuery.error : isSalesRoute ? salesQuery.error : isVehicleRoute ? vehiclesQuery.error || (selectedVehicleId ? requestedVehicleQuery.error || purchasesQuery.error || expensesQuery.error || saleDetailQuery.error || financialPositionQuery.error : null) : null);
+  const vehicleSummary = operationalSummaryQuery.data;
+  const fundSummary = fundSummaryQuery.data;
+  const stockSummary = stockSummaryQuery.data;
+  const kpiItems: PageKpiItem[] = routeKey === 'Investor Fund'
+    ? [
+      { label: 'Fund Credits', value: fundSummary ? formatMoney(fundSummary.credit_total) : '—' },
+      { label: 'Principal Returned', value: fundSummary ? formatMoney(fundSummary.principal_return_total) : '—' },
+      { label: 'Used', value: fundSummary ? formatMoney(fundSummary.used_total) : '—' },
+      { label: 'Available', value: fundSummary ? formatMoney(fundSummary.available_amount) : '—' },
+    ]
+    : routeKey === 'Stock / Investor'
+      ? [
+        { label: 'Total Stock Vehicles', value: stockSummary ? stockSummary.stock_count.toLocaleString('en-IN') : '—' },
+        { label: 'Unsold', value: stockSummary ? (stockSummary.stock_count - stockSummary.stock_sold).toLocaleString('en-IN') : '—' },
+        { label: 'Sold', value: stockSummary ? stockSummary.stock_sold.toLocaleString('en-IN') : '—' },
+      ]
+      : routeKey === 'Vehicle Sales'
+        ? [
+          { label: 'Sold Vehicles', value: vehicleSummary ? vehicleSummary.sale_count.toLocaleString('en-IN') : '—' },
+          { label: 'Current Sale Price', value: vehicleSummary ? formatMoney(vehicleSummary.current_sale_price_total) : '—' },
+          { label: 'Net Buyer Receipts', value: vehicleSummary ? formatMoney(vehicleSummary.buyer_net_receipts) : '—' },
+          { label: 'Buyer Receivable', value: vehicleSummary ? formatMoney(vehicleSummary.buyer_receivable) : '—' },
+        ]
+        : routeKey === 'Collections'
+          ? [
+            { label: 'Buyer Receipts', value: vehicleSummary ? formatMoney(vehicleSummary.buyer_receipts_received) : '—' },
+            { label: 'Receipt Count', value: vehicleSummary ? vehicleSummary.buyer_receipt_count.toLocaleString('en-IN') : '—' },
+            { label: 'Buyer Receivable', value: vehicleSummary ? formatMoney(vehicleSummary.buyer_receivable) : '—' },
+            { label: 'Refunds Paid', value: vehicleSummary ? formatMoney(vehicleSummary.buyer_refunds_paid) : '—' },
+          ]
+          : routeKey === 'Sale Corrections & Refunds'
+            ? [
+              { label: 'Corrected Sales', value: vehicleSummary ? vehicleSummary.corrected_sale_count.toLocaleString('en-IN') : '—' },
+              { label: 'Corrections', value: vehicleSummary ? vehicleSummary.sale_correction_count.toLocaleString('en-IN') : '—' },
+              { label: 'Refund Obligation', value: vehicleSummary ? formatMoney(vehicleSummary.refund_obligation) : '—' },
+              { label: 'Refunds Paid', value: vehicleSummary ? formatMoney(vehicleSummary.buyer_refunds_paid) : '—' },
+            ]
+            : routeKey === 'Running Capital'
+              ? [
+                { label: 'Actual Contributed', value: vehicleSummary?.running_capital_contributed !== null && vehicleSummary?.running_capital_contributed !== undefined ? formatMoney(vehicleSummary.running_capital_contributed) : 'Unavailable' },
+                { label: 'Actual Recovered', value: vehicleSummary?.running_capital_recovered !== null && vehicleSummary?.running_capital_recovered !== undefined ? formatMoney(vehicleSummary.running_capital_recovered) : 'Unavailable' },
+                { label: 'Outstanding', value: vehicleSummary?.running_capital_outstanding !== null && vehicleSummary?.running_capital_outstanding !== undefined ? formatMoney(vehicleSummary.running_capital_outstanding) : 'Unavailable' },
+              ]
+            : [
+              { label: 'Actual Contributed', value: '—' },
+              { label: 'Actual Recovered', value: '—' },
+              { label: 'Outstanding', value: '—' },
+            ];
+  const kpiModuleCode = isFundRoute ? INVESTMENT_MODULE : VEHICLE_MODULE;
+  const kpiQuery = isFundRoute ? fundSummaryQuery : routeKey === 'Stock / Investor' ? stockSummaryQuery : operationalSummaryQuery;
+  const kpiModulesOn = routeKey === 'Running Capital'
+    ? moduleOn(VEHICLE_MODULE) && moduleOn(INVESTMENT_MODULE)
+    : moduleOn(kpiModuleCode);
+  const runningCapitalUnavailable = routeKey === 'Running Capital' && (
+    !vehicleSummary || vehicleSummary.running_capital_contributed === null ||
+    vehicleSummary.running_capital_recovered === null || vehicleSummary.running_capital_outstanding === null
+  );
+  const kpiStatus = moduleQuery.isLoading || kpiQuery.isLoading
+    ? 'loading'
+    : runningCapitalUnavailable || !canRead || !kpiModulesOn || kpiQuery.isError || !kpiQuery.data
+      ? 'unavailable'
+      : 'ready';
 
   return (
     <div className="flex flex-col gap-3.5 sm:gap-4 animate-in fade-in duration-150">
@@ -623,6 +717,8 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
           ))}
         </div>
       </div>
+
+      <PageKpiRow items={kpiItems} status={kpiStatus} />
 
       {!canRead && <Notice tone="error">A single authorized Company and Accountant/Owner/Media read role are required to load this workspace.</Notice>}
       {currentCompany?.branches_truncated && branchQuery.isLoading && <Notice>Loading your authorized Branch list…</Notice>}
@@ -690,7 +786,6 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
           companyId={currentCompany?.id ?? ''}
           userId={user?.id ?? ''}
           investmentOn={investmentOn}
-          summary={fundSummaryQuery.data}
           credits={fundCreditsQuery.data?.results ?? []}
           returns={returnsQuery.data?.results ?? []}
           investors={investors}
@@ -805,7 +900,7 @@ export const Phase5WorkspaceView: React.FC<{ routeKey: RouteKey }> = ({ routeKey
           canAccountingWrite={allModuleStatesLoaded && moduleOn(ACCOUNTING_MODULE)}
           canInvestmentWrite={allModuleStatesLoaded && moduleOn(INVESTMENT_MODULE)}
           companyAccountant={companyAccountant}
-          detailLoading={Boolean(selectedVehicleId) && (purchasesQuery.isLoading || expensesQuery.isLoading || saleDetailQuery.isLoading || financialPositionQuery.isLoading)}
+          detailLoading={Boolean(selectedVehicleId) && (requestedVehicleQuery.isLoading || purchasesQuery.isLoading || expensesQuery.isLoading || saleDetailQuery.isLoading || financialPositionQuery.isLoading)}
           detailPage={detailPage}
           detailHasPrevious={Boolean(expensesQuery.data?.previous)}
           detailHasNext={Boolean(expensesQuery.data?.next)}
@@ -1060,7 +1155,7 @@ function ProfitCalendarSettings(props: {
 
 function FundPanel(props: {
   companyId: string; userId: string; investmentOn: boolean;
-  summary?: Phase5FundSummary; credits: Phase5FundCredit[]; returns: Phase5PrincipalReturn[]; investors: Phase5Investor[]; branches: Array<BranchSummary | BranchListItem>;
+  credits: Phase5FundCredit[]; returns: Phase5PrincipalReturn[]; investors: Phase5Investor[]; branches: Array<BranchSummary | BranchListItem>;
   branchId: string; onBranch: (value: string) => void; selectedInvestorId: string; onInvestorFilter: (value: string) => void; onAddInvestor: () => void; onEditInvestor: (investor: Phase5Investor) => void; onCredit: (investorId?: string) => void; onCorrectCredit: (credit: Phase5FundCredit) => void; onReturn: (investorId: string) => void;
   page: number; hasPrevious: boolean; hasNext: boolean; onPage: (page: number) => void; returnPage: number; returnHasPrevious: boolean; returnHasNext: boolean; onReturnPage: (page: number) => void; canProfileWrite: boolean; canFundWrite: boolean; canCreditCorrection: boolean; companyAccountant: boolean;
 }) {
@@ -1068,11 +1163,6 @@ function FundPanel(props: {
   const branchNames = new Map(props.branches.map((row) => [row.id, row.name]));
   return (
     <>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <SummaryCard label="Fund credits" value={formatMoney(props.summary?.credit_total)} />
-        <SummaryCard label="Principal returned" value={formatMoney(props.summary?.principal_return_total)} />
-        <SummaryCard label="Available in your scope" value={formatMoney(props.summary?.available_amount)} />
-      </div>
       <div className="rounded-2xl border border-[#eee6de] bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900 sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-extrabold text-gray-900 dark:text-white">Investors</h2>
@@ -1249,10 +1339,6 @@ function SaleCorrectionHistory({ corrections }: { corrections: Phase5SaleCorrect
       </ol>
     </details>
   );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-[#eee6de] bg-white px-3.5 py-3 dark:border-zinc-800 dark:bg-zinc-900"><div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</div><div className="mt-1 text-lg font-extrabold tabular-nums text-gray-950 dark:text-white">{value}</div></div>;
 }
 
 function Empty({ children }: { children: React.ReactNode }) {

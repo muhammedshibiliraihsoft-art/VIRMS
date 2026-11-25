@@ -7,14 +7,12 @@ def replace_guards(apps, schema_editor):
     import_module("apps.investment.migrations.0041_investorexitlossapplication_and_more").install_guards(apps, schema_editor)
 
 
-def restore_guards(apps, schema_editor):
-    import_module("apps.investment.migrations.0041_investorexitlossapplication_and_more").remove_guards(apps, schema_editor)
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("investment", "0042_exit_loss_application_guards"),
         ("accounting", "0030_remove_accountingevent_acct_event_category_ck_and_more"),
     ]
 
-    operations = [migrations.RunPython(replace_guards, restore_guards)]
+    # The forward migration replaces guards installed by 0042. Reversing this
+    # correction must leave them in place for 0042's reverse operation to remove.
+    operations = [migrations.RunPython(replace_guards, migrations.RunPython.noop)]

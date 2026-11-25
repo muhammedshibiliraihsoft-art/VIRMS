@@ -232,6 +232,20 @@ class JobListCreateView(GarageView):
         return Response(result.body, status=result.status)
 
 
+class JobDashboardSummaryView(GarageView):
+    def get(self, request, company_id):
+        if set(request.query_params) - {"branch_id"}:
+            raise serializers.ValidationError({"query": "Only the Branch filter is supported."})
+        branch_id = request.query_params.get("branch_id")
+        if branch_id:
+            try:
+                from uuid import UUID
+                branch_id = str(UUID(branch_id))
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({"branch_id": "A valid Branch id is required."})
+        return Response(services.job_summary(actor=request.user, company_id=company_id, branch_id=branch_id))
+
+
 class JobStatusView(GarageView):
     def post(self, request, company_id, job_id):
         serializer = StatusSerializer(data=request.data)

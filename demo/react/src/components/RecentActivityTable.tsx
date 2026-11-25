@@ -5,11 +5,15 @@ import { ActivityItem } from '../types';
 interface RecentActivityTableProps {
   activities: ActivityItem[];
   onSelectActivity?: (item: ActivityItem) => void;
+  isLoading?: boolean;
+  hasError?: boolean;
 }
 
 export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
   activities,
   onSelectActivity,
+  isLoading = false,
+  hasError = false,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -100,7 +104,7 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
 
               {showFilterMenu && (
                 <div className="absolute right-0 mt-1.5 w-36 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-gray-100 dark:border-zinc-800 p-1 z-40 text-[11px] animate-in fade-in zoom-in-95 duration-100">
-                  {['all', 'vehicle', 'job', 'sale'].map((t) => (
+                  {['all', 'vehicle', 'job', 'sale', 'accounting'].map((t) => (
                     <button
                       key={t}
                       onClick={() => {
@@ -113,7 +117,7 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
                           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      {t === 'all' ? 'All Activities' : `${t}s only`}
+                      {t === 'all' ? 'All Activities' : `${t === 'accounting' ? t : `${t}s`} only`}
                     </button>
                   ))}
                 </div>
@@ -136,7 +140,7 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
                     className="rounded border-gray-300 text-gray-900 focus:ring-0 cursor-pointer w-3 h-3"
                   />
                 </th>
-                <th className="py-2 px-2.5 font-semibold">Order ID</th>
+                <th className="py-2 px-2.5 font-semibold">Reference</th>
                 <th className="py-2 px-2.5 font-semibold">Activity</th>
                 <th className="py-2 px-2.5 font-semibold">Price</th>
                 <th className="py-2 px-2.5 font-semibold">Status</th>
@@ -145,7 +149,14 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f3ece6] dark:divide-zinc-800 text-[11px]">
-              {filtered.map((item) => {
+              {(isLoading || hasError || filtered.length === 0) && (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-[11px] text-gray-500 dark:text-gray-400">
+                    {isLoading ? 'Loading accounting activity…' : hasError ? 'Accounting activity unavailable' : 'No recent accounting activity'}
+                  </td>
+                </tr>
+              )}
+              {!isLoading && !hasError && filtered.map((item) => {
                 const isSelected = selectedIds.includes(item.id);
                 return (
                   <tr
@@ -204,7 +215,7 @@ export const RecentActivityTable: React.FC<RecentActivityTableProps> = ({
 
                     {/* Date */}
                     <td className="py-2.5 px-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap text-[10px]">
-                      {item.date}
+                      {Number.isNaN(Date.parse(item.date)) ? item.date : new Date(item.date).toLocaleDateString('en-IN')}
                     </td>
 
                     {/* More */}

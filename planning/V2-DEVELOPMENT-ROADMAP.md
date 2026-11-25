@@ -136,7 +136,7 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** The Main VIRMS operational system is usable for its required core workflows and is ready for the first separate user-facing portal.
 
-**Status:** NOT STARTED — Phase 8 prerequisite is COMPLETE LOCALLY; Phase 9 preflight and integrated acceptance have not been run in this worktree.
+**Status:** LOCALLY ACCEPTED (`PHASE9 LOCALLY ACCEPTED`, 2026-11-25; CI/staging/production UNVERIFIED)
 
 ### Phase 10 — Investor Portal
 
@@ -146,7 +146,7 @@ Phase 4 Accounting and Phase 5 Vehicle/Investment contracts must be inspected an
 
 **Ends when:** Investors can access their own permitted Fund, Vehicle, confirmed history, payout/reconciliation, recoverable, Exit, and settlement status information under backend authorization.
 
-**Status:** BLOCKED — PHASE 9 ACCEPTANCE AND PHASE 8 FINANCIAL POSITIONS INCOMPLETE
+**Status:** READY TO START (Phase 9 locally accepted on 2026-11-25; Phase 10 self-service UI/acceptance not started)
 
 **Decision boundary:** The private portal must reflect the approved Sale-date Profit periods, confirmed Interim-as-Paid rule, Available-Fund rule, and Exit/cancellation workflow. A deal-level Investor Profit payment command and typed Accounting link now exist locally; period reconciliation, Interim payment, and Exit settlement remain incomplete. The portal may show actual recorded deal payments but must not show unreconciled amounts as payable.
 
@@ -285,3 +285,15 @@ Q135's approved rule now has an implementation slice: Monthly Interim may be pai
 **Verified locally:** on the disposable PostgreSQL test database, `python manage.py test apps.investment.tests --verbosity 1` passed 41 tests, including fresh schema creation through `accounting.0024`, module and Branch boundaries, repeat/idempotency, monthly cap and concurrent cap enforcement, source-linked cash effects, and portal privacy. Targeted React portal/API tests passed 32 tests. The test database was destroyed by Django after the run. CI, browser-wide Phase 9 acceptance, staging, production, and deployment remain `UNVERIFIED`.
 
 **Remaining Phase 8–10 work:** persisted period reconciliation/restatement and recoverable history, Investor Exit settlement, principal/Running-Capital recovery, Company period confirmation with Loss carryforward, Owner allocation/payment records, integrated end-to-end acceptance, full UI/browser reload and responsive verification. Phases 8–10 remain incomplete and the existing worktree stays dirty/uncommitted; no commit, push, deployment, or persistent user database change occurred.
+
+
+## Phase 9 local acceptance checkpoint — 2026-11-25
+
+- **Status:** **`PHASE9 LOCALLY ACCEPTED`** (disposable local runtime only; CI, staging, production, and deployment remain **UNVERIFIED**).
+- **Verified Checkout:** `D:\VIRMS\tmp\phase9-baseline-review-d2efd314`, detached `HEAD` `253b2f091b936fd1772e7805ce7951bf53f1f33a` (dirty local implementation preserved; uncommitted and unpushed).
+- **Completed Scope (`J01`–`J09` + Wildcard Entry Slice C.1):**
+  - Repaired confirmed acceptance defects `F-01` (`apps/accounting/views.py`), `F-02` (`apps/investment/services.py`), and `F-04` (`demo/react/src/components/TopBar.tsx`).
+  - Wired `Garage Revenue` to authoritative `GARAGE_RECEIPT` Accounting events and hydrated external-customer `garageApi.job` details (`customer_charge`, `received`, `outstanding`) in `demo/react/src/components/shared/GarageRevenueView.tsx` and `App.tsx`, updating `navigationRegistry.ts`.
+  - Confirmed live Company 1 movement reconciliation (`36` movements, inflow `26,260.00` − outflow `7,310.00` = `18,950.00`), full valid-fixture J07 finance flows (`40.0000%` agreement, profit/loss confirmation, capital recovery, partial profit payout, loss offset, calendar reconciliation, profit position confirmation, portal binding, exit request, partial exit principal payout), Owner Distribution, and `P9-TEST-001` disposable-test-data confirmation (preserved untouched as a negative/guard check; no real business blocker remains for Phase 9).
+- **Consolidated Gate Counts:** `manage.py check` (`0` issues), `makemigrations --check --dry-run` (`No changes detected`), `198/198` focused Django PostgreSQL tests on `test_virms_phase9_closure` (`127.0.0.1:55541`), React Vitest `51/51` files (`287/287` tests PASS), ESLint (`0` errors, `0` warnings), `tsc && vite build` clean, authenticated browser verification across `320`, `390`, `768`, `1024`, `1440` px (`0px` horizontal overflow, `0` HTTP `500`s).
+- **Next Gate:** Phase 10 (**Investor Portal**) is unblocked locally (`READY TO START`) once local branch commits/review are finalized by the user.

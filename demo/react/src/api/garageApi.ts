@@ -9,6 +9,14 @@ export interface GarageJob {
   customer_charge?: string | null; charge_version?: number; received?: string;
   outstanding?: string | null; customer_cost_total?: string;
 }
+export interface GarageJobSummary {
+  company_id: string;
+  branch_id: string | null;
+  total_jobs: number;
+  open_jobs: number;
+  completed_jobs: number;
+  external_customer_jobs: number;
+}
 
 export interface GarageWork { id: string; description: string; actor_id: string; created_at: string }
 export interface GarageStatusChange { version: number; from_status: 'OPEN' | 'COMPLETED'; to_status: 'OPEN' | 'COMPLETED'; actor_id: string; created_at: string }
@@ -141,6 +149,17 @@ function parseCostCorrection(value: unknown): GarageCostCorrection {
 }
 
 export const garageApi = {
+  async jobSummary(companyId: string, branchId?: string, signal?: AbortSignal): Promise<GarageJobSummary> {
+    const query = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
+    const value = await requestApi(path(companyId, 'garage', `jobs/dashboard-summary/${query}`), { signal });
+    if (!isObject(value)) throw new Error('Invalid Garage Job summary response.');
+    requireId(value.company_id);
+    if (!(value.branch_id === null || (typeof value.branch_id === 'string' && uuid.test(value.branch_id)))) throw new Error('Invalid Garage Job summary Branch id.');
+    for (const field of ['total_jobs', 'open_jobs', 'completed_jobs', 'external_customer_jobs']) {
+      if (!Number.isSafeInteger(value[field]) || Number(value[field]) < 0) throw new Error('Invalid Garage Job summary count.');
+    }
+    return value as unknown as GarageJobSummary;
+  },
   async jobs(companyId: string, page = 1, signal?: AbortSignal): Promise<ApiPage<GarageJob>> {
     return parsePage(await requestApi(path(companyId, 'garage', `jobs/?page=${page}`), { signal }), parseJob);
   },

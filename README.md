@@ -76,3 +76,23 @@ This checkpoint supersedes the earlier uncommitted Phase 5 status above. The app
 ## Phase 5 audit branch publication — 2026-11-16
 
 The candidate was pushed as a normal fast-forward to `origin/codex/audit`. GitHub commit comparison verified the remote ref at `2ddbbce26bf43a25313190bf7266996d43243476`; the pushed history includes the Phase 4 base commit and the Phase 5 implementation commit. This publication did not deploy to staging/production. The separate local `codex/audit` worktree still has pre-existing dirty changes and was not modified; reconcile them before further local branch operations.
+
+
+## Phase 9 local acceptance checkpoint — 2026-11-25
+
+- **Status:** `PHASE9 LOCALLY ACCEPTED` (local disposable acceptance only; hosted CI, staging runtime, production database, deployment, and Phase 10 Investor Portal self-service remain **UNVERIFIED** / **OUT OF SCOPE**).
+- **Checkout & runtime identity:** `D:\VIRMS\tmp\phase9-baseline-review-d2efd314` (detached `HEAD` `253b2f091b936fd1772e7805ce7951bf53f1f33a`, uncommitted local changes preserved). Verified against disposable PostgreSQL 15 volume `virms_phase9_closure` (`166` migrations, companion container `virms-p9-closure-20261125-runtime` on `127.0.0.1:55541` preserving `virms-p9-closure-20261124` data across Windows dynamic TCP port exclusion `55359–55458`), local Django `127.0.0.1:8001` (Python `3.12.10` / Django `5.2.18`), and Vite/React `127.0.0.1:5174`.
+- **Repairs & Wildcard Entry Slice C.1 verified:**
+  - `F-01` (`apps/accounting/views.py`): Fixed `AccountingResultView.get` Branch-scoped `Value(None)` aggregation `TypeError` (live HTTP `200` + UI `Company Result` branch filter + unit test).
+  - `F-02` (`apps/investment/services.py`): Fixed `create_profit_share_agreement` (`subject=locked_actor` and allowlisted `AccountSecurityEvent` metadata keys `investor_share_agreement_id`, `investor_id`, `investor_share_percentage_snapshot`, `effective_from` — live HTTP `201` + unit test).
+  - `F-04` (`demo/react/src/components/TopBar.tsx`): Adjusted `Quick section navigation` breakpoint (`hidden md:flex` -> `hidden lg:flex`) to eliminate `768x1024` tablet header overlap.
+  - `Wildcard Entry` (`demo/react/src/components/shared/GarageRevenueView.tsx`, `App.tsx`, `navigationRegistry.ts`): Wired `Garage Revenue` to authoritative `GARAGE_RECEIPT` Accounting events and hydrated external-customer Garage Jobs (`customer_charge`, `received`, `outstanding`).
+- **Consolidated local gate counts:**
+  - `manage.py check`: `0` issues; `manage.py makemigrations --check --dry-run`: `No changes detected`.
+  - Focused backend suite on disposable PostgreSQL (`test_virms_phase9_closure` on `127.0.0.1:55541` across `accounting`, `investment`, `vehicles`, `garage` API + Phase 8 finance + concurrency/rollback): `198/198 PASS`.
+  - React checks (`demo/react`): Vitest (`51` files / `287` tests PASS), ESLint (`0` errors, `0` warnings), `tsc && vite build` clean.
+  - Authenticated browser J01–J09 & responsive sweep (`320`, `390`, `768`, `1024`, `1440` px): `0` HTTP `500`s, `0px` horizontal overflow across all five viewport widths, persisted reload and logout/login verified.
+- **Historical data decision & explicit exclusions:**
+  - Pre-existing fixture `P9-TEST-001` (purchase missing both `investor_share_agreement_id` and `investor_share_percentage_snapshot`) was kept untouched as a negative/guard check (`AGREEMENT_SNAPSHOT_MISSING`) and confirmed by the user on `2026-11-25` as disposable test data only (not a real production/business blocker). Separately, clean valid fixtures (`P9-J07-PROFIT-2511`, `P9-J07-LOSS-2511`, `P9-J07-CLEAN-2511`) exercised the full Phase 8/9 agreement, share split, capital recovery, partial profit payout, loss confirmation, profit-loss offset, calendar reconciliation, profit position confirmation, portal binding, and partial exit principal payout lifecycle.
+  - Non-blocking items deferred with reason: `F-03` (`AllVehiclesView` subtitle on unpurchased customer vehicle `P9-J04-CUST-01`), `F-05` (minor 320px summary truncation, Dashboard `Demo` drawer label, nested `<main>` on `InvestorProfitReviewView`).
+  - Excluded / unverified outside Phase 9: Phase 10 Investor Portal self-service UI, Owner Platform, Inventory expansion, synthetic Demo Reports, and CI / staging / production deployment.

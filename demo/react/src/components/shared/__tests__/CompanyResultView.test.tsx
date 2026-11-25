@@ -40,8 +40,11 @@ beforeEach(() => {
   mocks.useAccountingResult.mockReturnValue({
     data: {
       period: 'annual', year: 2026, month: null, branch_id: null,
-      period_start: '2026-01-01', period_end: '2027-01-01', timezone: 'Asia/Kolkata', starts_at: '2026-01-01', ends_before: '2027-01-01',
+      period_start: '2026-01-01', period_end: '2027-01-01', timezone: 'Asia/Kolkata', starts_at: '2025-12-31T18:30:00Z', ends_before: '2026-12-31T18:30:00Z',
       income_amount: '100000.00', expense_amount: '25000.00', accounting_result_amount: '75000.00', source_version: 'a'.repeat(64),
+      income_event_count: 0, expense_event_count: 0, actual_receipts_amount: '0.00', actual_payments_amount: '0.00',
+      transaction_event_count: 0, cash_inflow_amount: '0.00', cash_outflow_amount: '0.00', net_movement_amount: '0.00',
+      corrected_event_count: 0, reversal_event_count: 0, reallocation_event_count: 0,
       currency: 'INR', scope: 'recorded_accounting_events',
     },
     isPending: false, isError: false,
@@ -64,6 +67,7 @@ describe('CompanyResultView', () => {
     expect(screen.getByText('₹25,000.00')).toBeInTheDocument();
     expect(screen.getAllByText('₹75,000.00')).toHaveLength(2);
     expect(screen.getByText(/not the final distributable Company Profit/)).toBeInTheDocument();
+    expect(screen.getByText(/1 Jan 2026\s+through\s+1 Jan 2027/)).toBeInTheDocument();
     expect(screen.queryByText(/Inventory Margin Realized/)).not.toBeInTheDocument();
   });
 

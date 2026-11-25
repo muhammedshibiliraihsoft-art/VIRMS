@@ -10,6 +10,8 @@ import { InvestorExitLossApplicationForm } from './InvestorExitLossApplicationFo
 import { InvestorExitProfitPaymentForm } from './InvestorExitProfitPaymentForm';
 import { queryKeys } from '../../api/queryKeys';
 
+import { PageKpiRow } from './PageKpiRow';
+
 function money(value: string) {
   if (!/^-?\d+\.\d{2}$/.test(value)) return '—';
   const negative = value.startsWith('-');
@@ -25,7 +27,7 @@ function date(value: string | null) {
   return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(new Date(year, month - 1, day, 12));
 }
 
-export const InvestorProfitReviewView: React.FC = () => {
+export const InvestorProfitReviewView: React.FC<{ mode?: 'profit' | 'settlement' }> = ({ mode = 'profit' }) => {
   const { user, currentCompany } = useAuth();
   const queryClient = useQueryClient();
   const canReadConsolidated = Boolean(currentCompany?.company_wide_roles.includes('accountant'));
@@ -234,6 +236,23 @@ export const InvestorProfitReviewView: React.FC = () => {
     }
   };
 
+  const periods = projectionQuery.data?.periods ?? [];
+  const currentPositions = periods.flatMap(({ confirmed_position }) =>
+    confirmed_position?.is_current ? [confirmed_position] : [],
+  );
+  const blockedPeriods = periods.filter((row) =>
+    row.reconciliation_status === 'RESTATEMENT_REQUIRED' || row.reconciliation_status === 'SOURCE_REVIEW_REQUIRED',
+  );
+  const interimPaid = periods.reduce((total, row) => total + BigInt(row.interim_paid.replace('.', '')), 0n);
+  const absoluteInterim = interimPaid < 0n ? -interimPaid : interimPaid;
+  const interimText = money(`${interimPaid < 0n ? '-' : ''}${absoluteInterim / 100n}.${String(absoluteInterim % 100n).padStart(2, '0')}`);
+  const kpiStatus = canReadConsolidated && (investorsQuery.isLoading || projectionQuery.isLoading)
+    ? 'loading'
+    : canReadConsolidated && projectionQuery.isSuccess && projectionQuery.data.investor_id === investorId &&
+        projectionQuery.data.status !== 'CALENDAR_NOT_AVAILABLE'
+      ? 'ready'
+      : 'unavailable';
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-3 pb-8" aria-label="Investor Profit review">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-3 dark:border-zinc-800">
@@ -246,6 +265,18 @@ export const InvestorProfitReviewView: React.FC = () => {
           <RefreshCw className={`h-3.5 w-3.5 ${investorsQuery.isFetching || projectionQuery.isFetching ? 'animate-spin' : ''}`} />Refresh
         </button>
       </header>
+
+      <PageKpiRow status={kpiStatus} items={mode === 'settlement' ? [
+        { label: 'Confirmed Positions', value: String(currentPositions.length) },
+        { label: 'Payable Positions', value: String(currentPositions.filter((position) => position.kind === 'PAYABLE').length) },
+        { label: 'Recoverable Positions', value: String(currentPositions.filter((position) => position.kind === 'RECOVERABLE').length) },
+        { label: 'Blocking Periods', value: String(blockedPeriods.length) },
+      ] : [
+        { label: 'Investor Periods', value: String(periods.length) },
+        { label: 'Reconciled Periods', value: String(periods.filter((row) => row.reconciliation_status === 'RECONCILED').length) },
+        { label: 'Review Required', value: String(blockedPeriods.length) },
+        { label: 'Confirmed Interim Paid', value: interimText },
+      ]} />
 
       {!canReadConsolidated ? (
         <Notice>This consolidated Investor calculation covers every Branch and is available only to a Company-level Accountant in this Company.</Notice>

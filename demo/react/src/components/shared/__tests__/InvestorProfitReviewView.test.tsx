@@ -1,6 +1,6 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InvestorProfitReviewView } from '../InvestorProfitReviewView';
@@ -269,7 +269,9 @@ describe('InvestorProfitReviewView', () => {
     expect(await screen.findByRole('heading', { name: 'Investor Profit period review' })).toBeInTheDocument();
     expect(await screen.findByText('Nila')).toBeInTheDocument();
     expect(await screen.findByText('₹1,00,000.00')).toBeInTheDocument();
-    expect(screen.getAllByText('₹5,000.00')).toHaveLength(2);
+    const metrics = screen.getByRole('region', { name: 'Page key metrics' });
+    expect(within(metrics).getByRole('article', { name: 'Confirmed Interim Paid: ₹5,000.00' })).toBeInTheDocument();
+    expect(screen.getAllByText('₹5,000.00').filter((value) => !metrics.contains(value))).toHaveLength(2);
     expect(screen.getByText(/Confirming a period stores an audited calculation snapshot/i)).toBeInTheDocument();
     expect(screen.getByText('₹1,000.00')).toBeInTheDocument();
     expect(screen.getByText('NOT RECONCILED')).toBeInTheDocument();

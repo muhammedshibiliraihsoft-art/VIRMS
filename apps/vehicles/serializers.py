@@ -22,6 +22,18 @@ class VehicleListQuerySerializer(serializers.Serializer):
     search = serializers.CharField(max_length=80, required=False, allow_blank=False)
 
 
+class VehicleRegisterQuerySerializer(serializers.Serializer):
+    page = serializers.IntegerField(required=False, min_value=1, default=1)
+    branch_id = serializers.UUIDField(required=False)
+    search = serializers.CharField(max_length=80, required=False, allow_blank=False)
+    context = serializers.ChoiceField(choices=("all", "stock", "customer"), required=False, default="all")
+    status = serializers.ChoiceField(
+        choices=("all", "in_work", "sold", "purchased", "customer_vehicles"),
+        required=False,
+        default="all",
+    )
+
+
 class VehicleBranchMoveSerializer(serializers.Serializer):
     to_branch_id = serializers.UUIDField()
     reason = serializers.CharField(max_length=500, trim_whitespace=True)

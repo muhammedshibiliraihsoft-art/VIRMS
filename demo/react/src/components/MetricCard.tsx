@@ -2,17 +2,25 @@ import React from 'react';
 import { Info, Lock, Layers } from 'lucide-react';
 
 interface MetricGridProps {
-  stockVehiclesCount: number;
-  openJobsCount: number;
-  totalReceivable: number;
-  inventoryStockValue: number;
+  vehicleCount: number | null;
+  soldVehicleCount: number | null;
+  buyerReceivable: number | null;
+  openJobsCount: number | null;
+  vehiclesLoading: boolean;
+  vehiclesError: boolean;
+  garageLoading: boolean;
+  garageError: boolean;
 }
 
 export const MetricGrid: React.FC<MetricGridProps> = ({
-  stockVehiclesCount,
+  vehicleCount,
+  soldVehicleCount,
+  buyerReceivable,
   openJobsCount,
-  totalReceivable,
-  inventoryStockValue,
+  vehiclesLoading,
+  vehiclesError,
+  garageLoading,
+  garageError,
 }) => {
   const formatCompact = (val: number) => {
     if (val >= 100000) {
@@ -20,14 +28,16 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
     }
     return '₹' + val.toLocaleString('en-IN');
   };
+  const formatCount = (value: number | null, isLoading: boolean, hasError: boolean) => isLoading ? '…' : hasError || value === null ? 'Unavailable' : value.toLocaleString('en-IN');
+  const formatMoney = (value: number | null, isLoading: boolean, hasError: boolean) => isLoading ? '…' : hasError || value === null ? 'Unavailable' : formatCompact(value);
 
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-2.5 sm:gap-3 h-full">
-      {/* 1. Top-Left: Accent Orange Card (Image 2's Total Earnings) */}
+      {/* Preserve the original accent card for the authorized vehicle count. */}
       <div className="dashboard-card-orange text-white rounded-[20px] p-3.5 sm:p-4 flex flex-col justify-between">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-white/95">
-            Total Stock
+            Total Vehicles
           </span>
           <div className="w-4 h-4 rounded-full border border-white/40 flex items-center justify-center text-white/95">
             <Info className="w-2.5 h-2.5" />
@@ -36,19 +46,14 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
 
         <div className="my-auto py-0.5">
           <div className="text-2xl sm:text-[28px] font-extrabold tracking-tight">
-            {Math.max(3, stockVehiclesCount)}
+            {formatCount(vehicleCount, vehiclesLoading, vehiclesError)}
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/25 text-white border border-white/20">
-            + 7%
-          </span>
-          <span className="text-[10px] text-white/90 font-medium">This month</span>
-        </div>
+        <span className="text-[10px] text-white/90 font-medium">Authorized scope</span>
       </div>
 
-      {/* 2. Top-Right: Open Garage Jobs (Image 2's Total Spending) */}
+      {/* The API returns the total authorized job count, not only open jobs. */}
       <div className="dashboard-card-solid rounded-[20px] p-3.5 sm:p-4 flex flex-col justify-between">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
@@ -61,19 +66,14 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
 
         <div className="my-auto py-0.5">
           <div className="text-2xl sm:text-[28px] font-extrabold text-gray-950 dark:text-white tracking-tight">
-            {openJobsCount}
+            {formatCount(openJobsCount, garageLoading, garageError)}
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-[var(--theme-primary-soft)] text-[var(--theme-primary)] border border-[var(--theme-primary-border)]">
-            + 5%
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">This month</span>
-        </div>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Garage · open</span>
       </div>
 
-      {/* 3. Bottom-Left: Buyer Receivables (Image 2's Total Income) */}
+      {/* Buyer receivable remains separate from actual Cash/Bank balance. */}
       <div className="dashboard-card-solid rounded-[20px] p-3.5 sm:p-4 flex flex-col justify-between">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
@@ -86,41 +86,27 @@ export const MetricGrid: React.FC<MetricGridProps> = ({
 
         <div className="my-auto py-0.5">
           <div className="text-xl sm:text-2xl font-extrabold text-gray-950 dark:text-white tracking-tight truncate">
-            {formatCompact(totalReceivable)}
+            {formatMoney(buyerReceivable, vehiclesLoading, vehiclesError)}
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 border border-emerald-200/60">
-            + 8%
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">This month</span>
-        </div>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Unpaid buyer balance</span>
       </div>
 
-      {/* 4. Bottom-Right: Stock Inventory (Image 2's Total Revenue) */}
+      {/* 4. Sold vehicle count keeps the final dashboard metric slot data-backed. */}
       <div className="dashboard-card-solid rounded-[20px] p-3.5 sm:p-4 flex flex-col justify-between">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-            Inventory
-          </span>
+          <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Sold Vehicles</span>
           <div className="w-4 h-4 rounded-full bg-white dark:bg-zinc-800 border border-[#f0eae4] dark:border-zinc-700 flex items-center justify-center text-gray-400 dark:text-gray-300">
             <Layers className="w-2.5 h-2.5" />
           </div>
         </div>
-
         <div className="my-auto py-0.5">
           <div className="text-xl sm:text-2xl font-extrabold text-gray-950 dark:text-white tracking-tight truncate">
-            {formatCompact(inventoryStockValue)}
+            {formatCount(soldVehicleCount, vehiclesLoading, vehiclesError)}
           </div>
         </div>
-
-        <div className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 border border-emerald-200/60">
-            + 8%
-          </span>
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">This month</span>
-        </div>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Authorized scope</span>
       </div>
     </div>
   );

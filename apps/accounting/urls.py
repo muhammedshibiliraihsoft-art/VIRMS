@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AccountingBranchListView,
+    AccountingMonthlyTrendView,
     AccountingResultView,
     AccountArchiveView,
     AccountListCreateView,
@@ -30,6 +31,7 @@ from .views import (
 app_name = "accounting"
 
 urlpatterns = [
+    path("reports/accounting-monthly-trend/", AccountingMonthlyTrendView.as_view(), name="accounting-monthly-trend"),
     path("branches/", AccountingBranchListView.as_view(), name="accounting-branch-list"),
     path("accounts/", AccountListCreateView.as_view(), name="account-list-create"),
     path(

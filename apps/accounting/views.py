@@ -1,8 +1,10 @@
 from datetime import datetime, timezone as datetime_timezone
 from decimal import Decimal, localcontext
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from django.db.models import Case, Count, DecimalField, ExpressionWrapper, F, Sum, Value, When
+from django.db.models import Case, Count, DecimalField, ExpressionWrapper, F, Q, Subquery, Sum, Value, When
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -630,8 +632,8 @@ class AccountingResultView(AccountingAPIView):
             output_field=amount_field,
         )
         from django.contrib.postgres.aggregates import ArrayAgg
-        aggregate_values = queryset.aggregate(
-            income=Sum(
+        aggregate_kwargs = {
+            "income": Sum(
                 Case(
                     When(
                         event_type__in=(
@@ -644,19 +646,27 @@ class AccountingResultView(AccountingAPIView):
                     output_field=amount_field,
                 )
             ),
-            expense=Sum(
+            "expense": Sum(
                 Case(
                     When(event_type=AccountingEvent.EventType.EXPENSE, then=net_amount),
                     default=Value(Decimal("0.00")),
                     output_field=amount_field,
                 )
             ),
-            source_ids=ArrayAgg("id", ordering=("id",), default=[]) if branch_id is None else Value(None),
-            source_types=ArrayAgg("event_type", ordering=("id",), default=[]) if branch_id is None else Value(None),
-            source_amounts=ArrayAgg("amount", ordering=("id",), default=[]) if branch_id is None else Value(None),
-            source_signs=ArrayAgg("effect_sign", ordering=("id",), default=[]) if branch_id is None else Value(None),
-            source_effective_ats=ArrayAgg("effective_at", ordering=("id",), default=[]) if branch_id is None else Value(None),
-        )
+            "income_event_count": Count("id", filter=Q(event_type__in=(AccountingEvent.EventType.INCOME, AccountingEvent.EventType.VEHICLE_COMPANY_SHARE))),
+            "expense_event_count": Count("id", filter=Q(event_type=AccountingEvent.EventType.EXPENSE)),
+            "corrected_event_count": Count("id", filter=Q(replaces_event__isnull=False)),
+            "reversal_event_count": Count("id", filter=Q(reversal_of__isnull=False)),
+        }
+        if branch_id is None:
+            aggregate_kwargs.update(
+                source_ids=ArrayAgg("id", ordering=("id",), default=[]),
+                source_types=ArrayAgg("event_type", ordering=("id",), default=[]),
+                source_amounts=ArrayAgg("amount", ordering=("id",), default=[]),
+                source_signs=ArrayAgg("effect_sign", ordering=("id",), default=[]),
+                source_effective_ats=ArrayAgg("effective_at", ordering=("id",), default=[]),
+            )
+        aggregate_values = queryset.aggregate(**aggregate_kwargs)
         income = aggregate_values["income"] or Decimal("0.00")
         expense = aggregate_values["expense"] or Decimal("0.00")
         # Individual Accounting amounts support 38 digits. The default
@@ -670,6 +680,53 @@ class AccountingResultView(AccountingAPIView):
             amounts=aggregate_values["source_amounts"], signs=aggregate_values["source_signs"],
             effective_ats=aggregate_values["source_effective_ats"],
         ) if branch_id is None else None
+        movement_rows = AccountMovement.objects.filter(
+            tenant=scope.company,
+            event__effective_at__gte=start,
+            event__effective_at__lt=end,
+        ).exclude(event__event_type=AccountingEvent.EventType.OPENING_BALANCE)
+        if branch_id is not None:
+            movement_rows = movement_rows.filter(event__branch_id=branch_id)
+        zero_amount = Value(Decimal("0.00"), output_field=amount_field)
+        movement_values = movement_rows.aggregate(
+            cash_inflow=Sum(Case(When(delta__gt=0, then=F("delta")), default=zero_amount, output_field=amount_field)),
+            cash_outflow=Sum(Case(When(delta__lt=0, then=-F("delta")), default=zero_amount, output_field=amount_field)),
+            net_movement=Sum("delta", output_field=amount_field),
+            transaction_event_count=Count("event_id", distinct=True),
+        )
+        receipt_application_sources = AccountingApplication.objects.filter(
+            tenant=scope.company,
+            source_event__effective_at__gte=start,
+            source_event__effective_at__lt=end,
+            source_event__event_type=AccountingEvent.EventType.RECEIPT,
+            target_event__event_type__in=(AccountingEvent.EventType.INCOME, AccountingEvent.EventType.VEHICLE_COMPANY_SHARE),
+        )
+        payment_application_sources = AccountingApplication.objects.filter(
+            tenant=scope.company,
+            source_event__effective_at__gte=start,
+            source_event__effective_at__lt=end,
+            source_event__event_type=AccountingEvent.EventType.PAYMENT,
+            target_event__event_type=AccountingEvent.EventType.EXPENSE,
+        )
+        if branch_id is not None:
+            receipt_application_sources = receipt_application_sources.filter(source_event__branch_id=branch_id)
+            payment_application_sources = payment_application_sources.filter(source_event__branch_id=branch_id)
+        actual_receipts = AccountMovement.objects.filter(
+            tenant=scope.company,
+            event_id__in=Subquery(receipt_application_sources.values("source_event_id")),
+        ).aggregate(total=Sum("delta", output_field=amount_field))["total"] or Decimal("0.00")
+        actual_payments = AccountMovement.objects.filter(
+            tenant=scope.company,
+            event_id__in=Subquery(payment_application_sources.values("source_event_id")),
+        ).aggregate(total=Sum("delta", output_field=amount_field))["total"] or Decimal("0.00")
+        reallocation_event_count = AccountingApplication.objects.filter(
+            tenant=scope.company,
+            recorded_at__gte=start,
+            recorded_at__lt=end,
+            effect_sign=-1,
+        )
+        if branch_id is not None:
+            reallocation_event_count = reallocation_event_count.filter(source_event__branch_id=branch_id)
         response = Response(
             {
                 "period": data["period"],
@@ -684,12 +741,104 @@ class AccountingResultView(AccountingAPIView):
                 "income_amount": format(income, ".2f"),
                 "expense_amount": format(expense, ".2f"),
                 "accounting_result_amount": format(result, ".2f"),
+                "income_event_count": aggregate_values["income_event_count"],
+                "expense_event_count": aggregate_values["expense_event_count"],
+                "actual_receipts_amount": format(actual_receipts, ".2f"),
+                "actual_payments_amount": format(-actual_payments, ".2f"),
+                "transaction_event_count": movement_values["transaction_event_count"],
+                "cash_inflow_amount": format(movement_values["cash_inflow"] or Decimal("0.00"), ".2f"),
+                "cash_outflow_amount": format(movement_values["cash_outflow"] or Decimal("0.00"), ".2f"),
+                "net_movement_amount": format(movement_values["net_movement"] or Decimal("0.00"), ".2f"),
+                "corrected_event_count": aggregate_values["corrected_event_count"],
+                "reversal_event_count": aggregate_values["reversal_event_count"],
+                "reallocation_event_count": reallocation_event_count.count(),
                 "source_version": source_version,
                 "currency": "INR",
                 "scope": "recorded_accounting_events",
             }
         )
         return response
+
+
+class AccountingMonthlyTrendView(AccountingAPIView):
+    """Return eight selected-scope monthly Income/Expense totals for Dashboard."""
+
+    def get(self, request, company_id):
+        if set(request.query_params) - {"branch_id"}:
+            raise ValidationError({"query": "Only the Branch filter is supported."})
+        branch_id = request.query_params.get("branch_id")
+        if branch_id is not None:
+            try:
+                branch_id = UUID(branch_id)
+            except (TypeError, ValueError):
+                raise ValidationError({"branch_id": "A valid Branch id is required."})
+        scope = self.scope(
+            request,
+            company_id,
+            AccountingAction.REPORT,
+            permission_action="accounting.report.read",
+            branch_id=branch_id,
+        )
+        if not (scope.is_company_accountant or scope.is_company_wide_reader):
+            if branch_id is None:
+                if len(scope.allowed_branch_ids) != 1:
+                    raise ValidationError({"branch_id": "Select one authorized Branch."})
+                branch_id = next(iter(scope.allowed_branch_ids))
+            elif branch_id not in scope.allowed_branch_ids:
+                raise NotFound("Branch not found.")
+
+        now_local = timezone.localtime(timezone.now(), COMPANY_TIMEZONE)
+        month_index = now_local.year * 12 + now_local.month - 1
+        first_month_index = month_index - 7
+        first_year, first_month_zero = divmod(first_month_index, 12)
+        first_local = datetime(first_year, first_month_zero + 1, 1, tzinfo=COMPANY_TIMEZONE)
+        next_index = month_index + 1
+        next_year, next_month_zero = divmod(next_index, 12)
+        after_last_local = datetime(next_year, next_month_zero + 1, 1, tzinfo=COMPANY_TIMEZONE)
+        start = first_local.astimezone(datetime_timezone.utc)
+        end = after_last_local.astimezone(datetime_timezone.utc)
+
+        events = AccountingEvent.objects.filter(
+            tenant=scope.company,
+            effective_at__gte=start,
+            effective_at__lt=end,
+        ).exclude(owner_distribution_payment__isnull=False)
+        if branch_id is not None:
+            events = events.filter(branch_id=branch_id)
+        amount_field = DecimalField(max_digits=38, decimal_places=2)
+        net_amount = ExpressionWrapper(F("amount") * F("effect_sign"), output_field=amount_field)
+        monthly = events.annotate(month=TruncMonth("effective_at", tzinfo=COMPANY_TIMEZONE)).values("month").annotate(
+            income=Sum(Case(
+                When(event_type__in=(AccountingEvent.EventType.INCOME, AccountingEvent.EventType.VEHICLE_COMPANY_SHARE), then=net_amount),
+                default=Value(Decimal("0.00")), output_field=amount_field,
+            )),
+            expense=Sum(Case(
+                When(event_type=AccountingEvent.EventType.EXPENSE, then=net_amount),
+                default=Value(Decimal("0.00")), output_field=amount_field,
+            )),
+        ).order_by("month")
+        values = {
+            row["month"].strftime("%Y-%m"): row
+            for row in monthly
+        }
+        points = []
+        for offset in range(8):
+            current_index = first_month_index + offset
+            year, month_zero = divmod(current_index, 12)
+            period = f"{year:04d}-{month_zero + 1:02d}"
+            row = values.get(period)
+            points.append({
+                "period": period,
+                "label": datetime(year, month_zero + 1, 1).strftime("%b"),
+                "income_amount": format((row["income"] if row else None) or Decimal("0.00"), ".2f"),
+                "expense_amount": format((row["expense"] if row else None) or Decimal("0.00"), ".2f"),
+            })
+        return Response({
+            "company_id": str(scope.company.pk),
+            "branch_id": str(branch_id) if branch_id else None,
+            "timezone": "Asia/Kolkata",
+            "monthly_trend": points,
+        })
 
 
 class CompanyPeriodConfirmationView(AccountingAPIView):

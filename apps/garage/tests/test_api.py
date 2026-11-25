@@ -20,6 +20,33 @@ class GarageApiTests(GarageIntegrityTests):
         self.client.force_authenticate(user=self.actor)
         self.url = f"/api/v1/tenants/{self.company.pk}/garage/jobs/"
 
+    def test_dashboard_summary_is_full_scoped_and_does_not_page_job_rows(self):
+        from apps.garage.models import GarageJob
+
+        self.job()
+        GarageJob.objects.create(
+            tenant=self.company, branch=self.branch, vehicle=self.vehicle,
+            context="STOCK", created_by=self.actor, module_revision=self.revision,
+        )
+        response = self.client.get(f"{self.url}dashboard-summary/")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            response.data,
+            {
+                "company_id": str(self.company.pk),
+                "branch_id": None,
+                "total_jobs": 2,
+                "open_jobs": 2,
+                "completed_jobs": 0,
+                "external_customer_jobs": 1,
+            },
+        )
+        scoped = self.client.get(f"{self.url}dashboard-summary/?branch_id={self.branch.pk}")
+        self.assertEqual(scoped.status_code, 200, scoped.content)
+        self.assertEqual(scoped.data["open_jobs"], 2)
+        cross_company = self.client.get(f"{self.url}dashboard-summary/?branch_id={self.other_branch.pk}")
+        self.assertEqual(cross_company.status_code, 404, cross_company.content)
+
     def test_unlinked_customer_cost_refund_event_fails_deferred_guard(self):
         revision = CompanyModuleState.objects.create(tenant=self.company, module_code="accounting", state="enabled", version=1, effective_from=timezone.now(), changed_by=self.actor)
         with self.assertRaises(IntegrityError), transaction.atomic():

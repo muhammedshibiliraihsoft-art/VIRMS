@@ -20,12 +20,18 @@ describe('role-based navigation presentation', () => {
   it('marks wired Accounting, Phase 5 and Garage workspace routes as backend', () => {
     const backendRoutes = new Set([
       'Garage Jobs',
+      'Garage Revenue',
+      'Customer Vehicles',
       'Stock / Investor',
       'Investor Fund',
       'Vehicle Sales',
       'Collections',
       'Sale Corrections & Refunds',
       'Running Capital',
+      'Investor Profit & Interim',
+      'Reconciliation & Settlement',
+      'Company Result',
+      'Owner Distribution',
       'Company Income',
       'Company Expenses',
       'Transactions',
@@ -33,7 +39,7 @@ describe('role-based navigation presentation', () => {
     ]);
 
     for (const group of navigationRegistry) {
-      expect(group.dataSourceStatus).toBe('demo');
+      expect(group.dataSourceStatus).toBe(group.id === 'vehicles' ? 'backend' : 'demo');
       for (const child of group.children) {
         expect(getRouteDataSourceStatus(child.routeKey)).toBe(
           backendRoutes.has(child.routeKey) ? 'backend' : 'demo'
@@ -42,7 +48,9 @@ describe('role-based navigation presentation', () => {
     }
 
     expect(getRouteDataSourceStatus('Vehicle Detail')).toBe('demo');
-    expect(getRouteDataSourceStatus('All Vehicles')).toBe('demo');
+    expect(getRouteDataSourceStatus('Vehicles')).toBe('backend');
+    expect(getRouteDataSourceStatus('All Vehicles')).toBe('backend');
+    expect(getRouteDataSourceStatus('Customer Vehicles')).toBe('backend');
     expect(getRouteDataSourceStatus('Garage Job Detail')).toBe('demo');
     expect(getRouteDataSourceStatus('Overview')).toBe('demo');
     expect(getRouteDataSourceStatus('Accounting')).toBe('backend');
