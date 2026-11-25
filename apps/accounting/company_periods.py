@@ -1,7 +1,7 @@
 """Company-level Accountant confirmation of distributable period amounts."""
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone as datetime_timezone
 from decimal import Decimal
 
 from django.db.models import Case, DecimalField, ExpressionWrapper, F, Sum, Value, When
@@ -44,7 +44,7 @@ def source_result(*, company, starts_at, ends_at):
 def event_source_version(qs):
     events = list(qs.exclude(owner_distribution_payment__isnull=False).order_by("id").values_list("id", "event_type", "amount", "effect_sign", "effective_at"))
     digest = hashlib.sha256(json.dumps([
-        [str(pk), event_type, format(amount, ".2f"), sign, effective_at.isoformat()]
+        [str(pk), event_type, format(amount, ".2f"), sign, effective_at.astimezone(datetime_timezone.utc).isoformat()]
         for pk, event_type, amount, sign, effective_at in events
     ], separators=(",", ":")).encode()).hexdigest()
     return digest
@@ -52,7 +52,7 @@ def event_source_version(qs):
 
 def event_source_version_from_rows(*, ids, types, amounts, signs, effective_ats):
     rows = zip(ids or [], types or [], amounts or [], signs or [], effective_ats or [])
-    payload = [[str(pk), event_type, format(amount, ".2f"), sign, effective_at.isoformat()]
+    payload = [[str(pk), event_type, format(amount, ".2f"), sign, effective_at.astimezone(datetime_timezone.utc).isoformat()]
                for pk, event_type, amount, sign, effective_at in rows]
     return hashlib.sha256(json.dumps(payload, separators=(",", ":")).encode()).hexdigest()
 

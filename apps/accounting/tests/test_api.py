@@ -1491,3 +1491,88 @@ class AccountingApiTests(TestCase):
         self.assertEqual(response.data["expense_amount"], "0.00")
         self.assertEqual(response.data["accounting_result_amount"], "100.00")
         self.assertIsNone(response.data["source_version"])
+
+    def test_owner_payment_source_hash_matches_python_for_fractional_timestamps(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from apps.accounting.company_periods import period_bounds, event_source_version
+        from apps.accounting.models import AccountingEvent
+
+        for index, timestamp in enumerate((
+            "2026-11-24T06:30:00+00:00",
+            "2026-11-24T06:30:00.120000+00:00",
+            "2026-11-24T06:30:00.123456+00:00",
+        )):
+            created = self.post("incomes/", {
+                **self.income_payload(amount="40.00", source_reference=f"FRAC-{index}"),
+                "effective_at": timestamp,
+            }, f"frac-income-{index}")
+            self.assertEqual(created.status_code, 201, created.data)
+
+        _, _, starts_at, ends_at = period_bounds("h2", 2026)
+        python_hash = event_source_version(AccountingEvent.objects.filter(
+            tenant=self.company, effective_at__gte=starts_at, effective_at__lt=ends_at,
+        ))
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT accounting_period_event_source_version(%s, %s, %s, NULL)",
+                [str(self.company.pk), starts_at, ends_at],
+            )
+            sql_hash = cursor.fetchone()[0]
+        self.assertEqual(sql_hash, python_hash)
+
+        operator = make_user("p4-frac-backoffice", role="back_office", account_kind="platform")
+        from apps.tenants.models import TenantMembership
+        historical_owner = make_user("p4-frac-historical-owner")
+        owner_membership = TenantMembership.objects.create(
+            user=historical_owner, tenant=self.company, assigned_by=historical_owner,
+            effective_from=datetime(2025, 1, 1, tzinfo=ZoneInfo("Asia/Kolkata")),
+        )
+        CompanyRoleGrant.objects.create(
+            membership=owner_membership, role="owner", assigned_by=historical_owner,
+            effective_from=owner_membership.effective_from,
+        )
+        self.client.force_authenticate(user=operator)
+        split = self.client.post(self.path("owner-distribution-configurations/"), {
+            "effective_from": "2026-01-01",
+            "recipients": [{"id": str(historical_owner.pk), "percentage": "100.00"}],
+            "reason": "Configure fractional timestamp owner split",
+        }, format="json", HTTP_IDEMPOTENCY_KEY="frac-owner-split")
+        self.assertEqual(split.status_code, 201, split.content)
+
+        self.login()
+        report = self.client.get(self.path("reports/accounting-result/?period=h2&year=2026"))
+        self.assertEqual(report.status_code, 200, report.data)
+        self.assertEqual(report.data["source_version"], python_hash)
+
+        confirmed = self.post("company-period-confirmations/", {
+            "period_type": "h2", "year": 2026, "expected_source_version": report.data["source_version"],
+            "distributable_amount": "120.00", "liabilities_reviewed": True,
+            "liability_review_reason": "Reviewed liabilities", "reason": "Confirm fractional period",
+        }, "frac-h2-confirm")
+        self.assertEqual(confirmed.status_code, 201, confirmed.data)
+
+        payout = self.post(f"company-period-confirmations/{confirmed.data['id']}/owner-payments/", {
+            "recipient_id": str(historical_owner.pk), "branch_id": str(self.branch_a.pk),
+            "account_id": str(self.cash.pk), "amount": "50.00",
+            "effective_at": timezone.now().isoformat(),
+            "expected_source_version": confirmed.data["source_version"],
+            "reason": "Partial payout against fractional timestamp confirmation",
+        }, "frac-owner-pay-1")
+        self.assertEqual(payout.status_code, 201, payout.content)
+        self.assertEqual(payout.data["outstanding_amount"], "70.00")
+
+        late_income = self.post("incomes/", {
+            **self.income_payload(amount="10.00", source_reference="FRAC-LATE"),
+            "effective_at": "2026-11-24T07:30:00.500000+00:00",
+        }, "frac-income-late")
+        self.assertEqual(late_income.status_code, 201, late_income.data)
+
+        stale_payout = self.post(f"company-period-confirmations/{confirmed.data['id']}/owner-payments/", {
+            "recipient_id": str(historical_owner.pk), "branch_id": str(self.branch_a.pk),
+            "account_id": str(self.cash.pk), "amount": "10.00",
+            "effective_at": timezone.now().isoformat(),
+            "expected_source_version": confirmed.data["source_version"],
+            "reason": "Should fail after H2 source changed",
+        }, "frac-owner-pay-stale")
+        self.assertEqual(stale_payout.status_code, 409, stale_payout.content)

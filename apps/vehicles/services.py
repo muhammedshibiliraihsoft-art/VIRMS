@@ -2515,6 +2515,29 @@ def operational_summary(*, actor, company_id, branch_id=None):
         if not scope.is_company_reader and capital_recoveries.exclude(sale__branch_id__in=allowed).exists():
             inaccessible_capital_sources = True
         recovered = capital_recoveries.aggregate(total=Sum("running_capital"))["total"] or Decimal("0.00")
+        recovery_stale = False
+        if not inaccessible_capital_sources and recovered > Decimal("0.00"):
+            recovered_vehicle_ids = list(
+                capital_recoveries.filter(running_capital__gt=Decimal("0.00"))
+                .values_list("sale__vehicle_id", flat=True)
+                .distinct()
+            )
+            for recovered_vehicle_id in recovered_vehicle_ids:
+                position = get_vehicle_financial_position(
+                    actor=actor, company_id=company.pk, vehicle_id=recovered_vehicle_id
+                )
+                cap = position["capital_recovery"]
+                total_recovered = Decimal(cap["investor_principal"]) + Decimal(cap["running_capital"])
+                if (
+                    not cap["is_current"]
+                    or Decimal(position["buyer_refund_payable"] or "0.00") > Decimal("0.00")
+                    or Decimal(position["actual_net_collection"]) < total_recovered
+                    or Decimal(cap["running_capital"]) > Decimal(position["running_capital_cost"])
+                ):
+                    recovery_stale = True
+                    break
+        if recovery_stale:
+            recovered = None
     else:
         contributed = recovered = None
     outstanding = contributed - recovered if contributed is not None and recovered is not None and recovered <= contributed else None

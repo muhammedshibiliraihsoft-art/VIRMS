@@ -248,6 +248,64 @@ class VehicleSaleApiTests(TestCase):
         self.assertEqual(summary.data["running_capital_recovered"], "10000.00")
         self.assertEqual(summary.data["running_capital_outstanding"], "0.00")
 
+    def test_operational_summary_fails_closed_for_stale_running_capital_after_sale_correction_and_refund(self):
+        from apps.investment.services import create_vehicle_capital_recovery
+
+        vehicle = self.create_vehicle("KL 11 P 5993")
+        self.create_purchase(vehicle)
+        sale = self.create_sale(vehicle)
+        receipt = self.receipt(sale.data["id"], key="stale-cap-receipt", amount="12000.00")
+        self.assertEqual(receipt.status_code, 201, receipt.content)
+        position = self.financial_position(vehicle)
+        recovery = create_vehicle_capital_recovery(
+            actor=self.company_accountant,
+            company_id=self.company.pk,
+            sale_id=sale.data["id"],
+            expected_source_version=position.data["source_version"],
+            reason="Confirm Company capital recovery",
+            key="stale-cap-recovery",
+            path="/internal-test/capital-recovery/",
+        )
+        self.assertEqual(recovery.status, 201)
+
+        endpoint = f"/api/v1/tenants/{self.company.pk}/vehicle-management/operational-summary/"
+        for params in ({}, {"branch_id": str(self.branch.pk)}):
+            summary = self.client.get(endpoint, params)
+            self.assertEqual(summary.status_code, 200, summary.content)
+            self.assertEqual(summary.data["running_capital_contributed"], "10000.00")
+            self.assertEqual(summary.data["running_capital_recovered"], "10000.00")
+            self.assertEqual(summary.data["running_capital_outstanding"], "0.00")
+
+        corrected = self.post(
+            f"sales/{sale.data['id']}/corrections/",
+            {"sale_price": "8000.00", "reason": "Reduced agreed buyer price"},
+            "stale-cap-correction",
+        )
+        self.assertEqual(corrected.status_code, 201, corrected.content)
+
+        for params in ({}, {"branch_id": str(self.branch.pk)}):
+            after_correction = self.client.get(endpoint, params)
+            self.assertEqual(after_correction.status_code, 200, after_correction.content)
+            self.assertEqual(after_correction.data["running_capital_contributed"], "10000.00")
+            self.assertIsNone(after_correction.data["running_capital_recovered"])
+            self.assertIsNone(after_correction.data["running_capital_outstanding"])
+
+        refunded = self.post(
+            f"sales/{sale.data['id']}/refunds/",
+            {"account_id": str(self.bank.pk), "amount": "4000.00"},
+            "stale-cap-refund",
+            self.branch_accountant,
+        )
+        self.assertEqual(refunded.status_code, 201, refunded.content)
+
+        for params in ({}, {"branch_id": str(self.branch.pk)}):
+            after_refund = self.client.get(endpoint, params)
+            self.assertEqual(after_refund.status_code, 200, after_refund.content)
+            self.assertEqual(after_refund.data["buyer_net_receipts"], "8000.00")
+            self.assertEqual(after_refund.data["running_capital_contributed"], "10000.00")
+            self.assertIsNone(after_refund.data["running_capital_recovered"])
+            self.assertIsNone(after_refund.data["running_capital_outstanding"])
+
     def test_financial_position_reads_current_sources_without_posting_cash_or_profit(self):
         vehicle = self.create_vehicle("KL 11 P 5081")
         self.create_purchase(vehicle)
