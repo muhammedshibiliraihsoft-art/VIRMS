@@ -214,6 +214,7 @@ class EventFilterSerializer(serializers.Serializer):
     account_id = serializers.UUIDField(required=False)
     effective_after = serializers.DateTimeField(required=False)
     effective_before = serializers.DateTimeField(required=False)
+    current_only = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         if (

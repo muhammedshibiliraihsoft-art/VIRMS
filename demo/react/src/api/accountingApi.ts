@@ -237,13 +237,14 @@ function isBranch(value: unknown): value is AccountingBranch {
 
 export async function accountingEvents(
   companyId: string,
-  options: { page?: number; eventType?: AccountingEventType; branchId?: string },
+  options: { page?: number; eventType?: AccountingEventType; branchId?: string; currentOnly?: boolean },
   signal?: AbortSignal,
 ): Promise<AccountingPage<AccountingEventRow>> {
   const params = new URLSearchParams();
   if (options.page && options.page > 1) params.set('page', String(options.page));
   if (options.eventType) params.set('event_type', options.eventType);
   if (options.branchId) params.set('branch_id', options.branchId);
+  if (options.currentOnly) params.set('current_only', 'true');
   const query = params.toString();
   const value = await requestApi<unknown>(`${companyPath(companyId, 'events/')}${query ? `?${query}` : ''}`, { signal });
   return parseAccountingEventsPage(value);

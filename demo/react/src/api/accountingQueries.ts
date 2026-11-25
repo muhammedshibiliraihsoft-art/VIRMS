@@ -71,12 +71,13 @@ export function useAccountingEvents(options: {
   page: number;
   eventType?: AccountingEventType;
   branchId?: string;
+  currentOnly?: boolean;
   enabled?: boolean;
 }) {
   const { user, currentCompany, enabled } = useAccountingContext();
   return useQuery({
     queryKey: user && currentCompany
-      ? queryKeys.accountingEvents(user.id, currentCompany.id, options.page, options.eventType, options.branchId)
+      ? queryKeys.accountingEvents(user.id, currentCompany.id, options.page, options.eventType, options.branchId, options.currentOnly)
       : ['companies', 'unavailable', 'accounting', 'events', options.page] as const,
     queryFn: ({ signal }) => {
       if (!currentCompany) throw new Error('A single authorized Company context is required.');

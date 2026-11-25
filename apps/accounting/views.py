@@ -313,6 +313,7 @@ class EventListView(AccountingAPIView):
         "account_id",
         "effective_after",
         "effective_before",
+        "current_only",
     }
 
     def get(self, request, company_id):
@@ -350,6 +351,12 @@ class EventListView(AccountingAPIView):
             queryset = queryset.filter(effective_at__gte=after)
         if before:
             queryset = queryset.filter(effective_at__lt=before)
+        if filters.get("current_only"):
+            queryset = queryset.filter(
+                effect_sign=1,
+                reversal_rows__isnull=True,
+                replacement_rows__isnull=True,
+            )
         queryset = queryset.order_by("-effective_at", "id")
         return self.paginate(queryset, _event_list_data)
 

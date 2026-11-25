@@ -22,7 +22,11 @@ export const queryKeys = {
     page: number,
     eventType?: string,
     branchId?: string,
-  ) => ['companies', userId, companyId, 'accounting', 'events', page, eventType ?? 'all', branchId ?? 'all'] as const,
+    currentOnly?: boolean,
+  ) => [
+    'companies', userId, companyId, 'accounting', 'events', page, eventType ?? 'all', branchId ?? 'all',
+    ...(currentOnly ? (['current'] as const) : ([] as const)),
+  ] as const,
   accountingEvent: (userId: string, companyId: string, eventId: string) =>
     ['companies', userId, companyId, 'accounting', 'event', eventId] as const,
   accountingResult: (

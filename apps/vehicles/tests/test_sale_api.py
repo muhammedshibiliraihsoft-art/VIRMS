@@ -306,6 +306,48 @@ class VehicleSaleApiTests(TestCase):
             self.assertIsNone(after_refund.data["running_capital_recovered"])
             self.assertIsNone(after_refund.data["running_capital_outstanding"])
 
+    def test_operational_summary_running_capital_freshness_uses_constant_query_count(self):
+        from django.test.utils import CaptureQueriesContext
+        from django.db import connection
+        from apps.investment.services import create_vehicle_capital_recovery
+
+        def add_recovered_vehicle(reg, suffix):
+            veh = self.create_vehicle(reg)
+            self.create_purchase(veh)
+            sale = self.create_sale(veh)
+            rcpt = self.post(
+                f"sales/{sale.data['id']}/receipts/",
+                {"account_id": str(self.bank.pk), "amount": "12000.00", "reference": f"BANK-SALE-QC-{suffix}"},
+                f"qc-rcpt-{suffix}",
+                self.branch_accountant,
+            )
+            self.assertEqual(rcpt.status_code, 201, rcpt.content)
+            pos = self.financial_position(veh)
+            rec = create_vehicle_capital_recovery(
+                actor=self.company_accountant, company_id=self.company.pk,
+                sale_id=sale.data["id"], expected_source_version=pos.data["source_version"],
+                reason=f"Recover {reg}", key=f"qc-rec-{suffix}", path="/internal-test/capital-recovery/",
+            )
+            self.assertEqual(rec.status, 201)
+
+        add_recovered_vehicle("KL 11 Q 0001", "1")
+        endpoint = f"/api/v1/tenants/{self.company.pk}/vehicle-management/operational-summary/"
+        with CaptureQueriesContext(connection) as ctx1:
+            r1 = self.client.get(endpoint)
+        self.assertEqual(r1.status_code, 200, r1.content)
+        self.assertEqual(r1.data["running_capital_recovered"], "10000.00")
+
+        for i in range(2, 5):
+            add_recovered_vehicle(f"KL 11 Q 000{i}", str(i))
+
+        with CaptureQueriesContext(connection) as ctx4:
+            r4 = self.client.get(endpoint)
+        self.assertEqual(r4.status_code, 200, r4.content)
+        self.assertEqual(r4.data["running_capital_contributed"], "40000.00")
+        self.assertEqual(r4.data["running_capital_recovered"], "40000.00")
+        self.assertEqual(r4.data["running_capital_outstanding"], "0.00")
+        self.assertEqual(len(ctx4), len(ctx1))
+
     def test_financial_position_reads_current_sources_without_posting_cash_or_profit(self):
         vehicle = self.create_vehicle("KL 11 P 5081")
         self.create_purchase(vehicle)

@@ -212,11 +212,15 @@ describe('GarageRevenueView', () => {
     expect(await screen.findByLabelText('Actual Garage Receipts (Page): Unavailable')).toBeInTheDocument();
   });
 
-  it('updates branch filter for events and filters customer jobs to the selected branch', async () => {
+  it('passes branch and EXTERNAL_CUSTOMER filters to backend before pagination and resets page', async () => {
     const user = userEvent.setup();
     renderView();
 
     await screen.findByText('P9-J04-CUST-01');
+    expect(mocks.garageJobs).toHaveBeenCalledWith(ids.company, 1, expect.any(AbortSignal), {
+      branchId: undefined,
+      context: 'EXTERNAL_CUSTOMER',
+    });
     await user.selectOptions(screen.getByLabelText('Filter by Branch'), ids.branchB);
 
     expect(mocks.useAccountingEvents).toHaveBeenLastCalledWith({
@@ -224,6 +228,10 @@ describe('GarageRevenueView', () => {
       eventType: 'GARAGE_RECEIPT',
       branchId: ids.branchB,
       enabled: true,
+    });
+    expect(mocks.garageJobs).toHaveBeenLastCalledWith(ids.company, 1, expect.any(AbortSignal), {
+      branchId: ids.branchB,
+      context: 'EXTERNAL_CUSTOMER',
     });
     expect(screen.getByText('No external customer jobs found on this page.')).toBeInTheDocument();
   });

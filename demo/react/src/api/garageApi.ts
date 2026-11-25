@@ -160,8 +160,19 @@ export const garageApi = {
     }
     return value as unknown as GarageJobSummary;
   },
-  async jobs(companyId: string, page = 1, signal?: AbortSignal): Promise<ApiPage<GarageJob>> {
-    return parsePage(await requestApi(path(companyId, 'garage', `jobs/?page=${page}`), { signal }), parseJob);
+  async jobs(
+    companyId: string,
+    page = 1,
+    signal?: AbortSignal,
+    filters?: { branchId?: string; context?: GarageJob['context'] },
+  ): Promise<ApiPage<GarageJob>> {
+    const query = new URLSearchParams({ page: String(page) });
+    if (filters?.branchId) {
+      requireId(filters.branchId);
+      query.set('branch_id', filters.branchId);
+    }
+    if (filters?.context) query.set('context', filters.context);
+    return parsePage(await requestApi(path(companyId, 'garage', `jobs/?${query}`), { signal }), parseJob);
   },
   async job(companyId: string, jobId: string, signal?: AbortSignal): Promise<GarageJob> {
     requireId(jobId);

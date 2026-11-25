@@ -832,3 +832,70 @@ class GarageApiTests(GarageIntegrityTests):
             self.assertEqual(response.status_code, 404, response.content)
         self.assertEqual(AccountingEvent.objects.filter(reversal_of_id=payment.data["event_id"]).count(), 0)
         self.assertEqual(AccountMovement.objects.get(event_id=payment.data["event_id"]).delta, -25)
+
+    def test_job_list_filters_branch_and_context_before_pagination(self):
+        from apps.accounts.audit import record_event
+        from apps.garage.models import GarageJob
+        from apps.tenants.models import Branch
+        from apps.vehicles.models import Vehicle
+
+        branch_b = Branch.objects.create(tenant=self.company, name="Second Branch")
+        vehicle_b = Vehicle.objects.create(
+            tenant=self.company, current_branch=branch_b,
+            registration="KL654321", model="Test B",
+            created_by=self.actor, updated_by=self.actor,
+        )
+        record_event(
+            action="vehicle.create",
+            actor=self.actor,
+            subject=self.actor,
+            company=self.company,
+            branch=branch_b,
+            resource=vehicle_b,
+            metadata={
+                "vehicle_id": str(vehicle_b.pk),
+                "new_registration": vehicle_b.registration,
+                "new_model": vehicle_b.model,
+                "branch_id": str(branch_b.pk),
+            },
+        )
+        for _ in range(21):
+            GarageJob.objects.create(
+                tenant=self.company, branch=self.branch, vehicle=self.vehicle,
+                context=GarageJob.Context.STOCK, created_by=self.actor, module_revision=self.revision,
+            )
+        older_ext_b = GarageJob.objects.create(
+            tenant=self.company, branch=branch_b, vehicle=vehicle_b,
+            context=GarageJob.Context.EXTERNAL_CUSTOMER, contact_name="Arun B",
+            created_by=self.actor, module_revision=self.revision,
+        )
+        # Re-backdate the older Branch B job ahead of the 21 newer STOCK Branch A jobs
+        GarageJob.objects.filter(pk=older_ext_b.pk).update(
+            created_at=older_ext_b.created_at - timezone.timedelta(hours=1),
+        )
+
+        # Unfiltered page 1 has only the 20 newest STOCK Branch A jobs
+        unfiltered = self.client.get(self.url)
+        self.assertEqual(unfiltered.status_code, 200, unfiltered.content)
+        self.assertEqual(unfiltered.data["count"], 22)
+        self.assertNotIn(str(older_ext_b.pk), [row["id"] for row in unfiltered.data["results"]])
+
+        # Server-side branch_id + context filtering before pagination returns the Branch B external job on page 1
+        filtered = self.client.get(
+            f"{self.url}?branch_id={branch_b.pk}&context={GarageJob.Context.EXTERNAL_CUSTOMER}"
+        )
+        self.assertEqual(filtered.status_code, 200, filtered.content)
+        self.assertEqual(filtered.data["count"], 1)
+        self.assertEqual([row["id"] for row in filtered.data["results"]], [str(older_ext_b.pk)])
+
+        # Unauthorized / cross-Company branch_id returns 404
+        branch_only = make_user("garage-branch-a-only", tenant=self.company)
+        membership = branch_only.tenant_memberships.get(tenant=self.company)
+        from apps.accounts.models import CompanyRoleGrant
+        CompanyRoleGrant.objects.create(
+            membership=membership, role="accountant", branch=self.branch, assigned_by=self.actor,
+        )
+        BranchAssignment.objects.create(membership=membership, branch=self.branch, assigned_by=self.actor)
+        self.client.force_authenticate(user=branch_only)
+        denied = self.client.get(f"{self.url}?branch_id={branch_b.pk}")
+        self.assertEqual(denied.status_code, 404, denied.content)

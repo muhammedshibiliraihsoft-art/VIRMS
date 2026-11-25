@@ -76,9 +76,9 @@ export const GarageRevenueView: React.FC<GarageRevenueViewProps> = ({ onOpenGara
 
   const jobsQuery = useQuery({
     queryKey: userId && companyId
-      ? ['garage', userId, companyId, 'jobs', 'revenue', jobsPage]
-      : ['garage', 'unavailable', 'jobs', 'revenue', jobsPage],
-    queryFn: ({ signal }) => garageApi.jobs(companyId, jobsPage, signal),
+      ? ['garage', userId, companyId, 'jobs', 'revenue', jobsPage, branchId ?? 'all', 'EXTERNAL_CUSTOMER']
+      : ['garage', 'unavailable', 'jobs', 'revenue', jobsPage, branchId ?? 'all', 'EXTERNAL_CUSTOMER'],
+    queryFn: ({ signal }) => garageApi.jobs(companyId, jobsPage, signal, { branchId, context: 'EXTERNAL_CUSTOMER' }),
     enabled: canRead,
     retry: false,
   });
@@ -163,6 +163,7 @@ export const GarageRevenueView: React.FC<GarageRevenueViewProps> = ({ onOpenGara
             onChange={(event) => {
               setSelectedBranch(event.target.value);
               setReceiptPage(1);
+              setJobsPage(1);
             }}
             className="rounded-xl border border-[#e2d8ce] bg-white px-3 py-2 text-xs font-semibold text-gray-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
           >

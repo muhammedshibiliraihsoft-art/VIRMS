@@ -217,9 +217,23 @@ class LabourPaymentCorrectionView(GarageView):
 
 class JobListCreateView(GarageView):
     def get(self, request, company_id):
-        if set(request.query_params) - {"page"}:
+        if set(request.query_params) - {"page", "branch_id", "context"}:
             raise serializers.ValidationError({"query": "Unsupported query parameter."})
-        rows = services.list_jobs(actor=request.user, company_id=company_id)
+        branch_id = request.query_params.get("branch_id")
+        if branch_id:
+            try:
+                from uuid import UUID
+                branch_id = str(UUID(branch_id))
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({"branch_id": "A valid Branch id is required."})
+        else:
+            branch_id = None
+        context = request.query_params.get("context") or None
+        if context is not None and context not in GarageJob.Context.values:
+            raise serializers.ValidationError({"context": "A valid Job context is required."})
+        rows = services.list_jobs(
+            actor=request.user, company_id=company_id, branch_id=branch_id, context=context,
+        )
         paginator = PageNumberPagination()
         paginator.page_size = 20
         page = paginator.paginate_queryset(rows, request, view=self)

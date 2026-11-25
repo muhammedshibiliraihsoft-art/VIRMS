@@ -229,7 +229,7 @@ def job_detail(job):
     return data
 
 
-def list_jobs(*, actor, company_id):
+def list_jobs(*, actor, company_id, branch_id=None, context=None):
     company = Tenant.objects.filter(pk=company_id, is_active=True).first()
     if not company:
         raise NotFound("Company not found.")
@@ -238,6 +238,16 @@ def list_jobs(*, actor, company_id):
     rows = GarageJob.objects.filter(tenant=company).select_related("branch", "vehicle")
     if not scope.is_company_reader:
         rows = rows.filter(branch_id__in=scope.allowed_branch_ids)
+    if branch_id is not None:
+        from uuid import UUID
+        branch_uuid = UUID(str(branch_id))
+        branch_exists = Branch.objects.filter(pk=branch_uuid, tenant=company).exists()
+        allowed_strs = {str(item) for item in scope.allowed_branch_ids}
+        if not branch_exists or (not scope.is_company_reader and str(branch_uuid) not in allowed_strs):
+            raise NotFound("Branch not found.")
+        rows = rows.filter(branch_id=branch_uuid)
+    if context is not None:
+        rows = rows.filter(context=context)
     return rows.order_by("-created_at", "id")
 
 

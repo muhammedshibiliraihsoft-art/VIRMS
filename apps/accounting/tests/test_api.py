@@ -1576,3 +1576,34 @@ class AccountingApiTests(TestCase):
             "reason": "Should fail after H2 source changed",
         }, "frac-owner-pay-stale")
         self.assertEqual(stale_payout.status_code, 409, stale_payout.content)
+
+    def test_event_list_current_only_filters_reversed_rows_before_pagination(self):
+        older_active = self.post("incomes/", {
+            **self.income_payload(amount="90.00", source_reference="ACT-OLD"),
+            "effective_at": "2026-01-01T10:00:00+05:30",
+        }, "current-only-active")
+        self.assertEqual(older_active.status_code, 201, older_active.data)
+
+        for idx in range(21):
+            created = self.post("incomes/", {
+                **self.income_payload(amount="10.00", source_reference=f"REV-NEW-{idx}"),
+                "effective_at": f"2026-02-01T10:{idx:02d}:00+05:30",
+            }, f"current-only-src-{idx}")
+            self.assertEqual(created.status_code, 201, created.data)
+            reversed_row = self.post(f"events/{created.data['id']}/corrections/", {
+                "outcome": "REVERSE_ONLY",
+                "event_occurred": False,
+                "reason": "False entry",
+            }, f"current-only-rev-{idx}")
+            self.assertEqual(reversed_row.status_code, 201, reversed_row.content)
+
+        self.login()
+        unfiltered = self.client.get(self.path("events/?event_type=INCOME"))
+        self.assertEqual(unfiltered.status_code, 200, unfiltered.data)
+        self.assertEqual(unfiltered.data["count"], 43)
+        self.assertNotIn(older_active.data["id"], [row["id"] for row in unfiltered.data["results"]])
+
+        current_only = self.client.get(self.path("events/?event_type=INCOME&current_only=true"))
+        self.assertEqual(current_only.status_code, 200, current_only.data)
+        self.assertEqual(current_only.data["count"], 1)
+        self.assertEqual([row["id"] for row in current_only.data["results"]], [older_active.data["id"]])

@@ -758,38 +758,24 @@ def get_vehicle(*, actor, company_id, vehicle_id):
     return _vehicle_data(vehicle)
 
 
-def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_investor_id=None):
-    """Read current source amounts; this preview never confirms or posts Profit."""
-    company = Tenant.objects.filter(pk=company_id, is_active=True).first()
-    if company is None:
-        raise NotFound("Company not found.")
-    vehicle = Vehicle.objects.filter(tenant=company, pk=vehicle_id).select_related("current_branch").first()
-    if vehicle is None:
-        raise NotFound("Vehicle not found.")
+def _sale_position_summary(sale):
+    if sale is None:
+        return None
+    correction = max(sale.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
+    price = correction.sale_price if correction else sale.sale_price
+    received = sum((row.amount for row in sale.receipts.all()), Decimal("0.00"))
+    refunded = sum((row.amount for row in sale.refunds.all()), Decimal("0.00"))
+    net_received = received - refunded
+    return {
+        "sale_price": format(price, ".2f"),
+        "net_received": format(net_received, ".2f"),
+        "receivable": format(max(Decimal("0.00"), price - net_received), ".2f"),
+        "refund_payable": format(max(Decimal("0.00"), net_received - price), ".2f"),
+        "correction_version": correction.version if correction else 0,
+    }
 
-    purchase = VehiclePurchase.objects.filter(tenant=company, vehicle=vehicle).select_related(
-        "branch", "investor", "investor_share_agreement"
-    ).prefetch_related("corrections").first()
-    expenses = list(VehicleExpense.objects.filter(tenant=company, vehicle=vehicle).select_related(
-        "branch"
-    ).prefetch_related("corrections"))
-    sale = VehicleSale.objects.filter(tenant=company, vehicle=vehicle).select_related(
-        "branch", "vehicle"
-    ).prefetch_related("corrections", "receipts", "refunds").first()
 
-    if authorized_investor_id is None:
-        # A moved Vehicle can have financial sources owned by other Branches.
-        # Authorize every source Branch before returning their combined figures.
-        branches = {vehicle.current_branch_id: vehicle.current_branch}
-        for source in ([purchase] if purchase else []) + expenses + ([sale] if sale else []):
-            branches[source.branch_id] = source.branch
-        for branch in branches.values():
-            require_action(actor, "vehicle.read", company=company, branch=branch)
-    elif purchase is None or str(purchase.investor_id) != str(authorized_investor_id):
-        # Investor self-service is authorized only by its server-resolved binding
-        # and by the purchase's immutable Investor ownership link.
-        raise NotFound("Vehicle not found.")
-
+def _build_vehicle_financial_source_payload(*, company, vehicle, purchase, expenses, sale, sale_data=None):
     purchase_cost = Decimal("0.00")
     investor_fund_cost = Decimal("0.00")
     running_capital_cost = Decimal("0.00")
@@ -811,7 +797,8 @@ def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_
         expense_versions.append({"expense_id": str(expense.pk), "version": correction.version if correction else 0})
 
     total_cost = purchase_cost + expense_cost
-    sale_data = _sale_data(sale) if sale else None
+    if sale_data is None and sale is not None:
+        sale_data = _sale_position_summary(sale)
     result = Decimal(sale_data["sale_price"]) - total_cost if sale_data else None
     if purchase is None:
         status = "NOT_PURCHASED"
@@ -867,6 +854,45 @@ def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_
     payload["source_version"] = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+    return payload, investor_fund_cost, running_capital_cost, result
+
+
+def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_investor_id=None):
+    """Read current source amounts; this preview never confirms or posts Profit."""
+    company = Tenant.objects.filter(pk=company_id, is_active=True).first()
+    if company is None:
+        raise NotFound("Company not found.")
+    vehicle = Vehicle.objects.filter(tenant=company, pk=vehicle_id).select_related("current_branch").first()
+    if vehicle is None:
+        raise NotFound("Vehicle not found.")
+
+    purchase = VehiclePurchase.objects.filter(tenant=company, vehicle=vehicle).select_related(
+        "branch", "investor", "investor_share_agreement"
+    ).prefetch_related("corrections").first()
+    expenses = list(VehicleExpense.objects.filter(tenant=company, vehicle=vehicle).select_related(
+        "branch"
+    ).prefetch_related("corrections"))
+    sale = VehicleSale.objects.filter(tenant=company, vehicle=vehicle).select_related(
+        "branch", "vehicle"
+    ).prefetch_related("corrections", "receipts", "refunds").first()
+
+    if authorized_investor_id is None:
+        # A moved Vehicle can have financial sources owned by other Branches.
+        # Authorize every source Branch before returning their combined figures.
+        branches = {vehicle.current_branch_id: vehicle.current_branch}
+        for source in ([purchase] if purchase else []) + expenses + ([sale] if sale else []):
+            branches[source.branch_id] = source.branch
+        for branch in branches.values():
+            require_action(actor, "vehicle.read", company=company, branch=branch)
+    elif purchase is None or str(purchase.investor_id) != str(authorized_investor_id):
+        # Investor self-service is authorized only by its server-resolved binding
+        # and by the purchase's immutable Investor ownership link.
+        raise NotFound("Vehicle not found.")
+
+    sale_data = _sale_data(sale) if sale else None
+    payload, investor_fund_cost, running_capital_cost, result = _build_vehicle_financial_source_payload(
+        company=company, vehicle=vehicle, purchase=purchase, expenses=expenses, sale=sale, sale_data=sale_data,
+    )
     # Expense-only Investor funding has no Purchase agreement snapshot. Keep
     # this review flag outside the historical source fingerprint, but never
     # present an earlier Company-only confirmation as a current result.
@@ -2522,17 +2548,62 @@ def operational_summary(*, actor, company_id, branch_id=None):
                 .values_list("sale__vehicle_id", flat=True)
                 .distinct()
             )
-            for recovered_vehicle_id in recovered_vehicle_ids:
-                position = get_vehicle_financial_position(
-                    actor=actor, company_id=company.pk, vehicle_id=recovered_vehicle_id
+            recovered_vehicles = list(
+                Vehicle.objects.filter(tenant=company, pk__in=recovered_vehicle_ids)
+                .select_related(
+                    "current_branch",
+                    "purchase",
+                    "purchase__branch",
+                    "purchase__investor",
+                    "purchase__investor_share_agreement",
+                    "confirmed_sale",
+                    "confirmed_sale__branch",
+                    "confirmed_sale__vehicle",
                 )
-                cap = position["capital_recovery"]
-                total_recovered = Decimal(cap["investor_principal"]) + Decimal(cap["running_capital"])
+                .prefetch_related(
+                    "purchase__corrections",
+                    "direct_expenses__branch",
+                    "direct_expenses__corrections",
+                    "confirmed_sale__corrections",
+                    "confirmed_sale__receipts",
+                    "confirmed_sale__refunds",
+                )
+            )
+            recovered_sale_ids = [
+                rec_sale.pk
+                for v in recovered_vehicles
+                if (rec_sale := getattr(v, "confirmed_sale", None)) is not None
+            ]
+            recoveries_by_sale = {}
+            for recovery_row in VehicleCapitalRecovery.objects.filter(
+                tenant=company, sale_id__in=recovered_sale_ids,
+            ).prefetch_related("reviews"):
+                recoveries_by_sale.setdefault(recovery_row.sale_id, []).append(recovery_row)
+            for recovered_vehicle in recovered_vehicles:
+                rec_purchase = getattr(recovered_vehicle, "purchase", None)
+                rec_expenses = list(recovered_vehicle.direct_expenses.all())
+                rec_sale = getattr(recovered_vehicle, "confirmed_sale", None)
+                payload, _, _, _ = _build_vehicle_financial_source_payload(
+                    company=company,
+                    vehicle=recovered_vehicle,
+                    purchase=rec_purchase,
+                    expenses=rec_expenses,
+                    sale=rec_sale,
+                )
+                sale_recoveries = recoveries_by_sale.get(rec_sale.pk, []) if rec_sale else []
+                source_ver = payload["source_version"]
+                rec_current = any(
+                    rec.source_version == source_ver
+                    or any(rev.source_version == source_ver for rev in rec.reviews.all())
+                    for rec in sale_recoveries
+                )
+                inv_recovered = sum((rec.investor_principal for rec in sale_recoveries), Decimal("0.00"))
+                rc_recovered = sum((rec.running_capital for rec in sale_recoveries), Decimal("0.00"))
                 if (
-                    not cap["is_current"]
-                    or Decimal(position["buyer_refund_payable"] or "0.00") > Decimal("0.00")
-                    or Decimal(position["actual_net_collection"]) < total_recovered
-                    or Decimal(cap["running_capital"]) > Decimal(position["running_capital_cost"])
+                    not rec_current
+                    or Decimal(payload["buyer_refund_payable"] or "0.00") > Decimal("0.00")
+                    or Decimal(payload["actual_net_collection"]) < (inv_recovered + rc_recovered)
+                    or rc_recovered > Decimal(payload["running_capital_cost"])
                 ):
                     recovery_stale = True
                     break

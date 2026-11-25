@@ -172,6 +172,7 @@ export const CompanyAccountingView: React.FC<{
     page: targetPage,
     eventType: targetType,
     branchId,
+    currentOnly: true,
     enabled: Boolean(targetType && dialog?.mode === 'form'),
   });
   const formTargetId = resolveFormTargetEventId(
