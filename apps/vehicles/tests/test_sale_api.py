@@ -3102,3 +3102,356 @@ class VehicleSaleApiTests(TestCase):
                 company=self.company, vehicle=vehicle, purchase=purchase, expenses=[], sale=sale,
             )
             self.assertEqual(payload_ind, payload_bat)
+
+    def test_cross_period_loss_correction_invalidates_sql_profit_period_source(self):
+        from datetime import date
+        from django.db import connection
+        from apps.investment.models import InvestorProfitPeriodReconciliation
+        from apps.investment.services import (
+            list_investor_profit_period_projection,
+            reconcile_investor_profit_period,
+        )
+
+        now = timezone.now()
+        investor = self.create_investor(
+            "cross-period-loss-parity",
+            credit_effective_at=now - timedelta(days=260),
+        )
+        InvestorProfitShareAgreement.objects.create(
+            tenant=self.company,
+            investor=investor,
+            share_percentage=Decimal("50.0000"),
+            effective_at=now - timedelta(days=260),
+            actor=self.company_accountant,
+        )
+        self.client.force_authenticate(user=self.company_accountant)
+        topup = self.client.post(
+            f"/api/v1/tenants/{self.company.pk}/investment/fund/credits/",
+            {
+                "investor_id": str(investor.pk),
+                "branch_id": str(self.branch.pk),
+                "account_id": str(self.cash.pk),
+                "amount": "15000.00",
+                "reference": "CROSS-PERIOD-TOPUP",
+                "effective_at": (now - timedelta(days=255)).isoformat(),
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="cross-period-topup",
+        )
+        self.assertEqual(topup.status_code, 201, topup.content)
+
+        # Period 1 Loss Vehicle (Sale ~220 days ago)
+        loss_vehicle = self.create_vehicle("KL 11 M 0001")
+        self.create_purchase(loss_vehicle, investor=investor)
+        loss_sale = self.post(
+            "sales/",
+            {
+                "vehicle_id": str(loss_vehicle.pk),
+                "branch_id": str(self.branch.pk),
+                "sale_price": "4000.00",
+                "buyer_name": "P1 Buyer",
+                "buyer_phone": "9876543210",
+                "sold_at": (now - timedelta(days=220)).isoformat(),
+            },
+            "cp-loss-sale",
+        )
+        self.assertEqual(loss_sale.status_code, 201, loss_sale.content)
+        loss_rcpt = self.post(
+            f"sales/{loss_sale.data['id']}/receipts/",
+            {
+                "account_id": str(self.bank.pk),
+                "amount": "4000.00",
+                "reference": "CP-LOSS-RCPT",
+                "effective_at": (now - timedelta(days=219)).isoformat(),
+            },
+            "cp-loss-rcpt",
+            self.branch_accountant,
+        )
+        self.assertEqual(loss_rcpt.status_code, 201, loss_rcpt.content)
+        loss_pos = self.financial_position(loss_vehicle)
+        loss_v1 = self.post(
+            f"vehicles/{loss_vehicle.pk}/financial-position/confirm/",
+            {
+                "expected_source_version": loss_pos.data["source_version"],
+                "reason": "P1 Loss v1",
+                "investor_loss_amount": "3000.00",
+                "company_loss_amount": "3000.00",
+            },
+            "cp-loss-v1-confirm",
+        )
+        self.assertEqual(loss_v1.status_code, 201, loss_v1.content)
+
+        # Period 2 Profit Vehicle (Sale yesterday)
+        profit_vehicle = self.create_vehicle("KL 11 M 0002")
+        self.create_purchase(profit_vehicle, investor=investor)
+        profit_sale = self.post(
+            "sales/",
+            {
+                "vehicle_id": str(profit_vehicle.pk),
+                "branch_id": str(self.branch.pk),
+                "sale_price": "20000.00",
+                "buyer_name": "P2 Buyer",
+                "buyer_phone": "9876543211",
+                "sold_at": (now - timedelta(days=1)).isoformat(),
+            },
+            "cp-profit-sale",
+        )
+        self.assertEqual(profit_sale.status_code, 201, profit_sale.content)
+        profit_rcpt = self.post(
+            f"sales/{profit_sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": "20000.00", "reference": "CP-PROFIT-RCPT"},
+            "cp-profit-rcpt",
+            self.branch_accountant,
+        )
+        self.assertEqual(profit_rcpt.status_code, 201, profit_rcpt.content)
+        profit_pos = self.financial_position(profit_vehicle)
+        profit_v1 = self.post(
+            f"vehicles/{profit_vehicle.pk}/financial-position/confirm/",
+            {"expected_source_version": profit_pos.data["source_version"], "reason": "P2 Profit v1"},
+            "cp-profit-v1-confirm",
+        )
+        self.assertEqual(profit_v1.status_code, 201, profit_v1.content)
+
+        # Offset Period 1 Loss v1 against Period 2 Profit v1, then reconcile Period 2
+        offset_url = (
+            f"/api/v1/tenants/{self.company.pk}/investment/vehicle-results/"
+            f"{loss_v1.data['id']}/profit-loss-offsets/"
+        )
+        offset_resp = self.client.post(
+            offset_url,
+            {
+                "profit_result_id": profit_v1.data["id"],
+                "amount": "2000.00",
+                "reason": "Cross-period Loss offset",
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="cp-loss-offset",
+        )
+        self.assertEqual(offset_resp.status_code, 201, offset_resp.content)
+
+        projection = list_investor_profit_period_projection(
+            actor=self.company_accountant, company_id=self.company.pk, investor_id=investor.pk,
+        )
+        self.assertEqual(projection["unassigned_result_count"], 0)
+        self.assertGreaterEqual(len(projection["periods"]), 2)
+        p2 = projection["periods"][-1]
+        self.assertEqual(p2["loss_offset_applied"], "2000.00")
+
+        rec_res = reconcile_investor_profit_period(
+            actor=self.company_accountant,
+            company_id=self.company.pk,
+            investor_id=investor.pk,
+            period_start=date.fromisoformat(p2["period_start"]),
+            expected_source_version=p2["source_version"],
+            reason="Reconcile Period 2",
+            key="cp-p2-reconcile",
+            path="/internal-test/p2-reconcile/",
+        )
+        self.assertEqual(rec_res.status, 201, rec_res.body)
+        reconciliation = InvestorProfitPeriodReconciliation.objects.get(pk=rec_res.body["id"])
+
+        def sql_period_source_version():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT investment_profit_period_source_version(%s)", [str(reconciliation.pk)])
+                return cursor.fetchone()[0]
+
+        # When both Period 1 Loss and Period 2 Profit are current, SQL hash matches Python
+        self.assertEqual(sql_period_source_version(), reconciliation.source_version)
+
+        # Case A: Un-reconfirmed mutation on Period 1 Loss vehicle invalidates Period 2 SQL source
+        extra_loss_exp = self.post(
+            f"vehicles/{loss_vehicle.pk}/expenses/",
+            {
+                "amount": "500.00",
+                "description": "P1 additional repair increasing loss",
+                "investor_id": str(investor.pk),
+            },
+            "cp-loss-extra-exp",
+        )
+        self.assertEqual(extra_loss_exp.status_code, 201, extra_loss_exp.content)
+        self.assertIsNone(sql_period_source_version())
+        after_mutation = list_investor_profit_period_projection(
+            actor=self.company_accountant, company_id=self.company.pk, investor_id=investor.pk,
+        )
+        self.assertGreater(after_mutation["unassigned_result_count"], 0)
+
+        # Case B: Reconfirm Period 1 Loss as v2 -> offset.loss_result_id is superseded -> SQL still returns NULL
+        from django.db import transaction
+
+        with transaction.atomic():
+            loss_v2_pos = self.financial_position(loss_vehicle)
+            loss_v2 = self.post(
+                f"vehicles/{loss_vehicle.pk}/financial-position/confirm/",
+                {
+                    "expected_source_version": loss_v2_pos.data["source_version"],
+                    "reason": "P1 Loss v2 after extra expense",
+                    "investor_loss_amount": "3500.00",
+                    "company_loss_amount": "3000.00",
+                },
+                "cp-loss-v2-confirm",
+            )
+            self.assertEqual(loss_v2.status_code, 201, loss_v2.content)
+            self.assertIsNone(sql_period_source_version())
+            after_reconfirm = list_investor_profit_period_projection(
+                actor=self.company_accountant, company_id=self.company.pk, investor_id=investor.pk,
+            )
+            self.assertGreater(after_reconfirm["unassigned_result_count"], 0)
+            self.assertEqual(after_reconfirm["periods"][-1]["loss_offset_applied"], "0.00")
+            # Keep TestCase teardown clean: deferred 0051 offset INSERT trigger from this same TestCase transaction
+            # would otherwise re-fire at test commit time against the rolled-forward Loss v2 row.
+            transaction.set_rollback(True)
+
+    def test_boundary_decimal_precision_across_sale_purchase_expense_profit_and_loss_paths(self):
+        from types import SimpleNamespace
+        from apps.investment.finance import exact_money_difference
+        from apps.vehicles.services import _expense_totals, _purchase_data, _purchase_payable
+
+        class QSManager(list):
+            def all(self):
+                return self
+
+            def order_by(self, *args):
+                return self
+
+            def first(self):
+                return self[0] if self else None
+
+            def select_related(self, *args):
+                return self
+
+            def aggregate(self, **kwargs):
+                from decimal import localcontext
+
+                expr = next(iter(kwargs.values()))
+                field_name = getattr(expr.source_expressions[0], "name", "amount")
+                with localcontext() as context:
+                    context.prec = 80
+                    return {"total": sum((Decimal(getattr(row, field_name)) for row in self), Decimal("0.00"))}
+
+        big = Decimal("1000000000000000000000000000.00")
+        big_paid = Decimal("999999999999999999999999999.99")
+        now = timezone.now()
+
+        # 1. Ordinary amounts remain mathematically unchanged
+        self.assertEqual(exact_money_difference("1000.00", "250.50", "149.50"), Decimal("600.00"))
+        self.assertEqual(exact_money_difference(big, big_paid), Decimal("0.01"))
+
+        # 2. Purchase & Expense payable precision at 30-digit boundary
+        fake_purchase = SimpleNamespace(
+            pk="pur-p1",
+            vehicle_id="veh-p1",
+            tenant_id=self.company.pk,
+            branch_id=self.branch.pk,
+            purchase_cost=big,
+            seller_name="Seller",
+            seller_phone="999",
+            investor_id=None,
+            investor_fund_amount=Decimal("0.00"),
+            running_capital_amount=big,
+            investor_share_agreement_id=None,
+            investor_share_percentage_snapshot=None,
+            purchased_at=now,
+            created_at=now,
+            corrections=QSManager(),
+            payments=QSManager([SimpleNamespace(pk="pp-1", amount=big_paid, account_id="a1", reference="R1", effective_at=now)]),
+            refunds=QSManager(),
+        )
+        self.assertEqual(_purchase_payable(fake_purchase), Decimal("0.01"))
+        p_data = _purchase_data(fake_purchase)
+        self.assertEqual(p_data["seller_paid"], "999999999999999999999999999.99")
+        self.assertEqual(p_data["seller_payable"], "0.01")
+
+        fake_expense = SimpleNamespace(
+            pk="exp-p1",
+            amount=big,
+            payments=QSManager([SimpleNamespace(amount=big_paid)]),
+            refunds=QSManager([SimpleNamespace(applied_amount=Decimal("0.00"))]),
+            corrections=QSManager(),
+        )
+        paid, app_ref, net_paid, exp_payable = _expense_totals(fake_expense)
+        self.assertEqual((paid, app_ref, net_paid, exp_payable), (big_paid, Decimal("0.00"), big_paid, Decimal("0.01")))
+
+        # 3. DB-backed Buyer Receipt and Refund mutation bounds at 30-digit boundary
+        sale_veh = self.create_vehicle("KL 11 B 0001")
+        self.create_purchase(sale_veh)
+        boundary_sale = self.post(
+            "sales/",
+            {
+                "vehicle_id": str(sale_veh.pk),
+                "branch_id": str(self.branch.pk),
+                "sale_price": format(big, ".2f"),
+                "buyer_name": "Big Buyer",
+                "buyer_phone": "9876543210",
+            },
+            "boundary-sale-create",
+        )
+        self.assertEqual(boundary_sale.status_code, 201, boundary_sale.content)
+        r1 = self.post(
+            f"sales/{boundary_sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": format(big_paid, ".2f"), "reference": "BIG-RCPT-1"},
+            "boundary-rcpt-1",
+            self.branch_accountant,
+        )
+        self.assertEqual(r1.status_code, 201, r1.content)
+        self.assertEqual(r1.data["receivable"], "0.01")
+
+        # Exceeding 0.01 remaining receivable by 0.01 must reject; exact 0.01 must succeed -> 0.00 receivable
+        r_over = self.post(
+            f"sales/{boundary_sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": "0.02", "reference": "BIG-RCPT-OVER"},
+            "boundary-rcpt-over",
+            self.branch_accountant,
+        )
+        self.assertEqual(r_over.status_code, 409, r_over.content)
+        r2 = self.post(
+            f"sales/{boundary_sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": "0.01", "reference": "BIG-RCPT-2"},
+            "boundary-rcpt-2",
+            self.branch_accountant,
+        )
+        self.assertEqual(r2.status_code, 201, r2.content)
+        self.assertEqual(r2.data["receivable"], "0.00")
+
+        # Lowering sale_price by 0.03 opens exact 0.03 refund payable: 0.04 rejects, 0.03 succeeds -> 0.00
+        from decimal import localcontext
+
+        with localcontext() as context:
+            context.prec = 80
+            reduced_price = format(big - Decimal("0.03"), ".2f")
+        sale_down = self.post(
+            f"sales/{boundary_sale.data['id']}/corrections/",
+            {"sale_price": reduced_price, "reason": "Exact 0.03 correction"},
+            "boundary-sale-down",
+            self.company_accountant,
+        )
+        self.assertEqual(sale_down.status_code, 201, sale_down.content)
+        ref_over = self.post(
+            f"sales/{boundary_sale.data['id']}/refunds/",
+            {"account_id": str(self.bank.pk), "amount": "0.04"},
+            "boundary-ref-over",
+            self.company_accountant,
+        )
+        self.assertEqual(ref_over.status_code, 409, ref_over.content)
+        ref_ok = self.post(
+            f"sales/{boundary_sale.data['id']}/refunds/",
+            {"account_id": str(self.bank.pk), "amount": "0.03"},
+            "boundary-ref-ok",
+            self.company_accountant,
+        )
+        self.assertEqual(ref_ok.status_code, 201, ref_ok.content)
+        self.assertEqual(ref_ok.data["refund_payable"], "0.00")
+        self.assertEqual(ref_ok.data["receivable"], "0.00")
+
+        # 4. Investor Profit, Loss Offset and Exit Loss arithmetic at 30-digit boundary + exact paise
+        loss_share = Decimal("1000000000000000000000000000.00")
+        prior_offset = Decimal("500000000000000000000000000.00")
+        prior_exit_loss = Decimal("499999999999999999999999999.98")
+        remaining_loss = max(Decimal("0.00"), exact_money_difference(loss_share, prior_offset, prior_exit_loss))
+        self.assertEqual(remaining_loss, Decimal("0.02"))
+        remaining_profit = exact_money_difference(
+            big,
+            Decimal("500000000000000000000000000.00"),
+            Decimal("499999999999999999999999999.99"),
+            Decimal("0.00"),
+        )
+        self.assertEqual(remaining_profit, Decimal("0.01"))

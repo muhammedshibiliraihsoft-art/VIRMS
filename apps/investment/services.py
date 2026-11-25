@@ -4,6 +4,8 @@ from decimal import Decimal, localcontext
 from datetime import date
 from zoneinfo import ZoneInfo
 
+from apps.investment.finance import exact_money_difference
+
 from django.db import transaction
 from django.db.models import Count, DecimalField, Exists, F, Func, Max, OuterRef, Prefetch, Q, Sum
 from django.utils import timezone
@@ -512,7 +514,9 @@ def create_vehicle_profit_payment(
         future_adjusted = InvestorProfitFutureAdjustment.objects.filter(
             tenant=company, profit_result__sale_id=result.sale_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        remaining = Decimal(result.investor_share_amount) - paid_total - offset_total - future_adjusted
+        remaining = exact_money_difference(
+            result.investor_share_amount, paid_total, offset_total, future_adjusted,
+        )
         if requested_amount <= 0:
             raise ValidationError({"amount": "Payment amount must be greater than zero."})
         if requested_amount > remaining:
@@ -709,7 +713,8 @@ def list_profit_loss_offset_targets(*, actor, company_id, loss_result_id):
         tenant=company, loss_result=loss,
     ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     loss_remaining = max(
-        Decimal("0.00"), abs(Decimal(loss.investor_share_amount)) - loss_offset_total - exit_loss_total,
+        Decimal("0.00"),
+        exact_money_difference(abs(Decimal(loss.investor_share_amount)), loss_offset_total, exit_loss_total),
     )
     target_options = []
     if loss_remaining > 0:
@@ -900,12 +905,16 @@ def create_profit_loss_offset(
             tenant=company, investor=investor,
             result_confirmation__sale_id=profit.sale_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        loss_remaining = abs(Decimal(loss.investor_share_amount)) - loss_offset_total - exit_loss_total
+        loss_remaining = exact_money_difference(
+            abs(Decimal(loss.investor_share_amount)), loss_offset_total, exit_loss_total,
+        )
         from apps.investment.models import InvestorProfitFutureAdjustment
         future_adjusted = InvestorProfitFutureAdjustment.objects.filter(
             tenant=company, profit_result__sale_id=profit.sale_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        profit_remaining = Decimal(profit.investor_share_amount) - paid_total - target_offset_total - future_adjusted
+        profit_remaining = exact_money_difference(
+            profit.investor_share_amount, paid_total, target_offset_total, future_adjusted,
+        )
         if requested_amount <= 0:
             raise ValidationError({"amount": "Offset amount must be greater than zero."})
         if loss_remaining < 0:

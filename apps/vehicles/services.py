@@ -84,7 +84,9 @@ def _purchase_payable(purchase, *, paid=None, refunded=None):
     if refunded is None:
         refunded = purchase.refunds.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
     current_cost = _purchase_source_values(purchase)[0]
-    return max(Decimal("0.00"), current_cost - paid + refunded)
+    with localcontext() as context:
+        context.prec = 80
+        return max(Decimal("0.00"), Decimal(current_cost) - Decimal(paid) + Decimal(refunded))
 
 
 def _vehicle_investor_ids(*, company, vehicle):
@@ -126,6 +128,9 @@ def _purchase_data(purchase):
     correction = purchase.corrections.order_by("-version", "-id").first()
     cost, investor_fund_amount, running_capital_amount = _purchase_source_values(purchase)
     payable = _purchase_payable(purchase, paid=paid, refunded=refunded)
+    with localcontext() as context:
+        context.prec = 80
+        seller_paid = Decimal(paid) - Decimal(refunded)
     payload = {
         "id": str(purchase.pk),
         "vehicle_id": str(purchase.vehicle_id),
@@ -145,7 +150,7 @@ def _purchase_data(purchase):
             format(purchase.investor_share_percentage_snapshot, ".4f")
             if purchase.investor_share_percentage_snapshot is not None else None
         ),
-        "seller_paid": format(paid - refunded, ".2f"),
+        "seller_paid": format(seller_paid, ".2f"),
         "seller_payable": format(max(Decimal("0.00"), payable), ".2f"),
         "no_advance_warning": paid == 0,
         "purchased_at": purchase.purchased_at.isoformat(),
@@ -176,18 +181,21 @@ def _purchase_data(purchase):
 
 def _expense_totals(expense):
     cache = getattr(expense, "_prefetched_objects_cache", {})
-    if "payments" in cache:
-        paid = sum((row.amount for row in cache["payments"]), Decimal("0.00"))
-    else:
-        paid = expense.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-    if "refunds" in cache:
-        applied_refunds = sum((row.applied_amount for row in cache["refunds"]), Decimal("0.00"))
-    else:
-        applied_refunds = expense.refunds.aggregate(total=Sum("applied_amount"))["total"] or Decimal("0.00")
-    net_paid = max(Decimal("0.00"), paid - applied_refunds)
     correction = expense.corrections.order_by("-version", "-id").first()
-    amount = correction.amount if correction else expense.amount
-    return paid, applied_refunds, net_paid, max(Decimal("0.00"), amount - net_paid)
+    raw_amount = correction.amount if correction else expense.amount
+    with localcontext() as context:
+        context.prec = 80
+        if "payments" in cache:
+            paid = sum((Decimal(row.amount) for row in cache["payments"]), Decimal("0.00"))
+        else:
+            paid = expense.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        if "refunds" in cache:
+            applied_refunds = sum((Decimal(row.applied_amount) for row in cache["refunds"]), Decimal("0.00"))
+        else:
+            applied_refunds = expense.refunds.aggregate(total=Sum("applied_amount"))["total"] or Decimal("0.00")
+        net_paid = max(Decimal("0.00"), Decimal(paid) - Decimal(applied_refunds))
+        amount = Decimal(raw_amount)
+        return Decimal(paid), Decimal(applied_refunds), net_paid, max(Decimal("0.00"), amount - net_paid)
 
 
 def _expense_data(expense):
@@ -1771,14 +1779,18 @@ def create_vehicle_expense(
                     "A Stock Vehicle may use Investor Fund from only one Investor.",
                     code="VEHICLE_INVESTOR_MISMATCH",
                 )
-            credits = list(with_fund_credit_available(with_current_fund_credit_owner(
-                InvestorFundCredit.objects.select_for_update(of=("self",)).filter(tenant=company)
-            )).filter(current_investor_id=investor.pk).order_by("effective_at", "id"))
-            available = sum((max(Decimal("0.00"), _available_credit(row)) for row in credits), Decimal("0.00"))
-            fund_amount = min(amount, available)
+            with localcontext() as context:
+                context.prec = 80
+                credits = list(with_fund_credit_available(with_current_fund_credit_owner(
+                    InvestorFundCredit.objects.select_for_update(of=("self",)).filter(tenant=company)
+                )).filter(current_investor_id=investor.pk).order_by("effective_at", "id"))
+                available = sum((max(Decimal("0.00"), Decimal(_available_credit(row))) for row in credits), Decimal("0.00"))
+                fund_amount = min(Decimal(amount), available)
         else:
             fund_amount = Decimal("0.00")
-        running_amount = amount - fund_amount
+        with localcontext() as context:
+            context.prec = 80
+            running_amount = Decimal(amount) - fund_amount
         if (requested_fund is not None and requested_fund != fund_amount) or (requested_running is not None and requested_running != running_amount):
             raise DomainConflict("The available Investor Fund changed. Reload and review the source allocation.", code="VEHICLE_EXPENSE_FUND_SPLIT_CHANGED")
 
@@ -2474,11 +2486,13 @@ def correct_vehicle_expense(*, actor, company_id, expense_id, key, path, amount,
                 code="VEHICLE_EXPENSE_CORRECTION_REQUIRES_REFUND",
             )
         if expense.investor_id:
-            credits = list(with_fund_credit_available(with_current_fund_credit_owner(
-                InvestorFundCredit.objects.select_for_update().filter(tenant=company)
-            )).filter(current_investor_id=expense.investor_id).order_by("effective_at", "id"))
-            available = sum((max(Decimal("0.00"), _available_credit(row)) for row in credits), Decimal("0.00"))
-            new_fund = min(amount, old_fund + available)
+            with localcontext() as context:
+                context.prec = 80
+                credits = list(with_fund_credit_available(with_current_fund_credit_owner(
+                    InvestorFundCredit.objects.select_for_update().filter(tenant=company)
+                )).filter(current_investor_id=expense.investor_id).order_by("effective_at", "id"))
+                available = sum((max(Decimal("0.00"), Decimal(_available_credit(row))) for row in credits), Decimal("0.00"))
+                new_fund = min(Decimal(amount), Decimal(old_fund) + available)
         else:
             new_fund = Decimal("0.00")
         if new_fund > old_fund:
@@ -2486,7 +2500,9 @@ def correct_vehicle_expense(*, actor, company_id, expense_id, key, path, amount,
                 locked_actor, "vehicle.expense.fund", company=company,
                 branch=expense.branch, resource=expense,
             )
-        new_running = amount - new_fund
+        with localcontext() as context:
+            context.prec = 80
+            new_running = Decimal(amount) - new_fund
         correction = VehicleExpenseCorrection.objects.create(
             tenant=company, expense=expense, branch=expense.branch,
             version=(prior.version + 1 if prior else 1),
@@ -2887,7 +2903,9 @@ def create_sale_receipt(*, actor, company_id, sale_id, key, path, account_id, am
         current_price = sale.corrections.order_by("-version", "-id").values_list("sale_price", flat=True).first() or sale.sale_price
         received = sale.receipts.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         refunded = sale.refunds.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        outstanding = current_price - received + refunded
+        with localcontext() as context:
+            context.prec = 80
+            outstanding = Decimal(current_price) - Decimal(received) + Decimal(refunded)
         if amount <= 0 or amount > outstanding:
             raise DomainConflict("Buyer Receipt must not exceed the current Sale receivable.", code="SALE_RECEIVABLE_EXCEEDED")
         account = AccountingAccount.objects.select_for_update().filter(tenant=company, pk=account_id, is_active=True).first()
@@ -2960,7 +2978,9 @@ def create_sale_refund(*, actor, company_id, sale_id, key, path, account_id, amo
         current_price = sale.corrections.order_by("-version", "-id").values_list(
             "sale_price", flat=True
         ).first() or sale.sale_price
-        refund_payable = max(Decimal("0.00"), received - refunded - current_price)
+        with localcontext() as context:
+            context.prec = 80
+            refund_payable = max(Decimal("0.00"), Decimal(received) - Decimal(refunded) - Decimal(current_price))
         if amount <= 0 or amount > refund_payable:
             raise DomainConflict(
                 "Buyer refund cannot exceed the current Sale refund payable.",

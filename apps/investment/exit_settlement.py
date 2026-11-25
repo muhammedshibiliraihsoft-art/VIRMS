@@ -2,7 +2,9 @@
 import hashlib
 import json
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
+
+from apps.investment.finance import exact_money_difference
 
 from django.db.models import Q, Sum
 from django.utils import timezone
@@ -78,9 +80,17 @@ def exit_settlement_position(*, actor, company_id, investor_id, exit_request_id)
         if confirmed and confirmed["is_current"] and confirmed["result_kind"] == "LOSS":
             from uuid import UUID
             result_id = UUID(confirmed["id"])
-            outstanding_loss = max(Decimal("0"), abs(Decimal(confirmed["investor_share_amount"]))
-                                  - offsets.get(result_id, Decimal("0")) - applied_losses.get(result_id, Decimal("0")))
-            residual_loss += outstanding_loss
+            outstanding_loss = max(
+                Decimal("0.00"),
+                exact_money_difference(
+                    abs(Decimal(confirmed["investor_share_amount"])),
+                    offsets.get(result_id, Decimal("0.00")),
+                    applied_losses.get(result_id, Decimal("0.00")),
+                ),
+            )
+            with localcontext() as context:
+                context.prec = 80
+                residual_loss += outstanding_loss
             if outstanding_loss:
                 confirmed_losses.append({"loss_result_id": str(result_id), "vehicle_id": str(purchase.vehicle_id),
                                          "label": purchase.vehicle.registration,
@@ -305,18 +315,20 @@ def record_exit_loss_application(*, actor, company_id, investor_id, exit_request
             credits = list(with_fund_credit_available(with_current_fund_credit_owner(
                 InvestorFundCredit.objects.select_for_update().filter(tenant=company)
             )).filter(current_investor_id=investor.pk).order_by("effective_at", "id"))
-            available_total = sum((_available_credit(credit) for credit in credits), Decimal("0.00"))
-            if amount > available_total:
-                raise DomainConflict("Loss application exceeds this Investor's unreserved Available Fund.", code="EXIT_LOSS_FUND_INSUFFICIENT")
-            left = amount
-            for credit in credits:
-                take = min(left, _available_credit(credit))
-                if take > 0:
-                    InvestorExitLossAllocation.objects.create(tenant=company, application=application,
-                                                              credit=credit, amount=take, actor=locked_actor)
-                    left -= take
-                if left == 0:
-                    break
+            with localcontext() as context:
+                context.prec = 80
+                available_total = sum((Decimal(_available_credit(credit)) for credit in credits), Decimal("0.00"))
+                if Decimal(amount) > available_total:
+                    raise DomainConflict("Loss application exceeds this Investor's unreserved Available Fund.", code="EXIT_LOSS_FUND_INSUFFICIENT")
+                left = Decimal(amount)
+                for credit in credits:
+                    take = min(left, Decimal(_available_credit(credit)))
+                    if take > 0:
+                        InvestorExitLossAllocation.objects.create(tenant=company, application=application,
+                                                                  credit=credit, amount=take, actor=locked_actor)
+                        left -= take
+                    if left == 0:
+                        break
         else:
             from apps.accounting.services import record_investor_exit_loss_recovery
             event, movement = record_investor_exit_loss_recovery(
