@@ -2546,3 +2546,330 @@ class VehicleSaleApiTests(TestCase):
         self.assertEqual(approved.data["branch_id"], str(west.pk))
         self.assertEqual(AccountingEvent.objects.count(), events_before)
         self.assertEqual(AccountMovement.objects.count(), movements_before)
+
+    def test_financial_source_fingerprint_is_deterministic_across_expense_orders(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        from apps.investment.services import create_vehicle_capital_recovery
+        from apps.vehicles.models import VehicleExpense
+        from apps.vehicles.services import _build_vehicle_financial_source_payload
+
+        def create_recovered_multi_expense_vehicle(reg, suffix):
+            vehicle = self.create_vehicle(reg)
+            purchase_data = self.create_purchase(vehicle)
+            exp_a = self.post(
+                f"vehicles/{vehicle.pk}/expenses/",
+                {"amount": "300.00", "description": f"Tyres {suffix}", "running_capital_amount": "300.00"},
+                f"fp-exp-a-{suffix}",
+            )
+            exp_b = self.post(
+                f"vehicles/{vehicle.pk}/expenses/",
+                {"amount": "700.00", "description": f"Paint {suffix}", "running_capital_amount": "700.00"},
+                f"fp-exp-b-{suffix}",
+            )
+            self.assertEqual(exp_a.status_code, 201, exp_a.content)
+            self.assertEqual(exp_b.status_code, 201, exp_b.content)
+            sale = self.create_sale(vehicle)
+            rcpt = self.post(
+                f"sales/{sale.data['id']}/receipts/",
+                {"account_id": str(self.bank.pk), "amount": "12000.00", "reference": f"FP-RCPT-{suffix}"},
+                f"fp-rcpt-{suffix}",
+                self.branch_accountant,
+            )
+            self.assertEqual(rcpt.status_code, 201, rcpt.content)
+            pos = self.financial_position(vehicle)
+            rec = create_vehicle_capital_recovery(
+                actor=self.company_accountant,
+                company_id=self.company.pk,
+                sale_id=sale.data["id"],
+                expected_source_version=pos.data["source_version"],
+                reason=f"Recover {reg}",
+                key=f"fp-rec-{suffix}",
+                path="/internal-test/capital-recovery/",
+            )
+            self.assertEqual(rec.status, 201)
+            return vehicle, purchase_data["id"], [exp_a.data["id"], exp_b.data["id"]]
+
+        veh1, _, exp_ids_1 = create_recovered_multi_expense_vehicle("KL 11 F 0001", "1")
+        e1, e2 = list(VehicleExpense.objects.filter(pk__in=exp_ids_1).prefetch_related("corrections"))
+        p1, _, _, _ = _build_vehicle_financial_source_payload(
+            company=self.company, vehicle=veh1, purchase=veh1.purchase, expenses=[e1, e2], sale=veh1.confirmed_sale,
+        )
+        p2, _, _, _ = _build_vehicle_financial_source_payload(
+            company=self.company, vehicle=veh1, purchase=veh1.purchase, expenses=[e2, e1], sale=veh1.confirmed_sale,
+        )
+        self.assertEqual(p1["source_version"], p2["source_version"])
+        self.assertEqual(p1["expense_correction_versions"], p2["expense_correction_versions"])
+        self.assertEqual(p1["source_version"], self.financial_position(veh1).data["source_version"])
+
+        summary_url = f"/api/v1/tenants/{self.company.pk}/vehicle-management/operational-summary/"
+        with CaptureQueriesContext(connection) as ctx1:
+            s1 = self.client.get(summary_url)
+        self.assertEqual(s1.status_code, 200, s1.content)
+        self.assertEqual(s1.data["running_capital_contributed"], "11000.00")
+        self.assertEqual(s1.data["running_capital_recovered"], "11000.00")
+
+        create_recovered_multi_expense_vehicle("KL 11 F 0002", "2")
+        create_recovered_multi_expense_vehicle("KL 11 F 0003", "3")
+        with CaptureQueriesContext(connection) as ctx3:
+            s3 = self.client.get(summary_url)
+        self.assertEqual(s3.status_code, 200, s3.content)
+        self.assertEqual(s3.data["running_capital_contributed"], "33000.00")
+        self.assertEqual(s3.data["running_capital_recovered"], "33000.00")
+        self.assertEqual(s3.data["running_capital_outstanding"], "0.00")
+        self.assertEqual(len(ctx3), len(ctx1))
+
+    def test_vehicle_monetary_arithmetic_preserves_precision_at_38_digit_boundary(self):
+        from types import SimpleNamespace
+        from apps.vehicles.services import _build_vehicle_financial_source_payload, _money
+
+        # Ordinary calculations stay unchanged
+        self.assertEqual(_money("1234.565"), Decimal("1234.57"))
+        self.assertEqual(_money("1000.00"), Decimal("1000.00"))
+
+        # Boundary 38-digit value (36 integer digits + 2 decimals) must not raise InvalidOperation
+        max_38 = Decimal("999999999999999999999999999999999999.99")
+        self.assertEqual(_money(max_38), max_38)
+        self.assertEqual(_money("999999999999999999999999999999999999.985"), max_38)
+
+        # Adding 0.01 to a 30-digit purchase must not drop the paise under default 28-digit context
+        big_cost = Decimal("1000000000000000000000000000.00")
+        big_sale = Decimal("1000000000000000000000000005.00")
+        vehicle = SimpleNamespace(pk="veh-1", current_branch_id="branch-1")
+        purchase = SimpleNamespace(
+            pk="pur-1",
+            investor_id=None,
+            investor_share_agreement_id=None,
+            investor_share_percentage_snapshot=None,
+            purchase_cost=big_cost,
+            investor_fund_amount=Decimal("0.00"),
+            running_capital_amount=big_cost,
+            corrections=SimpleNamespace(all=lambda: []),
+        )
+        expense = SimpleNamespace(
+            pk="exp-1",
+            amount=Decimal("0.01"),
+            investor_fund_amount=Decimal("0.00"),
+            running_capital_amount=Decimal("0.01"),
+            corrections=SimpleNamespace(all=lambda: []),
+        )
+        sale = SimpleNamespace(pk="sale-1", sold_at=timezone.now())
+        sale_data = {
+            "sale_price": format(big_sale, ".2f"),
+            "net_received": format(big_sale, ".2f"),
+            "receivable": "0.00",
+            "refund_payable": "0.00",
+            "correction_version": 0,
+        }
+        payload, _, running_capital_cost, result = _build_vehicle_financial_source_payload(
+            company=self.company,
+            vehicle=vehicle,
+            purchase=purchase,
+            expenses=[expense],
+            sale=sale,
+            sale_data=sale_data,
+        )
+        self.assertEqual(running_capital_cost, Decimal("1000000000000000000000000000.01"))
+        self.assertEqual(payload["total_vehicle_cost"], "1000000000000000000000000000.01")
+        self.assertEqual(result, Decimal("4.99"))
+        self.assertEqual(payload["calculated_result"], "4.99")
+
+    def test_profit_reconfirmation_reconciles_historical_loss_offset_and_blocks_overpayment(self):
+        from django.db import IntegrityError, transaction
+        from apps.investment.models import InvestorVehicleProfitPayment, VehicleResultConfirmation
+        from apps.investment.services import create_vehicle_capital_recovery
+
+        investor = self.create_investor(
+            "reconfirm-offset-reconcile",
+            credit_effective_at=timezone.now() - timedelta(days=3),
+        )
+        InvestorProfitShareAgreement.objects.create(
+            tenant=self.company,
+            investor=investor,
+            share_percentage=Decimal("50.0000"),
+            effective_at=timezone.now() - timedelta(minutes=10),
+            actor=self.company_accountant,
+        )
+        self.client.force_authenticate(user=self.company_accountant)
+        topup = self.client.post(
+            f"/api/v1/tenants/{self.company.pk}/investment/fund/credits/",
+            {
+                "investor_id": str(investor.pk),
+                "branch_id": str(self.branch.pk),
+                "account_id": str(self.cash.pk),
+                "amount": "10000.00",
+                "reference": "RECONF-OFFSET-TOPUP",
+                "effective_at": (timezone.now() - timedelta(minutes=2)).isoformat(),
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="reconf-offset-topup",
+        )
+        self.assertEqual(topup.status_code, 201, topup.content)
+
+        # 1. Vehicle A: Loss with confirmed Investor Loss Rs 5,000.00
+        loss_vehicle = self.create_vehicle("KL 11 R 0001")
+        self.create_purchase(loss_vehicle, investor=investor)
+        loss_sale = self.post(
+            "sales/",
+            {
+                "vehicle_id": str(loss_vehicle.pk),
+                "branch_id": str(self.branch.pk),
+                "sale_price": "2000.00",
+                "buyer_name": "Loss Buyer",
+                "buyer_phone": "9876543210",
+                "sold_at": (timezone.now() - timedelta(days=2)).isoformat(),
+            },
+            "reconf-loss-sale",
+        )
+        self.assertEqual(loss_sale.status_code, 201, loss_sale.content)
+        loss_rcpt = self.post(
+            f"sales/{loss_sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": "2000.00", "reference": "RECONF-LOSS-RCPT"},
+            "reconf-loss-rcpt",
+            self.branch_accountant,
+        )
+        self.assertEqual(loss_rcpt.status_code, 201, loss_rcpt.content)
+        loss_pos = self.financial_position(loss_vehicle)
+        loss_conf = self.post(
+            f"vehicles/{loss_vehicle.pk}/financial-position/confirm/",
+            {
+                "expected_source_version": loss_pos.data["source_version"],
+                "reason": "Confirmed Loss Rs 5000",
+                "investor_loss_amount": "5000.00",
+                "company_loss_amount": "3000.00",
+            },
+            "reconf-loss-confirm",
+        )
+        self.assertEqual(loss_conf.status_code, 201, loss_conf.content)
+
+        # 2. Vehicle B: Profit v1 Rs 40,000 -> Investor Share 50% = Rs 20,000.00
+        profit_vehicle = self.create_vehicle("KL 11 R 0002")
+        self.create_purchase(profit_vehicle, investor=investor)
+        profit_sale = self.post(
+            "sales/",
+            {
+                "vehicle_id": str(profit_vehicle.pk),
+                "branch_id": str(self.branch.pk),
+                "sale_price": "50000.00",
+                "buyer_name": "Profit Buyer",
+                "buyer_phone": "9876543211",
+                "sold_at": (timezone.now() - timedelta(days=1)).isoformat(),
+            },
+            "reconf-profit-sale",
+        )
+        self.assertEqual(profit_sale.status_code, 201, profit_sale.content)
+        profit_rcpt = self.post(
+            f"sales/{profit_sale.data['id']}/receipts/",
+            {"account_id": str(self.bank.pk), "amount": "50000.00", "reference": "RECONF-PROFIT-RCPT"},
+            "reconf-profit-rcpt",
+            self.branch_accountant,
+        )
+        self.assertEqual(profit_rcpt.status_code, 201, profit_rcpt.content)
+        v1_pos = self.financial_position(profit_vehicle)
+        profit_v1 = self.post(
+            f"vehicles/{profit_vehicle.pk}/financial-position/confirm/",
+            {"expected_source_version": v1_pos.data["source_version"], "reason": "Confirmed Profit v1"},
+            "reconf-profit-v1-confirm",
+        )
+        self.assertEqual(profit_v1.status_code, 201, profit_v1.content)
+        self.assertEqual(profit_v1.data["investor_share_amount"], "20000.00")
+
+        # 3. Record Loss Offset Rs 5,000.00 against Profit v1
+        offset_url = (
+            f"/api/v1/tenants/{self.company.pk}/investment/vehicle-results/"
+            f"{loss_conf.data['id']}/profit-loss-offsets/"
+        )
+        offset_resp = self.client.post(
+            offset_url,
+            {
+                "profit_result_id": profit_v1.data["id"],
+                "amount": "5000.00",
+                "reason": "Apply Rs 5000 Loss offset against Profit v1",
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="reconf-loss-offset-5000",
+        )
+        self.assertEqual(offset_resp.status_code, 201, offset_resp.content)
+
+        # 4. Add a Rs 4,000 Vehicle Expense -> Profit drops Rs 40,000 -> Rs 36,000 -> Investor Profit v2 = Rs 18,000.00
+        extra_exp = self.post(
+            f"vehicles/{profit_vehicle.pk}/expenses/",
+            {
+                "amount": "4000.00",
+                "description": "Post-confirmation cost adjustment",
+                "investor_id": str(investor.pk),
+            },
+            "reconf-profit-extra-exp-4000",
+        )
+        self.assertEqual(extra_exp.status_code, 201, extra_exp.content)
+        v2_pos = self.financial_position(profit_vehicle)
+        rec = create_vehicle_capital_recovery(
+            actor=self.company_accountant,
+            company_id=self.company.pk,
+            sale_id=profit_sale.data["id"],
+            expected_source_version=v2_pos.data["source_version"],
+            reason="Capital recovery at updated total cost",
+            key="reconf-profit-rec",
+            path="/internal-test/capital-recovery/",
+        )
+        self.assertEqual(rec.status, 201)
+        profit_v2 = self.post(
+            f"vehicles/{profit_vehicle.pk}/financial-position/confirm/",
+            {"expected_source_version": v2_pos.data["source_version"], "reason": "Reconfirmed Profit v2"},
+            "reconf-profit-v2-confirm",
+        )
+        self.assertEqual(profit_v2.status_code, 201, profit_v2.content)
+        self.assertEqual(profit_v2.data["version"], 2)
+        self.assertEqual(profit_v2.data["investor_share_amount"], "18000.00")
+
+        # 5. Projection must reconcile historical Loss Offset: remaining Rs 13,000.00 (NOT Rs 18,000.00)
+        reconfirmed_pos = self.financial_position(profit_vehicle).data["confirmed_result"]
+        self.assertEqual(reconfirmed_pos["id"], profit_v2.data["id"])
+        self.assertEqual(reconfirmed_pos["investor_share_amount"], "18000.00")
+        self.assertEqual(reconfirmed_pos["investor_loss_offset_applied"], "5000.00")
+        self.assertEqual(reconfirmed_pos["investor_profit_remaining"], "13000.00")
+        self.assertEqual(reconfirmed_pos["investor_profit_overpaid"], "0.00")
+
+        # 6. Profit Payment API remains blocked because historical offset linked to v1 requires review
+        pay_url = (
+            f"/api/v1/tenants/{self.company.pk}/investment/vehicle-results/"
+            f"{profit_v2.data['id']}/profit-payments/"
+        )
+        self.client.force_authenticate(user=self.company_accountant)
+        pay_resp = self.client.post(
+            pay_url,
+            {
+                "account_id": str(self.bank.pk),
+                "amount": "18000.00",
+                "description": "Attempted payout ignoring historical offset",
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="reconf-pay-attempt-18000",
+        )
+        self.assertEqual(pay_resp.status_code, 409, pay_resp.content)
+        self.assertEqual(pay_resp.json()["code"], "INVESTOR_PROFIT_OFFSET_REVIEW_REQUIRED")
+
+        # 7. PostgreSQL trigger 0051 independently rejects payment exceeding Rs 13,000.00 across sale_id
+        from django.db import connection
+
+        v2_row = VehicleResultConfirmation.objects.select_related(
+            "sale", "investor", "vehicle_module_revision", "investment_module_revision",
+        ).get(pk=profit_v2.data["id"])
+        with self.assertRaises(IntegrityError) as trigger_exc, transaction.atomic():
+            InvestorVehicleProfitPayment.objects.create(
+                tenant=self.company,
+                result_confirmation=v2_row,
+                investor=v2_row.investor,
+                branch=v2_row.sale.branch,
+                account=self.bank,
+                amount=Decimal("13000.01"),
+                effective_at=timezone.now(),
+                actor=self.company_accountant,
+                vehicle_module_revision=v2_row.vehicle_module_revision,
+                investment_module_revision=v2_row.investment_module_revision,
+                description="Direct DB trigger check",
+                source_reference="RECONF-TRIGGER-EXCEED",
+            )
+            with connection.cursor() as cursor:
+                cursor.execute("SET CONSTRAINTS investment_vehicle_profit_payment_bounds IMMEDIATE")
+        self.assertIn("exceed the confirmed Profit share", str(trigger_exc.exception))

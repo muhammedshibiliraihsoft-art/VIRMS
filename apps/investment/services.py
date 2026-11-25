@@ -504,7 +504,7 @@ def create_vehicle_profit_payment(
         offset_total = InvestorProfitLossOffset.objects.filter(
             tenant=company,
             investor=investor,
-            profit_result=result,
+            profit_result__sale_id=result.sale_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         from apps.investment.models import InvestorProfitFutureAdjustment
         future_adjusted = InvestorProfitFutureAdjustment.objects.filter(
@@ -894,7 +894,7 @@ def create_profit_loss_offset(
             tenant=company, loss_result=loss,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         target_offset_total = InvestorProfitLossOffset.objects.filter(
-            tenant=company, investor=investor, profit_result=profit,
+            tenant=company, investor=investor, profit_result__sale_id=profit.sale_id,
         ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
         paid_total = InvestorVehicleProfitPayment.objects.filter(
             tenant=company, investor=investor,

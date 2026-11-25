@@ -62,7 +62,10 @@ from apps.vehicles.models import (
 
 
 def _money(value):
-    return Decimal(value).quantize(Decimal("0.01"))
+    raw = Decimal(value)
+    with localcontext() as context:
+        context.prec = max(80, len(raw.as_tuple().digits) + abs(raw.as_tuple().exponent) + 4)
+        return raw.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _purchase_source_values(purchase):
@@ -762,44 +765,48 @@ def _sale_position_summary(sale):
     if sale is None:
         return None
     correction = max(sale.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
-    price = correction.sale_price if correction else sale.sale_price
-    received = sum((row.amount for row in sale.receipts.all()), Decimal("0.00"))
-    refunded = sum((row.amount for row in sale.refunds.all()), Decimal("0.00"))
-    net_received = received - refunded
-    return {
-        "sale_price": format(price, ".2f"),
-        "net_received": format(net_received, ".2f"),
-        "receivable": format(max(Decimal("0.00"), price - net_received), ".2f"),
-        "refund_payable": format(max(Decimal("0.00"), net_received - price), ".2f"),
-        "correction_version": correction.version if correction else 0,
-    }
+    with localcontext() as context:
+        context.prec = 80
+        price = Decimal(correction.sale_price if correction else sale.sale_price)
+        received = sum((Decimal(row.amount) for row in sale.receipts.all()), Decimal("0.00"))
+        refunded = sum((Decimal(row.amount) for row in sale.refunds.all()), Decimal("0.00"))
+        net_received = received - refunded
+        return {
+            "sale_price": format(price, ".2f"),
+            "net_received": format(net_received, ".2f"),
+            "receivable": format(max(Decimal("0.00"), price - net_received), ".2f"),
+            "refund_payable": format(max(Decimal("0.00"), net_received - price), ".2f"),
+            "correction_version": correction.version if correction else 0,
+        }
 
 
 def _build_vehicle_financial_source_payload(*, company, vehicle, purchase, expenses, sale, sale_data=None):
-    purchase_cost = Decimal("0.00")
-    investor_fund_cost = Decimal("0.00")
-    running_capital_cost = Decimal("0.00")
-    purchase_version = 0
-    if purchase:
-        correction = max(purchase.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
-        purchase_cost = correction.purchase_cost if correction else purchase.purchase_cost
-        investor_fund_cost = correction.investor_fund_amount if correction else purchase.investor_fund_amount
-        running_capital_cost = correction.running_capital_amount if correction else purchase.running_capital_amount
-        purchase_version = correction.version if correction else 0
+    with localcontext() as context:
+        context.prec = 80
+        purchase_cost = Decimal("0.00")
+        investor_fund_cost = Decimal("0.00")
+        running_capital_cost = Decimal("0.00")
+        purchase_version = 0
+        if purchase:
+            correction = max(purchase.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
+            purchase_cost = Decimal(correction.purchase_cost if correction else purchase.purchase_cost)
+            investor_fund_cost = Decimal(correction.investor_fund_amount if correction else purchase.investor_fund_amount)
+            running_capital_cost = Decimal(correction.running_capital_amount if correction else purchase.running_capital_amount)
+            purchase_version = correction.version if correction else 0
 
-    expense_cost = Decimal("0.00")
-    expense_versions = []
-    for expense in expenses:
-        correction = max(expense.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
-        expense_cost += correction.amount if correction else expense.amount
-        investor_fund_cost += correction.investor_fund_amount if correction else expense.investor_fund_amount
-        running_capital_cost += correction.running_capital_amount if correction else expense.running_capital_amount
-        expense_versions.append({"expense_id": str(expense.pk), "version": correction.version if correction else 0})
+        expense_cost = Decimal("0.00")
+        expense_versions = []
+        for expense in sorted(expenses, key=lambda row: str(row.pk)):
+            correction = max(expense.corrections.all(), key=lambda row: (row.version, str(row.pk)), default=None)
+            expense_cost += Decimal(correction.amount if correction else expense.amount)
+            investor_fund_cost += Decimal(correction.investor_fund_amount if correction else expense.investor_fund_amount)
+            running_capital_cost += Decimal(correction.running_capital_amount if correction else expense.running_capital_amount)
+            expense_versions.append({"expense_id": str(expense.pk), "version": correction.version if correction else 0})
 
-    total_cost = purchase_cost + expense_cost
-    if sale_data is None and sale is not None:
-        sale_data = _sale_position_summary(sale)
-    result = Decimal(sale_data["sale_price"]) - total_cost if sale_data else None
+        total_cost = purchase_cost + expense_cost
+        if sale_data is None and sale is not None:
+            sale_data = _sale_position_summary(sale)
+        result = Decimal(sale_data["sale_price"]) - total_cost if sale_data else None
     if purchase is None:
         status = "NOT_PURCHASED"
     elif sale_data is None:
@@ -942,20 +949,22 @@ def get_vehicle_financial_position(*, actor, company_id, vehicle_id, authorized_
             loss_offset_total = InvestorProfitLossOffset.objects.filter(
                 tenant=company,
                 investor_id=latest_result.investor_id,
-                profit_result=latest_result,
+                profit_result__sale_id=latest_result.sale_id,
             ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
             from apps.investment.models import InvestorProfitFutureAdjustment
             future_adjustment_total = InvestorProfitFutureAdjustment.objects.filter(
                 tenant=company, profit_result__sale_id=latest_result.sale_id,
             ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        remaining_share = max(
-            Decimal("0.00"),
-            Decimal(latest_result.investor_share_amount) - paid_total - loss_offset_total - future_adjustment_total,
-        )
-        overpaid_share = max(
-            Decimal("0.00"),
-            paid_total + loss_offset_total + future_adjustment_total - Decimal(latest_result.investor_share_amount),
-        )
+        with localcontext() as context:
+            context.prec = 80
+            remaining_share = max(
+                Decimal("0.00"),
+                Decimal(latest_result.investor_share_amount) - Decimal(paid_total) - Decimal(loss_offset_total) - Decimal(future_adjustment_total),
+            )
+            overpaid_share = max(
+                Decimal("0.00"),
+                Decimal(paid_total) + Decimal(loss_offset_total) + Decimal(future_adjustment_total) - Decimal(latest_result.investor_share_amount),
+            )
         payload["confirmed_result"] = {
             "id": str(latest_result.pk),
             "version": latest_result.version,
@@ -2273,16 +2282,20 @@ def correct_purchase(*, actor, company_id, purchase_id, key, path, purchase_cost
                 code="PURCHASE_CORRECTION_REQUIRES_SELLER_REFUND",
             )
         if purchase.investor_id:
-            raw_fund = purchase_cost * purchase.investor_fund_amount / purchase.purchase_cost
-            desired_fund = raw_fund.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            credits = list(with_fund_credit_available(with_current_fund_credit_owner(
-                InvestorFundCredit.objects.select_for_update().filter(tenant=company)
-            )).filter(current_investor_id=purchase.investor_id).order_by("effective_at", "id"))
-            available = sum((max(Decimal("0.00"), _available_credit(row)) for row in credits), Decimal("0.00"))
-            new_fund = min(desired_fund, old_fund + available)
+            with localcontext() as context:
+                context.prec = 80
+                raw_fund = Decimal(purchase_cost) * Decimal(purchase.investor_fund_amount) / Decimal(purchase.purchase_cost)
+                desired_fund = raw_fund.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                credits = list(with_fund_credit_available(with_current_fund_credit_owner(
+                    InvestorFundCredit.objects.select_for_update().filter(tenant=company)
+                )).filter(current_investor_id=purchase.investor_id).order_by("effective_at", "id"))
+                available = sum((max(Decimal("0.00"), Decimal(_available_credit(row))) for row in credits), Decimal("0.00"))
+                new_fund = min(desired_fund, Decimal(old_fund) + available)
         else:
             new_fund = Decimal("0.00")
-        new_running = purchase_cost - new_fund
+        with localcontext() as context:
+            context.prec = 80
+            new_running = Decimal(purchase_cost) - new_fund
         correction = VehiclePurchaseCorrection.objects.create(
             tenant=company, purchase=purchase, branch=purchase.branch,
             version=(prior.version + 1 if prior else 1),
@@ -2532,7 +2545,9 @@ def operational_summary(*, actor, company_id, branch_id=None):
         expense_capital = expenses.annotate(
             current_capital=Coalesce(Subquery(latest_expense_capital, output_field=money), F("running_capital_amount"), output_field=money)
         ).aggregate(total=Sum("current_capital"))["total"] or Decimal("0.00")
-        contributed = purchase_capital + expense_capital
+        with localcontext() as context:
+            context.prec = 80
+            contributed = Decimal(purchase_capital) + Decimal(expense_capital)
         from apps.investment.models import VehicleCapitalRecovery
         capital_recoveries = VehicleCapitalRecovery.objects.filter(
             tenant=company,
@@ -2597,21 +2612,29 @@ def operational_summary(*, actor, company_id, branch_id=None):
                     or any(rev.source_version == source_ver for rev in rec.reviews.all())
                     for rec in sale_recoveries
                 )
-                inv_recovered = sum((rec.investor_principal for rec in sale_recoveries), Decimal("0.00"))
-                rc_recovered = sum((rec.running_capital for rec in sale_recoveries), Decimal("0.00"))
-                if (
-                    not rec_current
-                    or Decimal(payload["buyer_refund_payable"] or "0.00") > Decimal("0.00")
-                    or Decimal(payload["actual_net_collection"]) < (inv_recovered + rc_recovered)
-                    or rc_recovered > Decimal(payload["running_capital_cost"])
-                ):
-                    recovery_stale = True
-                    break
+                with localcontext() as context:
+                    context.prec = 80
+                    inv_recovered = sum((Decimal(rec.investor_principal) for rec in sale_recoveries), Decimal("0.00"))
+                    rc_recovered = sum((Decimal(rec.running_capital) for rec in sale_recoveries), Decimal("0.00"))
+                    if (
+                        not rec_current
+                        or Decimal(payload["buyer_refund_payable"] or "0.00") > Decimal("0.00")
+                        or Decimal(payload["actual_net_collection"]) < (inv_recovered + rc_recovered)
+                        or rc_recovered > Decimal(payload["running_capital_cost"])
+                    ):
+                        recovery_stale = True
+                        break
         if recovery_stale:
             recovered = None
     else:
         contributed = recovered = None
-    outstanding = contributed - recovered if contributed is not None and recovered is not None and recovered <= contributed else None
+    with localcontext() as context:
+        context.prec = 80
+        outstanding = (
+            Decimal(contributed) - Decimal(recovered)
+            if contributed is not None and recovered is not None and Decimal(recovered) <= Decimal(contributed)
+            else None
+        )
     return {
         "company_id": str(company_id),
         "branch_id": str(branch_id) if branch_id else None,
